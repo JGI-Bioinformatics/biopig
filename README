@@ -1,0 +1,18 @@
+This directory contains the source code for the various pieces of
+the jgi rumen metagenomics pipeline.  this includes the existing
+perl scripts developed by alex, as well as the various java/hadoop/
+cassandra software.
+
+here is a description of the various pieces:
+
+  README 	- this file
+  docs/ 	- any documentation, papers, etc
+  results/	- saved analysis results
+  meta/		- groovy-based commandline tools for accessing datastore
+  duplicates/	- java hadoop application to identify sequence duplicates 
+  kmer/		- kmer-based filtering and truncation of sequences
+  cloudblast/	- hadoop-based blast
+
+
+The entire directory is stored in a git repository, so you can take
+look at the git logs to see changes, etc.    	

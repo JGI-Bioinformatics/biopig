@@ -1,0 +1,398 @@
+#!/usr/bin/env groovy
+
+/*
+ * Copyright (c) 2010, Joint Genome Institute (JGI) United States Department of Energy
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *    This product includes software developed by the JGI.
+ * 4. Neither the name of the JGI nor the
+ *    names of its contributors may be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY JGI ''AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL JGI BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+
+import org.apache.log4j.Logger
+import org.apache.log4j.PropertyConfigurator
+
+import org.biojavax.bio.seq.*;
+import org.biojava.bio.*;
+
+
+import org.apache.thrift.transport.TTransport
+import org.apache.thrift.transport.TSocket
+import org.apache.thrift.protocol.TProtocol
+import org.apache.thrift.protocol.TBinaryProtocol
+import org.apache.cassandra.thrift.*
+import org.apache.cassandra.service.*;
+
+
+/**
+ * properties file that contains the various configuration parameters for this script
+ */
+
+Logger log = Logger.getLogger("meta")
+
+/* ==================================== */
+/* = commandline processing functions = */
+/* ==================================== */
+
+/**
+ *  processes the argments from commandline and returns map.
+ *  flags are boolean and params take the following argument as value
+ *
+ * @param flag list of flags in the form ['-b', '-d',]
+ * @param params is list of flags that take a value
+ * @param args is the commandline argment as list
+ * @return map file of the form ['-d': true, '-x': 'value']
+ */
+Map processArgs(List flags, List params, List args) {
+  boolean error = 0
+  Map options = [:]
+
+  //
+  // process the flags first
+  //
+  flags.each {f ->
+    if (args.contains(f)) {
+      options[f] = true
+      args.remove(f)
+    }
+  }
+
+  //
+  // now for the parameters
+  //
+  params.each {p ->
+    if (args.contains(p)) {
+
+      // the value of the parameter is the next in sequence
+
+      def v = args[args.findIndexOf { it == p} + 1]
+
+      // make sure value is not a parameter
+
+      if (v && v[0] != '-') {
+        options[p] = v
+        args.remove(v)
+        args.remove(p)
+      } else {
+        // if no value is found set error but continue
+        error = true
+      }
+    }
+  }
+
+  options['error'] = error
+
+  //
+  // now set the remaining unused args in options.args[0] ...
+  //
+  options['args'] = args
+
+  return options
+}
+
+/**
+ * prints the usage for the command
+ */
+def printUsage() {
+  println("usage: meta <command> <options>")
+  println("commands:")
+  println("\tscan <table> - reads a datafile and summarizes data (-f <file> or -c <cass host>, or default from stdin)")
+  println("\tload - loads data from file (-f <file>) or stdout into cassandra host specified by -c")
+
+  println("options:")
+  println("\t-k keyspace (default = Keyspace1")
+  println("\t-c <cassandrahost> (default = localhost)")
+  println("\t-p <cassandraport> (default = 9160)")
+  println("\t-d turns debug statments on")
+  println("\t-? (or --help) shows usage")
+  println("\t--libversion shows version of software")
+}
+
+/* ======================= */
+/* = Script starts here  = */
+/* ======================= */
+
+/*
+        setup the parameters and process commandline
+*/
+
+List largs = (List) args
+List flags = ['-d', '--help', '-?', '--libversion']
+List params = ['-f', '-c', '-p', '-k']
+
+def options = processArgs(flags, params, largs)
+
+// now load the prefs from the ~/.gama-prefs file
+props = new Properties()
+try {
+  java.io.FileInputStream fis = new java.io.FileInputStream
+  (new java.io.File(System.env['HOME'] + "/.meta-prefs"))
+  props.load(fis)
+  if (options['-d']) {
+    println("loaded config file from ~/.meta-prefs")
+  }
+  props.each {it -> System.setProperty(it.key, it.value)}
+  //configure the log4j logging system
+  PropertyConfigurator.configure(System.env['HOME'] + "/.meta-prefs")
+
+} catch (IOException e) {
+  if (options['-d']) {
+    println("Config file ~/.meta-prefs not found or loaded")
+  }
+}
+
+String hostname = options['-c'] ? options['-c'] : "localhost"
+String port     = options['-p'] ? options['-p'] : "9160"
+String keyspace = options['-k'] ? options['-k'] : "Keyspace1"
+Cassandra.Client client = null;
+
+
+
+println("connecting to datastore: " + hostname + "/" + port)
+try {
+  TTransport tr = new TSocket(hostname, 9160);
+  TProtocol proto = new TBinaryProtocol(tr);
+  client = new Cassandra.Client(proto);
+  tr.open();
+} catch (Exception e) {
+  println("unable to connect to datastore: " + e)
+  System.exit(1)
+}
+
+
+
+/*
+        now figure out what to do
+*/
+
+if (options['--libversion']) {
+  println("meta version = ...");
+  System.exit(0)
+}
+
+if (options.error) {
+  printUsage()
+  System.exit(1)
+}
+
+if (options['-d']) {
+  println "options = " + options
+}
+
+if (options['--help'] || options['-?']) {
+  printUsage()
+  System.exit(0)
+}
+
+/*
+        determine major command
+*/
+command = options.args[0]
+if (options['-d']) println("command = " + command)
+
+
+def longAsByteArray(Long s) {
+  bos = new java.io.ByteArrayOutputStream();
+  dos = new java.io.DataOutputStream(bos);
+  dos.writeLong(s);
+  dos.flush();
+  return bos.toByteArray();
+}
+
+
+switch (command) {
+  case "scan":
+
+    BufferedReader br
+    RichSequenceIterator iter
+
+    if (options['-c']) {
+      String table = options.args[1]
+
+      // scan the fasta sequences from cassandra datastore
+      boolean flag = true;
+      String lastkey = "";
+
+      SlicePredicate predicate;
+      predicate = new SlicePredicate();
+      ColumnParent parent = new ColumnParent(table);
+      int count = 0;
+
+      while (flag) {
+        predicate.setSlice_range(new SliceRange(new byte[0], new byte[0],false,100))
+        List<KeySlice> results = client.get_range_slice(keyspace, parent, predicate, lastkey, "", 100, ConsistencyLevel.ONE);
+
+        if (lastkey == '') count += results.size();
+        else count += results.size()-1;
+
+        if (options['-d']){
+          //println("retrieved " + results.size() + " items from datastore");
+
+          results.each {e ->
+            println("key: " + e.key);
+          //def s = new String(e.columns[0].super_column.name);
+          //def v1 = new String(e.columns[0].super_column.columns[0].value);
+          //def v2 = new String(e.columns[0].super_column.columns[1].value);
+          //println("found: " + s);
+          //println("s1 = " + v1 + "/" + v2);
+          }
+        }
+
+        if (results.size() < 100) flag = false;
+        lastkey = results.last()?.key;
+
+      }
+
+      println("retrieved total of " + count);
+
+    } else {
+
+      if (options['-f']) br = new BufferedReader(new FileReader(options['-f']));
+      else br = new BufferedReader(new InputStreamReader(System.in));
+
+      try {
+        iter = (RichSequenceIterator) RichSequence.IOTools.readFastaProtein(br, null);
+      } catch (BioException ex) {
+        try {
+          iter = (RichSequenceIterator) RichSequence.IOTools.readFastaProtein(br, null);
+        } catch (Exception e) {
+          // can't do anything now
+          println(e);
+          System.exit(1);
+        }
+      }
+      int count = 0
+      while (iter.hasNext()) {
+        count++;
+        RichSequence rr = iter.nextRichSequence();
+        if (options['-d']) {
+          rr.getProperties().each {it -> println(it)};
+        }
+        def m = rr.getProperties().description =~ /([^ =]*)=([^ ]*)/
+        m.each{match ->
+          println(match[1] + " = " + match[2]);
+        }
+
+      }
+      println("Total number of sequences: " + count);
+    }
+
+  break;
+
+  case("load"):
+     String table = options.args[1]
+
+     if (options['-f']) br = new BufferedReader(new FileReader(options['-f']));
+     else br = new BufferedReader(new InputStreamReader(System.in));
+
+     try {
+        iter = (RichSequenceIterator) RichSequence.IOTools.readFastaProtein(br, null);
+      } catch (BioException ex) {
+        try {
+          iter = (RichSequenceIterator) RichSequence.IOTools.readFastaProtein(br, null);
+        } catch (Exception e) {
+          // can't do anything now
+          println(e);
+          System.exit(1);
+        }
+      }
+
+      long i = 0;
+      def p = [:];
+      p['1'] = "11111111111111111111".getBytes();
+      p['2'] = '22222222222222222222'.getBytes();
+  
+      while (iter.hasNext()) {
+        RichSequence rr = iter.nextRichSequence();
+        if (options['-d']) println(rr.getProperties().URN);
+
+        def seq = [:]
+        String[] l = rr.getProperties().URN.split('/');
+        String key_user_id;
+        String segment = "0";
+        if (l.length > 1) {
+          segment = l[1];
+          key_user_id = l[0];
+        } else {
+          segment = '0';
+          key_user_id = rr.getProperties().URN;
+        }
+
+        seq["sequence"] = rr.getProperties().stringSequence;
+        seq["description"] = rr.getProperties().description;
+
+        /*
+        the description field may have some non-standard metadata embedded
+        as key=value fields.  parse and if any are found, add them to the sequence.
+         */
+        def m = rr.getProperties().description =~ /([^ =]*)=([^ ]*)/
+        m.each{match ->
+          seq[match[1]] = match[2]
+        }
+
+        /*
+         insert data into cassandra
+         */
+        long timestamp = System.currentTimeMillis();
+//        seq.each {k, v ->
+          client.insert('jgi',
+                  key_user_id,
+                  new ColumnPath('reads').setSuper_column('sequence'.getBytes()).setColumn(segment.getBytes()),
+//                  seq['sequence'].getBytes(),
+                  p[segment],
+                  timestamp,
+                  ConsistencyLevel.ONE);
+
+//          if ( "EC".equals(k)) {
+//            client.insert(keyspace,
+//                  v.toString(),
+//                  new ColumnPath(table+"ec").setColumn(longAsByteArray(i)),
+//                  key_user_id.getBytes(),
+//                  timestamp,
+//                  ConsistencyLevel.ONE);
+//          }
+          i++;
+//        }
+
+        /*
+        also insert into special cazy-ec table that models the
+         */
+      }
+
+  break;
+
+  case ('delete'):
+
+  /*
+   want to delete set of keys
+   */
+
+
+  break;
+
+
+
+}
+
