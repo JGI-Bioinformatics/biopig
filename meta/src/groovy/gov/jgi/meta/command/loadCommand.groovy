@@ -1,0 +1,216 @@
+/*
+ * Copyright (c) 2010, Joint Genome Institute (JGI) United States Department of Energy
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *    This product includes software developed by the JGI.
+ * 4. Neither the name of the JGI nor the
+ *    names of its contributors may be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY JGI ''AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL JGI BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+package groovy.gov.jgi.meta.command
+
+import org.biojavax.bio.seq.RichSequenceIterator
+import org.biojavax.bio.seq.RichSequence
+import org.biojava.bio.BioException
+import org.apache.cassandra.thrift.ColumnPath
+import org.apache.cassandra.thrift.ConsistencyLevel
+import org.apache.cassandra.thrift.Cassandra
+import org.apache.thrift.transport.TTransport
+import org.apache.thrift.transport.TSocket
+import org.apache.thrift.protocol.TProtocol
+import org.apache.thrift.protocol.TBinaryProtocol
+
+//Todo: implement bulk loading
+
+/**
+ * loads sequence data into datastore. command looks like % meta load <table>
+ *
+ * @param -f file to read and load (or stdin)
+ * @param -k keyspace to load into
+ * @param -c cassandra host to connect to
+ * @param -p port for host
+ *
+ * @note the cassandra tables must be setup and existent.  they must also have
+ * the correct structure.  (currently a supercolumn named "sequence").
+ */
+class loadCommand implements command {
+
+    String DEFAULTKEYSPACE = "Keyspace1"
+    String DEFAULTTABLE = "Standard1"
+    String DEFAULTHOST = "localhost"
+    String DEFAULTPORT = "9160"
+
+    List flags = [
+            '-b'    // for bulkloading data
+    ]
+
+    List params = [
+            '-f',   // -f file from which to read sequences
+            '-c',   // -c cassandra server to connect to
+            '-p',   // -p port number
+            '-k'    // -k keyspace
+    ]
+
+    String name() {
+        return "load"
+    }
+
+    List options() {
+
+        /* return list of flags (existential) and parameters  */
+        return [
+                flags, params
+        ];
+
+    }
+
+    String usage() {
+        return "load <table> - loads data from file (-f <file> or stdout) into \n\t\tcassandra host (-c) port (-p) using keyspace (-k)";
+    }
+
+    /**
+     * loads a set of sequence data into cassandra database
+     *
+     * @param arguments for the load command.  arg[0] is load, arg[1] is the table
+     * @param options specifier
+     * @return 0 if all went well, not 0 if there was an error
+     */
+    int execute(List args, Map options) {
+
+        String hostname = options['-c'] ? options['-c'] : "localhost"
+        int port = options['-p'] ? Integer.parseInt(options['-p']) : 9160
+        Cassandra.Client client = null;
+
+        long timestamp = System.currentTimeMillis();
+        String keyspace = options['-k'] ?
+            options['-k'] :
+            (System.getProperty("meta.defaultKeyspace") ? System.getProperty("meta.defaultKeyspace") : DEFAULTKEYSPACE)
+
+        String table = args[1] ? args[1] : DEFAULTTABLE
+
+        RichSequenceIterator iter
+
+        def br = options['-f'] ? new BufferedReader(new FileReader(options['-f'])) : new BufferedReader(new InputStreamReader(System.in));
+
+        try {
+
+            iter = (RichSequenceIterator) RichSequence.IOTools.readFastaProtein(br, null);
+
+
+        } catch (BioException ex) {
+
+            // if error, try to load as sequence data
+            try {
+
+                iter = (RichSequenceIterator) RichSequence.IOTools.readFastaDNA(br, null);
+
+            } catch (Exception e) {
+                // can't do anything so exit
+                println(e);
+                return 1;
+            }
+        }
+
+        /*
+         * connect to the cassandra client
+         */
+
+        try {
+            TTransport tr = new TSocket(hostname, port);
+            TProtocol proto = new TBinaryProtocol(tr);
+            client = new Cassandra.Client(proto);
+            tr.open();
+        } catch (Exception e) {
+            println("unable to connect to datastore: " + e)
+            return 1;
+        }
+
+
+        while (iter.hasNext()) {
+
+            RichSequence rr = iter.nextRichSequence();
+            String key_user_id
+            String segment
+
+            if (rr) {
+                if (options['-d']) println(rr.getProperties().URN);
+                if (rr.getProperties().URN.find('/')) {
+                    def l = rr.getProperties().URN.split('/');
+                    key_user_id = l[0]
+                    segment = l[1]
+                } else {
+                    key_user_id = rr.getProperties().URN
+                    segment = "0"
+                }
+            }
+
+
+            def seq = [:]
+            seq["sequence"] = rr.getProperties().stringSequence;
+            seq["description"] = rr.getProperties().description;
+
+            /*
+             * the description field may have some non-standard metadata embedded
+             * as key=value fields.  parse and if any are found, add them to the sequence.
+             */
+            def m = rr.getProperties().description =~ /([^ =]*)=([^ ]*)/
+            m.each {match ->
+                seq[match[1]] = match[2]
+            }
+
+            /*
+            insert data into cassandra
+            */
+
+
+            if (options['-d']) {
+                println("inserting " + key_user_id + "(segment " + segment + ")" + " into table " + keyspace + "/" + table);
+                println(seq.toString());
+            }
+            seq.each {k, v ->
+
+                /* add sequence to its own column, add the rest to metadata column */
+
+                if (k.equals("sequence")) {
+                    client.insert(keyspace,
+                            key_user_id,
+                            new ColumnPath(table).setSuper_column('sequence'.getBytes()).setColumn(segment.getBytes()),
+                            seq['sequence'].getBytes(),
+                            timestamp,
+                            ConsistencyLevel.ONE);
+                } else {
+                    client.insert(keyspace,
+                            key_user_id,
+                            new ColumnPath(table).setSuper_column('metadata'.getBytes()).setColumn(k.getBytes()),
+                            v.getBytes(),
+                            timestamp,
+                            ConsistencyLevel.ONE);
+                }
+            }
+        }
+
+        return 0;
+    }
+
+}
