@@ -81,8 +81,14 @@ class scanCommand implements command {
         BufferedReader br
         RichSequenceIterator iter
 
-        String hostname = options['-c'] ? options['-c'] : "localhost"
+        String hostname = options['-c'] ?
+            options['-c'] :
+            (System.getProperty("meta.defaultHostname") ? System.getProperty("meta.defaultHostname") : DEFAULTHOST)
+        
         int port = options['-p'] ? Integer.parseInt(options['-p']) : 9160
+
+       
+
         Cassandra.Client client = null;
 
         String keyspace = options['-k'] ?
@@ -118,18 +124,19 @@ class scanCommand implements command {
         int count = 0;
 
         while (flag) {
-            predicate.setSlice_range(new SliceRange(new byte[0], new byte[0],false,100))
-            List<KeySlice> results = client.get_range_slice(keyspace, parent, predicate, lastkey, "", 100, ConsistencyLevel.ONE);
+            predicate.setSlice_range(new SliceRange(new byte[0], new byte[0],false,1))
+            List<KeySlice> results = client.get_range_slice(keyspace, parent, predicate, lastkey, "", 10000, ConsistencyLevel.ONE);
 
             if (lastkey == '') count += results.size();
             else count += results.size()-1;
 
             if (options['-d']){
                 results.each {e ->
-                    println("key: " + e.key);
-                    e.getColumns().each {c ->
-                        println("\tcolumnname: " + c.toString());
-                    }
+
+
+                    int colcount = client.get_count(keyspace, e.key, parent, ConsistencyLevel.ONE)
+                    println("key: " + e.key + " [" + colcount + " columns]");
+
                     //def s = new String(e.columns[0].super_column.name);
                     //def v1 = new String(e.columns[0].super_column.columns[0].value);
                     //def v2 = new String(e.columns[0].super_column.columns[1].value);
