@@ -40,7 +40,9 @@ import org.apache.thrift.transport.TTransport
 import org.apache.thrift.transport.TSocket
 import org.apache.thrift.protocol.TProtocol
 import org.apache.thrift.protocol.TBinaryProtocol
-
+import org.apache.cassandra.thrift.Mutation
+import org.apache.cassandra.thrift.Column
+import org.apache.cassandra.thrift.ColumnOrSuperColumn
 
 /**
  * loads sequence data into datastore. command looks like % meta load <table>
@@ -189,16 +191,26 @@ class loadHashCommand implements command {
             def seq = [:]
             seq["sequence"] = rr.getProperties().stringSequence;
 
+
+
+            Map mutation_map = [:]
+
             /*
             insert data into cassandra
             */
             int seqsize = seq["sequence"].length();
 
             for (int i = 0; i < seqsize - size -1; i++ ) {
+                Mutation kmerinsert = new Mutation();
                 count++
-
                 String kmer = seq["sequence"].substring(i, i+size);
                 byte[] b = intToByteArray(i);
+
+
+                if (!mutation_map[kmer]) {
+                    mutation_map[kmer] = [:]
+                    mutation_map[kmer][table] = []
+                }
 
                 if (options['-d']) {
                     println("inserting " + kmer + " into table " + keyspace + "/" + table + " with value " + b);
@@ -206,16 +218,28 @@ class loadHashCommand implements command {
 
                 }
 
-                if (noconnect == 1) continue; // useful for timing
+                ColumnOrSuperColumn c = new ColumnOrSuperColumn();
+                c.setColumn(new Column(key_user_id.getBytes(), b, timestamp));
+                kmerinsert.setColumn_or_supercolumn(c);
 
-                client.insert(keyspace,
-                        kmer,
-                        new ColumnPath(table).setColumn(key_user_id.getBytes()),
-                        b,
-                        timestamp,
-                        ConsistencyLevel.ONE);
+                mutation_map[kmer][table].add(kmerinsert);
+
+
+//                client.insert(keyspace,
+//                        kmer,
+//                        new ColumnPath(table).setColumn(key_user_id.getBytes()),
+//                        b,
+//                        timestamp,
+//                        ConsistencyLevel.ONE);
+
+                
 
             }
+            //println("mutation_map = " + mutation_map.toString());
+
+            if (noconnect == 1) continue; // useful for timing
+
+            client.batch_mutate(keyspace, mutation_map, ConsistencyLevel.ONE);
         }
         println("inserted " + count + " kmers");
         

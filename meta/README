@@ -1,0 +1,56 @@
+README file for meta project (commandline tools for managing metagenomics pipeline)
+
+This directory contains the source code for commandline tools to manage the cloud-based rumen
+metagenomics pipeline.  The pipeline uses cassandra for data storage and map/reduce for computation.
+The commandline program developed here is used to manage the cassandra data store:  load data,
+query and manipulate as needed.
+
+DEPENDENCIES
+------------
+
+You need java and groovy.  Of course you need your cassandra datastore up somewhere as well
+otherwise there is not much for this program to do.
+
+
+To INSTALL
+----------
+
+if java and groovy are working properly (ie, % groovysh works) then you should be able to
+execute
+   % bin/meta --help
+to test.
+
+There's only one main executable and doing a help will give you all the options.
+
+
+DEFAULTS
+--------
+
+The commandline tool reads a properties file from your home directory, ~/.meta-prefs and
+can use those values as defaults to decrease the number of parameters that are needed.
+
+List of properties that can be set:
+
+   meta.defaultKeySpace
+
+
+USAGE
+------
+
+% meta --help
+
+
+1.  Query the data model
+
+   % meta -c <cassandra server> query <-k keyspace>
+
+
+2.  bulk load sequences
+
+
+3.  scan sequences from datastore
+
+
+4.  show all columns from particular key
+
+

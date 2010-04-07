@@ -7,8 +7,8 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="library" name="groovy-1.6.2" level="application" />
-    <orderEntry type="library" name="groovylibs" level="application" />
+    <orderEntry type="library" name="groovy-libs" level="application" />
+    <orderEntry type="library" name="groovy" level="application" />
   </component>
 </module>
 

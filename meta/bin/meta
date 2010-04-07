@@ -30,20 +30,22 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
+import groovy.gov.jgi.meta.command.*
 import org.apache.log4j.Logger
-import org.apache.log4j.PropertyConfigurator
-
-import org.biojavax.bio.seq.*;
-import org.biojava.bio.*;
-
-
+import org.apache.cassandra.thrift.Cassandra
 import org.apache.thrift.transport.TTransport
-import org.apache.thrift.transport.TSocket
 import org.apache.thrift.protocol.TProtocol
+import org.apache.thrift.transport.TSocket
 import org.apache.thrift.protocol.TBinaryProtocol
-import org.apache.cassandra.thrift.*
-import org.apache.cassandra.service.*;
+import org.biojavax.bio.seq.RichSequenceIterator
+import org.apache.cassandra.thrift.SlicePredicate
+import org.apache.cassandra.thrift.ColumnParent
+import org.apache.cassandra.thrift.KeySlice
+import org.apache.cassandra.thrift.SliceRange
+import org.biojava.bio.BioException
+import org.biojavax.bio.seq.RichSequence
+import org.apache.cassandra.thrift.ColumnPath
+import org.apache.log4j.PropertyConfigurator;
 
 
 /**
@@ -52,9 +54,18 @@ import org.apache.cassandra.service.*;
 
 Logger log = Logger.getLogger("meta")
 
+
+/**
+ * the set of commands that are configured
+ */
+
+commandList = [ new loadCommand(), new scanCommand(), new loadHashCommand() ];
+
+
 /* ==================================== */
 /* = commandline processing functions = */
 /* ==================================== */
+
 
 /**
  *  processes the argments from commandline and returns map.
@@ -65,7 +76,7 @@ Logger log = Logger.getLogger("meta")
  * @param args is the commandline argment as list
  * @return map file of the form ['-d': true, '-x': 'value']
  */
-Map processArgs(List flags, List params, List args) {
+Map processArgs(Set flags, Set params, List args) {
   boolean error = 0
   Map options = [:]
 
@@ -115,19 +126,12 @@ Map processArgs(List flags, List params, List args) {
 /**
  * prints the usage for the command
  */
-def printUsage() {
+void printUsage() {
   println("usage: meta <command> <options>")
   println("commands:")
-  println("\tscan <table> - reads a datafile and summarizes data (-f <file> or -c <cass host>, or default from stdin)")
-  println("\tload - loads data from file (-f <file>) or stdout into cassandra host specified by -c")
-
-  println("options:")
-  println("\t-k keyspace (default = Keyspace1")
-  println("\t-c <cassandrahost> (default = localhost)")
-  println("\t-p <cassandraport> (default = 9160)")
-  println("\t-d turns debug statments on")
-  println("\t-? (or --help) shows usage")
-  println("\t--libversion shows version of software")
+  commandList.each { c ->
+      println("\t" + c.usage())
+  }
 }
 
 /* ======================= */
@@ -139,48 +143,46 @@ def printUsage() {
 */
 
 List largs = (List) args
-List flags = ['-d', '--help', '-?', '--libversion']
-List params = ['-f', '-c', '-p', '-k']
+
+Set flags = ['-d', '--help', '-?'];
+Set params = [];
+
+commandList.each { c ->
+    List t = c.options()
+    if ( t ) {
+       t[0].each {l -> flags.add(l)}
+       t[1].each {l -> params.add(l)}
+    }
+}
+
+println("flags = " + flags);
+println("params = " + params);
 
 def options = processArgs(flags, params, largs)
 
-// now load the prefs from the ~/.gama-prefs file
+// now load the prefs from the ~/.meta-prefs file
 props = new Properties()
 try {
-  java.io.FileInputStream fis = new java.io.FileInputStream
-  (new java.io.File(System.env['HOME'] + "/.meta-prefs"))
+  java.io.FileInputStream fis = new java.io.FileInputStream(new java.io.File(System.env['HOME'] + "/.meta-prefs"))
   props.load(fis)
+  props.each {it ->
+      if (options['-d']) {
+          println("added property: " + it.key + "/" + it.value);
+      }
+      System.setProperty(it.key, it.value)
+
+   }
   if (options['-d']) {
     println("loaded config file from ~/.meta-prefs")
+    println("example: meta.defaultKeyspace = " + System.getProperty("meta.defaultKeyspace"))
   }
-  props.each {it -> System.setProperty(it.key, it.value)}
   //configure the log4j logging system
   PropertyConfigurator.configure(System.env['HOME'] + "/.meta-prefs")
-
 } catch (IOException e) {
   if (options['-d']) {
     println("Config file ~/.meta-prefs not found or loaded")
   }
 }
-
-String hostname = options['-c'] ? options['-c'] : "localhost"
-String port     = options['-p'] ? options['-p'] : "9160"
-String keyspace = options['-k'] ? options['-k'] : "Keyspace1"
-Cassandra.Client client = null;
-
-
-
-println("connecting to datastore: " + hostname + "/" + port)
-try {
-  TTransport tr = new TSocket(hostname, 9160);
-  TProtocol proto = new TBinaryProtocol(tr);
-  client = new Cassandra.Client(proto);
-  tr.open();
-} catch (Exception e) {
-  println("unable to connect to datastore: " + e)
-  System.exit(1)
-}
-
 
 
 /*
@@ -223,165 +225,35 @@ def longAsByteArray(Long s) {
 
 
 switch (command) {
+
+    //------------------------------------------------------------------------------------------
+    //                                     SCAN Command
+    //------------------------------------------------------------------------------------------
   case "scan":
 
-    BufferedReader br
-    RichSequenceIterator iter
-
-    if (options['-c']) {
-      String table = options.args[1]
-
-      // scan the fasta sequences from cassandra datastore
-      boolean flag = true;
-      String lastkey = "";
-
-      SlicePredicate predicate;
-      predicate = new SlicePredicate();
-      ColumnParent parent = new ColumnParent(table);
-      int count = 0;
-
-      while (flag) {
-        predicate.setSlice_range(new SliceRange(new byte[0], new byte[0],false,100))
-        List<KeySlice> results = client.get_range_slice(keyspace, parent, predicate, lastkey, "", 100, ConsistencyLevel.ONE);
-
-        if (lastkey == '') count += results.size();
-        else count += results.size()-1;
-
-        if (options['-d']){
-          //println("retrieved " + results.size() + " items from datastore");
-
-          results.each {e ->
-            println("key: " + e.key);
-          //def s = new String(e.columns[0].super_column.name);
-          //def v1 = new String(e.columns[0].super_column.columns[0].value);
-          //def v2 = new String(e.columns[0].super_column.columns[1].value);
-          //println("found: " + s);
-          //println("s1 = " + v1 + "/" + v2);
-          }
-        }
-
-        if (results.size() < 100) flag = false;
-        lastkey = results.last()?.key;
-
-      }
-
-      println("retrieved total of " + count);
-
-    } else {
-
-      if (options['-f']) br = new BufferedReader(new FileReader(options['-f']));
-      else br = new BufferedReader(new InputStreamReader(System.in));
-
-      try {
-        iter = (RichSequenceIterator) RichSequence.IOTools.readFastaProtein(br, null);
-      } catch (BioException ex) {
-        try {
-          iter = (RichSequenceIterator) RichSequence.IOTools.readFastaProtein(br, null);
-        } catch (Exception e) {
-          // can't do anything now
-          println(e);
-          System.exit(1);
-        }
-      }
-      int count = 0
-      while (iter.hasNext()) {
-        count++;
-        RichSequence rr = iter.nextRichSequence();
-        if (options['-d']) {
-          rr.getProperties().each {it -> println(it)};
-        }
-        def m = rr.getProperties().description =~ /([^ =]*)=([^ ]*)/
-        m.each{match ->
-          println(match[1] + " = " + match[2]);
-        }
-
-      }
-      println("Total number of sequences: " + count);
-    }
+      commandList[1].execute(options.args, options);
 
   break;
+
+//------------------------------------------------------------------------------------------
+//                                     LOAD Command
+//------------------------------------------------------------------------------------------
 
   case("load"):
-     String table = options.args[1]
 
-     if (options['-f']) br = new BufferedReader(new FileReader(options['-f']));
-     else br = new BufferedReader(new InputStreamReader(System.in));
-
-     try {
-        iter = (RichSequenceIterator) RichSequence.IOTools.readFastaProtein(br, null);
-      } catch (BioException ex) {
-        try {
-          iter = (RichSequenceIterator) RichSequence.IOTools.readFastaProtein(br, null);
-        } catch (Exception e) {
-          // can't do anything now
-          println(e);
-          System.exit(1);
-        }
-      }
-
-      long i = 0;
-      def p = [:];
-      p['1'] = "11111111111111111111".getBytes();
-      p['2'] = '22222222222222222222'.getBytes();
-  
-      while (iter.hasNext()) {
-        RichSequence rr = iter.nextRichSequence();
-        if (options['-d']) println(rr.getProperties().URN);
-
-        def seq = [:]
-        String[] l = rr.getProperties().URN.split('/');
-        String key_user_id;
-        String segment = "0";
-        if (l.length > 1) {
-          segment = l[1];
-          key_user_id = l[0];
-        } else {
-          segment = '0';
-          key_user_id = rr.getProperties().URN;
-        }
-
-        seq["sequence"] = rr.getProperties().stringSequence;
-        seq["description"] = rr.getProperties().description;
-
-        /*
-        the description field may have some non-standard metadata embedded
-        as key=value fields.  parse and if any are found, add them to the sequence.
-         */
-        def m = rr.getProperties().description =~ /([^ =]*)=([^ ]*)/
-        m.each{match ->
-          seq[match[1]] = match[2]
-        }
-
-        /*
-         insert data into cassandra
-         */
-        long timestamp = System.currentTimeMillis();
-//        seq.each {k, v ->
-          client.insert('jgi',
-                  key_user_id,
-                  new ColumnPath('reads').setSuper_column('sequence'.getBytes()).setColumn(segment.getBytes()),
-//                  seq['sequence'].getBytes(),
-                  p[segment],
-                  timestamp,
-                  ConsistencyLevel.ONE);
-
-//          if ( "EC".equals(k)) {
-//            client.insert(keyspace,
-//                  v.toString(),
-//                  new ColumnPath(table+"ec").setColumn(longAsByteArray(i)),
-//                  key_user_id.getBytes(),
-//                  timestamp,
-//                  ConsistencyLevel.ONE);
-//          }
-          i++;
-//        }
-
-        /*
-        also insert into special cazy-ec table that models the
-         */
-      }
+      commandList[0].execute(options.args, options);
 
   break;
+
+  case("hash"):
+
+    commandList[2].execute(options.args, options);
+
+    break;
+
+//------------------------------------------------------------------------------------------
+//                                     delete Command
+//------------------------------------------------------------------------------------------
 
   case ('delete'):
 
@@ -391,6 +263,23 @@ switch (command) {
 
 
   break;
+
+//------------------------------------------------------------------------------------------
+//                                     QUERY Command
+//------------------------------------------------------------------------------------------
+
+
+
+//------------------------------------------------------------------------------------------
+//                                     delete Command
+//------------------------------------------------------------------------------------------
+
+
+
+
+//------------------------------------------------------------------------------------------
+//                                     delete Command
+//------------------------------------------------------------------------------------------
 
 
 
