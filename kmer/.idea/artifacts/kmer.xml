@@ -1,0 +1,11 @@
+<component name="ArtifactManager">
+  <artifact type="jar" build-on-make="true" name="kmer">
+    <output-path>$PROJECT_DIR$/out/artifacts/kmer</output-path>
+    <root id="archive" name="kmer.jar">
+      <element id="module-output" name="kmer" />
+      <element id="directory" name="META-INF">
+        <element id="file-copy" path="$PROJECT_DIR$/out/artifacts/kmer/META-INF/MANIFEST.MF" />
+      </element>
+    </root>
+  </artifact>
+</component>
