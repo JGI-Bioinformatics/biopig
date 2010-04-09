@@ -40,6 +40,10 @@ import org.apache.thrift.transport.TTransport
 import org.apache.thrift.transport.TSocket
 import org.apache.thrift.protocol.TProtocol
 import org.apache.thrift.protocol.TBinaryProtocol
+import org.apache.cassandra.thrift.Mutation
+import org.apache.cassandra.thrift.ColumnOrSuperColumn
+import org.apache.cassandra.thrift.Column
+import org.apache.cassandra.thrift.SuperColumn
 
 //Todo: implement bulk loading
 
@@ -197,25 +201,59 @@ class loadCommand implements command {
                 println("inserting " + key_user_id + "(segment " + segment + ")" + " into table " + keyspace + "/" + table);
                 println(seq.toString());
             }
+
+            Map mutation_map = [:]
+            int i = 0;
             seq.each {k, v ->
+                Mutation kmerinsert = new Mutation();
+                Mutation kmerinsert2 = new Mutation();
+                
+                if (!mutation_map[key_user_id]) {
+                     mutation_map[key_user_id] = [:]
+                     mutation_map[key_user_id][table] = []
+                }
 
                 /* add sequence to its own column, add the rest to metadata column */
-
                 if (k.equals("sequence")) {
-                    client.insert(keyspace,
-                            key_user_id,
-                            new ColumnPath(table).setSuper_column('sequence'.getBytes()).setColumn(segment.getBytes()),
-                            seq['sequence'].getBytes(),
-                            timestamp,
-                            ConsistencyLevel.ONE);
-                } else {
-                    client.insert(keyspace,
-                            key_user_id,
-                            new ColumnPath(table).setSuper_column('metadata'.getBytes()).setColumn(k.getBytes()),
-                            (v ? v : "").getBytes(),
-                            timestamp,
-                            ConsistencyLevel.ONE);
+                    ColumnOrSuperColumn c = new ColumnOrSuperColumn();
+                    c.setSuper_column(
+                            new SuperColumn("sequence".getBytes(),
+                                    [ new Column(segment.getBytes(), seq['sequence'].getBytes(), timestamp) ]));
+                    kmerinsert.setColumn_or_supercolumn(c);
+                    mutation_map[key_user_id][table].add(kmerinsert);
+                } else if (v && v != "") {
+                    ColumnOrSuperColumn c2 = new ColumnOrSuperColumn();
+                    c2.setSuper_column(
+                            new SuperColumn("metadata".getBytes(),
+                                    [ new Column(k.getBytes(), (v ? v : "").getBytes(), timestamp) ]));
+                    kmerinsert2.setColumn_or_supercolumn(c2);
+                    mutation_map[key_user_id][table].add(kmerinsert2);
                 }
+//                if (k.equals("sequence")) {
+//                    client.insert(keyspace,
+//                            key_user_id,
+//                            new ColumnPath(table).setSuper_column('sequence'.getBytes()).setColumn(segment.getBytes()),
+//                            seq['sequence'].getBytes(),
+//                            timestamp,
+//                            ConsistencyLevel.ONE);
+//                } else {
+//                    client.insert(keyspace,
+//                            key_user_id,
+//                            new ColumnPath(table).setSuper_column('metadata'.getBytes()).setColumn(k.getBytes()),
+//                            (v ? v : "").getBytes(),
+//                            timestamp,
+//                            ConsistencyLevel.ONE);
+//                }
+
+                if (i % 100) {
+                  //println("mutationmap = " + mutation_map.toString());
+                  client.batch_mutate(keyspace, mutation_map, ConsistencyLevel.ONE);
+                  mutation_map = [:]
+                }
+            }
+            if (! (i % 100 )) {
+                //println("mutationmap = " + mutation_map.toString());
+                client.batch_mutate(keyspace, mutation_map, ConsistencyLevel.ONE);
             }
         }
 

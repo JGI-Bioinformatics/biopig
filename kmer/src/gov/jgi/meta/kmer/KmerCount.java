@@ -36,18 +36,14 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.InetAddress;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Random;
-import java.util.StringTokenizer;
+import java.util.*;
 
-import org.apache.cassandra.thrift.ConsistencyLevel;
-import org.apache.cassandra.thrift.Cassandra;
-import org.apache.cassandra.thrift.ColumnPath;
+import org.apache.cassandra.thrift.*;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
@@ -78,6 +74,12 @@ public class KmerCount {
     private final static IntWritable one = new IntWritable(1);
     private Text word = new Text();
 
+    TTransport tr = null;
+    TProtocol proto;
+    Cassandra.Client client = null;
+
+
+
     public void map(Object key, Text value, Context context
                     ) throws IOException, InterruptedException {
 
@@ -87,11 +89,13 @@ public class KmerCount {
   //    StringTokenizer itr = new StringTokenizer(value.toString());
 
 
-      String sequence = value.toString();
-      if (!sequence.matches("[ATGCN]*")) return;
+        String sequence = value.toString();
+        if (!sequence.matches("[ATGCN]*")) return;
 
-      int seqsize = sequence.length();
-      int kmersize = 20;
+        int seqsize = sequence.length();
+        int kmersize = 20;
+
+
 
       for (int i = 0; i < seqsize - kmersize - 1; i++ ) {
           String kmer = sequence.substring(i, i + kmersize);
@@ -167,6 +171,8 @@ public class KmerCount {
                 throws IOException,
                        InterruptedException    {
 
+
+
              tr.close();
 
         }
@@ -177,31 +183,45 @@ public class KmerCount {
                            Context context
         ) throws IOException, InterruptedException {
 
-
-
             numRuns += 1;
-
             int sum = 0;
+            String kkey = key.toString();
+
+            Map mutation_map = new HashMap();
+            long timestamp = System.currentTimeMillis();
+            mutation_map.put(kkey, new HashMap());
+            ((HashMap) mutation_map.get(kkey)).put("hash", new LinkedList());
+
             for (IntWritable val : values) {
-                sum += val.get();
+                Mutation kmerinsert = new Mutation();
+                /*
+                 insert data into cassandra
+                 */
+                byte[] b = intToByteArray(val.get());
+
+                ColumnOrSuperColumn c = new ColumnOrSuperColumn();
+                c.setColumn(new Column("count".getBytes(), b, timestamp));
+                kmerinsert.setColumn_or_supercolumn(c);
+
+                ((List) ((HashMap) mutation_map.get(kkey)).get("hash")).add(kmerinsert);
+
+
+//                client.insert(keyspace,
+//                        kmer,
+//                        new ColumnPath(table).setColumn(key_user_id.getBytes()),
+//                        b,
+//                        timestamp,
+//                        ConsistencyLevel.ONE);
+
+
             }
 
+            //println("mutation_map = " + mutation_map.toString());
             try {
-                byte[] b = intToByteArray(sum);
-                long timestamp = System.currentTimeMillis();
-
-                client.insert("jgi",
-                        key.toString(),
-                        new ColumnPath("hash").setColumn("count".getBytes()),
-                        b,
-                        timestamp,
-                        ConsistencyLevel.ONE);
-
-                result.set(sum);
-                context.write(key, result);
-
+                //System.out.println("mutation_map =  " + mutation_map.toString());
+                client.batch_mutate("jgi", mutation_map, ConsistencyLevel.ONE);
             } catch (Exception e) {
-                System.out.println(e);
+                System.out.println("Error: " + e);
             }
         }
     }
@@ -223,7 +243,7 @@ public class KmerCount {
     Job job = new Job(conf, "kmer count");
     job.setJarByClass(KmerCount.class);
     job.setMapperClass(TokenizerMapper.class);
-//    job.setCombinerClass(IntSumReducer.class);
+    job.setCombinerClass(IntSumReducer.class);
     job.setReducerClass(IntSumReducer.class);
     job.setOutputKeyClass(Text.class);
     job.setOutputValueClass(IntWritable.class);
