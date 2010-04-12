@@ -1,0 +1,21 @@
+<?xml version="1.0" ?>
+
+<configuration>
+
+    <property>
+        <name>version</name>
+        <value>0.1</value>
+    </property>
+
+    <property>
+        <name>cassandrahost</name>
+        <value>paris</value>
+    </property>
+
+    <property>
+        <name>cassandraport</name>
+        <value>9160</value>
+    </property>
+
+</configuration>
+

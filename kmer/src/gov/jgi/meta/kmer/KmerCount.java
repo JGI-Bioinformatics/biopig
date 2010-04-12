@@ -31,23 +31,19 @@
 package gov.jgi.meta.kmer;
 
 
-import java.io.BufferedReader;
-import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.InetAddress;
 import java.util.*;
 
+import gov.jgi.meta.hadoop.input.FastaInputFormat;
 import org.apache.cassandra.thrift.*;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
-import org.apache.hadoop.mapreduce.Reducer.Context;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.util.GenericOptionsParser;
@@ -55,67 +51,91 @@ import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.protocol.TProtocol;
 import org.apache.thrift.transport.TSocket;
 import org.apache.thrift.transport.TTransport;
-import org.biojavax.bio.seq.RichSequence;
-import org.biojavax.bio.seq.RichSequenceIterator;
 
+import org.apache.log4j.Logger;
+
+
+
+enum ReadCounters {
+   MALFORMED,
+   WELLFORMEND
+}
 
 /**
- * hadoop application to read kmer's from file and insert into cassandra database
- *
- * map step is just like wordcount, but does the cassandra insert.  no reduce
- * steps needed.
- *
+ * hadoop application to read sequence reads from file, generate the unique kmers
+ * and insert into cassandra.
  */
 public class KmerCount {
 
-  public static class TokenizerMapper
-       extends Mapper<Object, Text, Text, IntWritable>{
+    /**
+     * map task reads portions of the fasta file provided from the input split and
+     * generated the kmers and inserts them directly into the cassandra datastore
+     */
+    public static class FastaTokenizerMapper
+            extends Mapper<Object, Text, Text, IntWritable> {
 
-    private final static IntWritable one = new IntWritable(1);
-    private Text word = new Text();
+        static Logger log = Logger.getLogger(FastaTokenizerMapper.class);
+        static TTransport tr = null;
+        static TProtocol proto;
+        static Cassandra.Client client = null;
 
-    TTransport tr = null;
-    TProtocol proto;
-    Cassandra.Client client = null;
+        protected void setup(Context context)
+                throws IOException, InterruptedException
+        {
+            log.info("initializing mapper class for job: " + context.getJobName());
+            log.info("\tcontext = " + context.toString());
+            log.info("\tinitializing mapper on host: " + InetAddress.getLocalHost().getHostName());
 
+            log.info("\tconnecting to cassandra host: " + context.getConfiguration().get("cassandrahost"));
 
-
-    public void map(Object key, Text value, Context context
-                    ) throws IOException, InterruptedException {
-
-      /*
-       * should get the sequence item, not the line tokenizer... use custom splitter
-       */
-  //    StringTokenizer itr = new StringTokenizer(value.toString());
-
-
-        String sequence = value.toString();
-        if (!sequence.matches("[ATGCN]*")) return;
-
-        int seqsize = sequence.length();
-        int kmersize = 20;
+        }
 
 
+        public void map(Object key, Text value, Context context
+        ) throws IOException, InterruptedException {
 
-      for (int i = 0; i < seqsize - kmersize - 1; i++ ) {
-          String kmer = sequence.substring(i, i + kmersize);
+            log.info("map function called with value = " + value.toString());
+            log.info("\tcontext = " + context.toString());
+            log.info("\tkey = " + key.toString());
+            log.info("\thostname = " + InetAddress.getLocalHost().getHostName());
 
-          word.set(kmer);
-          context.write(word, one);
-      }
+
+            context.getCounter(ReadCounters.WELLFORMEND).increment(1);
+
+            /*
+            * should get the sequence item, not the line tokenizer... use custom splitter
+            */
+            //    StringTokenizer itr = new StringTokenizer(value.toString());
+
+
+/*
+            String sequence = value.toString();
+            if (!sequence.matches("[ATGCN]*")) return;
+
+            int seqsize = sequence.length();
+            int kmersize = 20;
+
+
+            for (int i = 0; i < seqsize - kmersize - 1; i++) {
+                String kmer = sequence.substring(i, i + kmersize);
+
+                word.set(kmer);
+                context.write(word, one);
+            }
+*/
+        }
     }
-  }
 
 
     public static byte[] intToByteArray(long value) {
-              byte[] b = new byte[8];
-              for (int i = 0; i < 8; i++) {
-                  int offset = (b.length - 1 - i) * 8;
-                  b[i] = (byte) ((value >>> offset) & 0xFF);
-              }
-              return b;
-       }
-    
+        byte[] b = new byte[8];
+        for (int i = 0; i < 8; i++) {
+            int offset = (b.length - 1 - i) * 8;
+            b[i] = (byte) ((value >>> offset) & 0xFF);
+        }
+        return b;
+    }
+
     public static class IntSumReducer
             extends Reducer<Text, IntWritable, Text, IntWritable> {
         private IntWritable result = new IntWritable();
@@ -169,14 +189,12 @@ public class KmerCount {
 
         protected void cleanup(Reducer.Context context)
                 throws IOException,
-                       InterruptedException    {
+                InterruptedException {
 
 
-
-             tr.close();
+            tr.close();
 
         }
-
 
 
         public void reduce(Text key, Iterable<IntWritable> values,
@@ -232,27 +250,49 @@ public class KmerCount {
      * @param args specify input file cassandra host and kmer size
      * @throws Exception
      */
-  public static void main(String[] args) throws Exception {
-    Configuration conf = new Configuration();
+    public static void main(String[] args) throws Exception {
 
-    String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
-    if (otherArgs.length != 2) {
-      System.err.println("Usage: kmercount <in> <out>");
-      System.exit(2);
+        Configuration conf = new Configuration();
+        
+        conf.addResource("kmer-conf.xml");  // set kmer application properties
+        String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
+
+        Logger log = Logger.getLogger(KmerCount.class);
+
+        /*
+        process arguments
+         */
+
+        if (otherArgs.length != 2) {
+            System.err.println("Usage: kmercount <in> <cassandra_table>");
+            System.exit(2);
+        }
+
+        conf.set("cassandrahost", conf.getStrings("cassandrahost", "localhost")[0]);
+        conf.set("cassandraport", conf.getStrings("cassandraport", "9160")[0]);
+        conf.set("tablename", otherArgs[1]);
+
+        log.info("main() [version " + conf.getStrings("version", "unknown!")[0] + "] starting with following parameters");
+        log.info("\tcassandrahost: " + conf.get("cassandrahost"));
+        log.info("\tcassandraport: " + conf.get("cassandraport"));
+        log.info("\tsequence file: " + otherArgs[0]);
+        log.info("\ttable name   : " + otherArgs[1]);
+
+        /*
+        setup configuration parameters
+         */
+        Job job = new Job(conf, "kmer");
+        job.setJarByClass(KmerCount.class);
+        job.setInputFormatClass(FastaInputFormat.class);
+        job.setMapperClass(FastaTokenizerMapper.class);
+        job.setOutputKeyClass(Text.class);
+        job.setOutputValueClass(IntWritable.class);
+        job.setNumReduceTasks(0);  // no reduce tasks needed
+
+        FileInputFormat.addInputPath(job, new Path(otherArgs[0]));
+        FileOutputFormat.setOutputPath(job, new Path("/tmp/output"));
+        System.exit(job.waitForCompletion(true) ? 0 : 1);
     }
-    Job job = new Job(conf, "kmer count");
-    job.setJarByClass(KmerCount.class);
-    job.setMapperClass(TokenizerMapper.class);
-    job.setCombinerClass(IntSumReducer.class);
-    job.setReducerClass(IntSumReducer.class);
-    job.setOutputKeyClass(Text.class);
-    job.setOutputValueClass(IntWritable.class);
-    job.setNumReduceTasks(16);
-
-    FileInputFormat.addInputPath(job, new Path(otherArgs[0]));
-    FileOutputFormat.setOutputPath(job, new Path(otherArgs[1]));
-    System.exit(job.waitForCompletion(true) ? 0 : 1);
-  }
 
 /*
     public int run2(String[] args) throws Exception
