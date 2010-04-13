@@ -82,12 +82,16 @@ public class KmerCount {
         TTransport tr = null;
         TProtocol proto;
         Cassandra.Client client = null;
+        String cassandraTable = null;
+        String cassandraHost = null;
+        int cassandraPort = 0;
 
         Map mutation_map = null;
 
         protected void setup(Context context)
                 throws IOException, InterruptedException
         {
+
 
             log.info("initializing mapper class for job: " + context.getJobName());
             log.info("\tcontext = " + context.toString());
@@ -96,17 +100,18 @@ public class KmerCount {
             log.info("\tconnecting to cassandra host: " + context.getConfiguration().get("cassandrahost"));
 
             if (tr == null) {
-                String cassandrahost = context.getConfiguration().get("cassandrahost");
-                int cassandraport = context.getConfiguration().getInt("cassandraport", 9160);
+                cassandraHost = context.getConfiguration().get("cassandrahost");
+                cassandraPort = context.getConfiguration().getInt("cassandraport", 9160);
+                cassandraTable = context.getConfiguration().get("cassandratable");
 
                 try {
-                    tr = new TSocket(cassandrahost, cassandraport);
+                    tr = new TSocket(cassandraHost, cassandraPort);
                     proto = new TBinaryProtocol(tr);
                     client = new Cassandra.Client(proto);
                     tr.open();
                 } catch (Exception e) {
                     log.fatal("ERROR: " + e);
-                    throw new IOException("unable to connect to cassandrahost at " + cassandrahost + "/" + cassandraport);
+                    throw new IOException("unable to connect to cassandrahost at " + cassandraHost + "/" + cassandraPort);
                 }
             }
         }
@@ -144,7 +149,7 @@ public class KmerCount {
             for (i = 0; i < seqsize - kmersize - 1; i++) {
                 String kmer = sequence.substring(i, i + kmersize);
 
-                insert(kmer, key.toString());
+                insert(kmer, key.toString(), i);
 
             }
             commit();
@@ -157,7 +162,7 @@ public class KmerCount {
             mutation_map = new HashMap();
         }
 
-        private void insert(String key, String value) throws IOException {
+        private void insert(String key, String column, int value) throws IOException {
 
             if (mutation_map == null) {
                 clear();
@@ -167,18 +172,18 @@ public class KmerCount {
 
             if (mutation_map.get(key) == null) {
                 mutation_map.put(key, new HashMap());
-                ((HashMap) mutation_map.get(key)).put("hash", new LinkedList());
+                ((HashMap) mutation_map.get(key)).put(cassandraTable, new LinkedList());
             }
 
             Mutation kmerinsert = new Mutation();
 
-            byte[] b = value.getBytes();
+            byte[] b = intToByteArray(value);
 
             ColumnOrSuperColumn c = new ColumnOrSuperColumn();
-            c.setColumn(new Column(key.getBytes(), b, timestamp));
+            c.setColumn(new Column(column.getBytes(), b, timestamp));
             kmerinsert.setColumn_or_supercolumn(c);
 
-            ((List) ((HashMap) mutation_map.get(key)).get("hash")).add(kmerinsert);
+            ((List) ((HashMap) mutation_map.get(key)).get(cassandraTable)).add(kmerinsert);
 
         }
 
@@ -192,7 +197,7 @@ public class KmerCount {
 
         }
 
-        public static byte[] intToByteArray(long value) {
+        public static byte[] intToByteArray(int value) {
                 byte[] b = new byte[8];
                 for (int i = 0; i < 8; i++) {
                     int offset = (b.length - 1 - i) * 8;
@@ -350,7 +355,7 @@ public class KmerCount {
 
         conf.set("cassandrahost", conf.getStrings("cassandrahost", "localhost")[0]);
         conf.setInt("cassandraport", Integer.parseInt(conf.getStrings("cassandraport", "9160")[0]));
-        conf.set("tablename", otherArgs[2]);
+        conf.set("cassandratable", otherArgs[2]);
         conf.setInt("kmersize", Integer.parseInt(otherArgs[1]));
 
         log.info("main() [version " + conf.getStrings("version", "unknown!")[0] + "] starting with following parameters");
@@ -358,7 +363,7 @@ public class KmerCount {
         log.info("\tcassandraport: " + conf.getInt("cassandraport", 9160));
         log.info("\tsequence file: " + otherArgs[0]);
         log.info("\tkmersize     : " + Integer.parseInt(otherArgs[1]));
-        log.info("\ttable name   : " + otherArgs[1]);
+        log.info("\ttable name   : " + otherArgs[2]);
 
         /*
         setup configuration parameters
