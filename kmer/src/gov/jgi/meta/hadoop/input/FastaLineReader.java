@@ -134,6 +134,7 @@ public class FastaLineReader {
      * follows.
      */
     str.clear();
+    key.clear();
     int txtLength = 0; //tracks str.getLength(), as an optimization
     int recordEnd = 0;
     int seenData = 0;
@@ -184,8 +185,9 @@ public class FastaLineReader {
       if (appendLength > 0) {
         if (keySeen == 0) {
             // set the key first
-            key.set(buffer, startPosn, appendLength);
-            keySeen = 1;
+            key.append(buffer, startPosn, appendLength);
+            if (newline == 1)
+                keySeen = 1;
         } else {
             str.append(buffer, startPosn, appendLength);
             txtLength += appendLength;
