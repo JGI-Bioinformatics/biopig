@@ -124,7 +124,7 @@ class scanCommand implements command {
         int count = 0;
 
         while (flag) {
-            predicate.setSlice_range(new SliceRange(new byte[0], new byte[0],false,1))
+            predicate.setSlice_range(new SliceRange(new byte[0], new byte[0],false,10))
             List<KeySlice> results = client.get_range_slice(keyspace, parent, predicate, lastkey, "", 10000, ConsistencyLevel.ONE);
 
             if (lastkey == '') count += results.size();
@@ -135,8 +135,15 @@ class scanCommand implements command {
 
 
                     int colcount = client.get_count(keyspace, e.key, parent, ConsistencyLevel.ONE)
-                    println("key: " + e.key + " [" + colcount + " columns]");
-
+                    print("key: " + e.key + " [" + colcount + " columns]: ");
+                    e.columns.each { c ->
+                      print( new String(c.column.name) + "/" + byteArrayToInt(c.column.value) + " | ");
+                    }
+                    if (e.columns.size() < colcount ) {
+                       print(" ...\n")
+                    } else {
+                      print("\n")
+                    }
                     //def s = new String(e.columns[0].super_column.name);
                     //def v1 = new String(e.columns[0].super_column.columns[0].value);
                     //def v2 = new String(e.columns[0].super_column.columns[1].value);
@@ -153,5 +160,31 @@ class scanCommand implements command {
         println("retrieved total of " + count);
 
         return 1;
+    }
+
+  /*
+     * Convert the byte array to an int.
+     *
+     * @param b The byte array
+     * @return The integer
+     */
+    public static int byteArrayToInt(byte[] b) {
+        return byteArrayToInt(b, 0);
+    }
+
+    /**
+     * Convert the byte array to an int starting from the given offset.
+     *
+     * @param b The byte array
+     * @param offset The array offset
+     * @return The integer
+     */
+    public static int byteArrayToInt(byte[] b, int offset) {
+        int value = 0;
+        for (int i = 0; i < 8; i++) {
+            int shift = (8 - 1 - i) * 8;
+            value += (b[i + offset] & 0x000000FF) << shift;
+        }
+        return value;
     }
 }
