@@ -9,7 +9,7 @@
 
     <property>
         <name>cassandrahost</name>
-        <value>paris</value>
+        <value>localhost</value>
     </property>
 
     <property>
@@ -17,5 +17,9 @@
         <value>9160</value>
     </property>
 
+    <property>
+        <name>mapred.max.split.size</name>
+        <value>200000</value>
+    </property>
 </configuration>
 

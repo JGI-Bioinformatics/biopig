@@ -58,7 +58,8 @@ import org.apache.log4j.Logger;
 
 enum ReadCounters {
    MALFORMED,
-   WELLFORMEND
+   WELLFORMEND,
+   KMERCOUNT
 }
 
 /**
@@ -74,67 +75,137 @@ public class KmerCount {
     public static class FastaTokenizerMapper
             extends Mapper<Object, Text, Text, IntWritable> {
 
-        static Logger log = Logger.getLogger(FastaTokenizerMapper.class);
-        static TTransport tr = null;
-        static TProtocol proto;
-        static Cassandra.Client client = null;
+        private final static IntWritable one = new IntWritable(1);
+        private Text word = new Text();
+
+        Logger log = Logger.getLogger(FastaTokenizerMapper.class);
+        TTransport tr = null;
+        TProtocol proto;
+        Cassandra.Client client = null;
+
+        Map mutation_map = null;
 
         protected void setup(Context context)
                 throws IOException, InterruptedException
         {
+
             log.info("initializing mapper class for job: " + context.getJobName());
             log.info("\tcontext = " + context.toString());
             log.info("\tinitializing mapper on host: " + InetAddress.getLocalHost().getHostName());
 
             log.info("\tconnecting to cassandra host: " + context.getConfiguration().get("cassandrahost"));
 
+            if (tr == null) {
+                String cassandrahost = context.getConfiguration().get("cassandrahost");
+                int cassandraport = context.getConfiguration().getInt("cassandraport", 9160);
+
+                try {
+                    tr = new TSocket(cassandrahost, cassandraport);
+                    proto = new TBinaryProtocol(tr);
+                    client = new Cassandra.Client(proto);
+                    tr.open();
+                } catch (Exception e) {
+                    log.fatal("ERROR: " + e);
+                    throw new IOException("unable to connect to cassandrahost at " + cassandrahost + "/" + cassandraport);
+                }
+            }
         }
 
+        protected void cleanup(Context context) {
+            if (tr != null) {
+                tr.close();
+            }
+        }
 
         public void map(Object key, Text value, Context context
         ) throws IOException, InterruptedException {
 
-            log.info("map function called with value = " + value.toString());
-            log.info("\tcontext = " + context.toString());
-            log.info("\tkey = " + key.toString());
-            log.info("\thostname = " + InetAddress.getLocalHost().getHostName());
+           
+            log.debug("map function called with value = " + value.toString());
+            log.debug("\tcontext = " + context.toString());
+            log.debug("\tkey = " + key.toString());
+            log.debug("\thostname = " + InetAddress.getLocalHost().getHostName());
 
+            String sequence = value.toString();
+            if (!sequence.matches("[ATGCN]*")) {
+                log.error("sequence " + key + " is not well formed: " + value);
+                
+                context.getCounter(ReadCounters.MALFORMED).increment(1);
+                return;
+            }
 
             context.getCounter(ReadCounters.WELLFORMEND).increment(1);
 
-            /*
-            * should get the sequence item, not the line tokenizer... use custom splitter
-            */
-            //    StringTokenizer itr = new StringTokenizer(value.toString());
-
-
-/*
-            String sequence = value.toString();
-            if (!sequence.matches("[ATGCN]*")) return;
-
             int seqsize = sequence.length();
-            int kmersize = 20;
+            int kmersize = context.getConfiguration().getInt("kmersize", 20);
 
-
-            for (int i = 0; i < seqsize - kmersize - 1; i++) {
+            clear();
+            int i;
+            for (i = 0; i < seqsize - kmersize - 1; i++) {
                 String kmer = sequence.substring(i, i + kmersize);
 
-                word.set(kmer);
-                context.write(word, one);
+                insert(kmer, key.toString());
+
             }
-*/
+            commit();
+
+            context.getCounter(ReadCounters.KMERCOUNT).increment(i);
+
         }
+
+        private void clear() {
+            mutation_map = new HashMap();
+        }
+
+        private void insert(String key, String value) throws IOException {
+
+            if (mutation_map == null) {
+                clear();
+            }
+
+            long timestamp = System.currentTimeMillis();
+
+            if (mutation_map.get(key) == null) {
+                mutation_map.put(key, new HashMap());
+                ((HashMap) mutation_map.get(key)).put("hash", new LinkedList());
+            }
+
+            Mutation kmerinsert = new Mutation();
+
+            byte[] b = value.getBytes();
+
+            ColumnOrSuperColumn c = new ColumnOrSuperColumn();
+            c.setColumn(new Column(key.getBytes(), b, timestamp));
+            kmerinsert.setColumn_or_supercolumn(c);
+
+            ((List) ((HashMap) mutation_map.get(key)).get("hash")).add(kmerinsert);
+
+        }
+
+        private void commit() throws IOException {
+
+            try {
+                client.batch_mutate("jgi", mutation_map, ConsistencyLevel.ONE);
+            } catch (Exception e) {
+                throw new IOException(e);
+            }
+
+        }
+
+        public static byte[] intToByteArray(long value) {
+                byte[] b = new byte[8];
+                for (int i = 0; i < 8; i++) {
+                    int offset = (b.length - 1 - i) * 8;
+                    b[i] = (byte) ((value >>> offset) & 0xFF);
+                }
+                return b;
+            }
+
     }
 
 
-    public static byte[] intToByteArray(long value) {
-        byte[] b = new byte[8];
-        for (int i = 0; i < 8; i++) {
-            int offset = (b.length - 1 - i) * 8;
-            b[i] = (byte) ((value >>> offset) & 0xFF);
-        }
-        return b;
-    }
+
+
 
     public static class IntSumReducer
             extends Reducer<Text, IntWritable, Text, IntWritable> {
@@ -196,6 +267,15 @@ public class KmerCount {
 
         }
 
+
+        public static byte[] intToByteArray(long value) {
+            byte[] b = new byte[8];
+            for (int i = 0; i < 8; i++) {
+                int offset = (b.length - 1 - i) * 8;
+                b[i] = (byte) ((value >>> offset) & 0xFF);
+            }
+            return b;
+        }
 
         public void reduce(Text key, Iterable<IntWritable> values,
                            Context context
@@ -263,19 +343,21 @@ public class KmerCount {
         process arguments
          */
 
-        if (otherArgs.length != 2) {
-            System.err.println("Usage: kmercount <in> <cassandra_table>");
+        if (otherArgs.length != 3) {
+            System.err.println("Usage: kmercount <in> <kmer size> <cassandra_table>");
             System.exit(2);
         }
 
         conf.set("cassandrahost", conf.getStrings("cassandrahost", "localhost")[0]);
-        conf.set("cassandraport", conf.getStrings("cassandraport", "9160")[0]);
-        conf.set("tablename", otherArgs[1]);
+        conf.setInt("cassandraport", Integer.parseInt(conf.getStrings("cassandraport", "9160")[0]));
+        conf.set("tablename", otherArgs[2]);
+        conf.setInt("kmersize", Integer.parseInt(otherArgs[1]));
 
         log.info("main() [version " + conf.getStrings("version", "unknown!")[0] + "] starting with following parameters");
         log.info("\tcassandrahost: " + conf.get("cassandrahost"));
-        log.info("\tcassandraport: " + conf.get("cassandraport"));
+        log.info("\tcassandraport: " + conf.getInt("cassandraport", 9160));
         log.info("\tsequence file: " + otherArgs[0]);
+        log.info("\tkmersize     : " + Integer.parseInt(otherArgs[1]));
         log.info("\ttable name   : " + otherArgs[1]);
 
         /*
