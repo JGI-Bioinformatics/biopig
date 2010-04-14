@@ -43,7 +43,6 @@ import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
-import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.util.GenericOptionsParser;
@@ -55,11 +54,20 @@ import org.apache.thrift.transport.TTransport;
 import org.apache.log4j.Logger;
 
 
-
+/**
+ * custom counters
+ *
+ * MALFORMED is the number of ignored reads due to some simple syntax checking
+ * WELLFORMED is the number of reads that were read
+ * KMERCOUNT is the number of kmers that were generated
+ * BYTESSENTOVERNETWORK is the data that is sent to the cassandra data store
+ *
+ */
 enum ReadCounters {
    MALFORMED,
    WELLFORMEND,
-   KMERCOUNT
+   KMERCOUNT,
+   BYTESSENTOVERNETWORK
 }
 
 /**
@@ -70,7 +78,8 @@ public class KmerCount {
 
     /**
      * map task reads portions of the fasta file provided from the input split and
-     * generated the kmers and inserts them directly into the cassandra datastore
+     * generated the kmers and inserts them directly into the cassandra datastore.
+     *
      */
     public static class FastaTokenizerMapper
             extends Mapper<Object, Text, Text, IntWritable> {
@@ -79,19 +88,34 @@ public class KmerCount {
         private Text word = new Text();
 
         Logger log = Logger.getLogger(FastaTokenizerMapper.class);
+
+        /*
+        cassandra configuration parameters
+         */
         TTransport tr = null;
-        TProtocol proto;
+        TProtocol proto = null;
         Cassandra.Client client = null;
         String cassandraTable = null;
         String cassandraHost = null;
         int cassandraPort = 0;
 
+        /*
+        batched operations
+         */
         Map mutation_map = null;
 
+
+        /**
+         * initialization of mapper retrieves connection parameters from context and opens socket
+         * to cassandra data server
+         *
+         * @param context
+         * @throws IOException
+         * @throws InterruptedException
+         */
         protected void setup(Context context)
                 throws IOException, InterruptedException
         {
-
 
             log.info("initializing mapper class for job: " + context.getJobName());
             log.info("\tcontext = " + context.toString());
@@ -116,12 +140,28 @@ public class KmerCount {
             }
         }
 
+        /**
+         * free resource after mapper has finished, ie close socket to cassandra server
+         *
+         * @param context
+         */
         protected void cleanup(Context context) {
             if (tr != null) {
                 tr.close();
             }
         }
 
+
+        /**
+         * the map function, processes a single record where record = <read id, sequence string>.  mapper generates
+         * kmer's of appropriate size and inserts them into the cassandra datastore.
+         *
+         * @param key - read id as defined in the fasta file
+         * @param value - sequence string (AATTGGCC...)
+         * @param context - configuration context
+         * @throws IOException
+         * @throws InterruptedException
+         */
         public void map(Object key, Text value, Context context
         ) throws IOException, InterruptedException {
 
@@ -152,16 +192,29 @@ public class KmerCount {
                 insert(kmer, key.toString(), i);
 
             }
-            commit();
+            int numbytessent = commit();
 
             context.getCounter(ReadCounters.KMERCOUNT).increment(i);
+            context.getCounter(ReadCounters.BYTESSENTOVERNETWORK).increment(numbytessent);
 
         }
 
+        /**
+         * clear current batched operations.
+         *
+         */
         private void clear() {
             mutation_map = new HashMap();
         }
 
+        /**
+         * insert new data operation.  inserts key[column] = value
+         *
+         * @param key
+         * @param column
+         * @param value
+         * @throws IOException
+         */
         private void insert(String key, String column, int value) throws IOException {
 
             if (mutation_map == null) {
@@ -187,16 +240,29 @@ public class KmerCount {
 
         }
 
-        private void commit() throws IOException {
+        /**
+         * flush data store operations to cassandra server, return (roughly) the number of bytes
+         * sent.
+         *
+         * @return the number of bytes sent (roughly)
+         * @throws IOException
+         */
+        private int commit() throws IOException {
 
             try {
                 client.batch_mutate("jgi", mutation_map, ConsistencyLevel.ONE);
             } catch (Exception e) {
                 throw new IOException(e);
             }
+            return mutation_map.toString().length();
 
         }
 
+        /**
+         * convet int to byte array assuming 8 bytes per integer
+         * @param value to convert
+         * @return a fresh byte array
+         */
         public static byte[] intToByteArray(int value) {
                 byte[] b = new byte[8];
                 for (int i = 0; i < 8; i++) {
@@ -209,125 +275,6 @@ public class KmerCount {
     }
 
 
-
-
-
-    public static class IntSumReducer
-            extends Reducer<Text, IntWritable, Text, IntWritable> {
-        private IntWritable result = new IntWritable();
-        int numRuns = 0;
-        TTransport tr;
-        TProtocol proto;
-        Cassandra.Client client = null;
-
-        protected void setup(Reducer.Context context) {
-
-            Random rand = new Random();
-            int min = 0, max = 1;
-            String[] hostarray = new String[4];
-            hostarray[0] = "paris";
-            hostarray[1] = "rome";
-            hostarray[2] = "ren";
-            hostarray[3] = "stimpy";
-
-            String cassandrahost;
-
-            try {
-                InetAddress addr = InetAddress.getLocalHost();
-
-                // Get IP Address
-                byte[] ipAddr = addr.getAddress();
-
-                // Get hostname
-                String myhostname = addr.getHostName();
-
-                int randomNum = rand.nextInt(max - min + 1) + min;
-
-                if (myhostname.equals("ren")) {
-                    cassandrahost = new String("paris");
-                } else if (myhostname.equals("stimpy")) {
-                    cassandrahost = new String("rome");
-                } else {
-                    cassandrahost = new String("localhost");
-                }
-                System.out.println("Reduce setup: running on host" + myhostname + "  using cassandra " + cassandrahost);
-
-                tr = new TSocket(cassandrahost, 9160);
-                proto = new TBinaryProtocol(tr);
-                client = new Cassandra.Client(proto);
-
-                tr.open();
-            } catch (Exception e) {
-                System.out.println("ERROR: " + e);
-            }
-
-        }
-
-        protected void cleanup(Reducer.Context context)
-                throws IOException,
-                InterruptedException {
-
-
-            tr.close();
-
-        }
-
-
-        public static byte[] intToByteArray(long value) {
-            byte[] b = new byte[8];
-            for (int i = 0; i < 8; i++) {
-                int offset = (b.length - 1 - i) * 8;
-                b[i] = (byte) ((value >>> offset) & 0xFF);
-            }
-            return b;
-        }
-
-        public void reduce(Text key, Iterable<IntWritable> values,
-                           Context context
-        ) throws IOException, InterruptedException {
-
-            numRuns += 1;
-            int sum = 0;
-            String kkey = key.toString();
-
-            Map mutation_map = new HashMap();
-            long timestamp = System.currentTimeMillis();
-            mutation_map.put(kkey, new HashMap());
-            ((HashMap) mutation_map.get(kkey)).put("hash", new LinkedList());
-
-            for (IntWritable val : values) {
-                Mutation kmerinsert = new Mutation();
-                /*
-                 insert data into cassandra
-                 */
-                byte[] b = intToByteArray(val.get());
-
-                ColumnOrSuperColumn c = new ColumnOrSuperColumn();
-                c.setColumn(new Column("count".getBytes(), b, timestamp));
-                kmerinsert.setColumn_or_supercolumn(c);
-
-                ((List) ((HashMap) mutation_map.get(kkey)).get("hash")).add(kmerinsert);
-
-
-//                client.insert(keyspace,
-//                        kmer,
-//                        new ColumnPath(table).setColumn(key_user_id.getBytes()),
-//                        b,
-//                        timestamp,
-//                        ConsistencyLevel.ONE);
-
-
-            }
-
-            //println("mutation_map = " + mutation_map.toString());
-            try {
-                //System.out.println("mutation_map =  " + mutation_map.toString());
-                client.batch_mutate("jgi", mutation_map, ConsistencyLevel.ONE);
-            } catch (Exception e) {
-                System.out.println("Error: " + e);
-            }
-        }
-    }
 
     /**
      * starts off the hadoop application
@@ -348,8 +295,8 @@ public class KmerCount {
         process arguments
          */
 
-        if (otherArgs.length != 3) {
-            System.err.println("Usage: kmercount <in> <kmer size> <cassandra_table>");
+        if (otherArgs.length != 4) {
+            System.err.println("Usage: kmercount <in> <kmer size> <cassandra_table> <outputdir>");
             System.exit(2);
         }
 
@@ -377,47 +324,9 @@ public class KmerCount {
         job.setNumReduceTasks(0);  // no reduce tasks needed
 
         FileInputFormat.addInputPath(job, new Path(otherArgs[0]));
-        FileOutputFormat.setOutputPath(job, new Path("/tmp/output"));
+        FileOutputFormat.setOutputPath(job, new Path(otherArgs[3]));
         System.exit(job.waitForCompletion(true) ? 0 : 1);
     }
-
-/*
-    public int run2(String[] args) throws Exception
-    {
-        Configuration conf = getConf();
-
-        logger.info("creating " + 1 + "jobs - karan");
-
-        for (int i = 0; i < 1; i++)
-        {
-            logger.info("Job " + i);
-
-            String columnName = "sequence";
-
-            logger.info("looking at column: " + columnName);
-
-            conf.set(CONF_COLUMN_NAME, columnName);
-            Job job = new Job(conf, "wordcount");
-            job.setJarByClass(WordCount.class);
-            job.setMapperClass(TokenizerMapper.class);
-            job.setCombinerClass(IntSumReducer.class);
-            job.setReducerClass(IntSumReducer.class);
-            job.setOutputKeyClass(Text.class);
-            job.setOutputValueClass(IntWritable.class);
-
-            job.setInputFormatClass(ColumnFamilyInputFormat.class);
-            FileOutputFormat.setOutputPath(job, new Path(OUTPUT_PATH_PREFIX + i));
-
-            ConfigHelper.setColumnFamily(job.getConfiguration(), KEYSPACE, COLUMN_FAMILY);
-//            ConfigHelper.setInputSplitSize(job.getConfiguration(), 10);
-            SlicePredicate predicate = new SlicePredicate().setColumn_names(Arrays.asList(columnName.getBytes()));
-            ConfigHelper.setSlicePredicate(job.getConfiguration(), predicate);
-
-            job.waitForCompletion(true);
-        }
-        return 0;
-    }
-*/
 
 }
 
