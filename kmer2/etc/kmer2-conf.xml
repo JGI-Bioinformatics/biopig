@@ -1,9 +1,9 @@
 <?xml version="1.0" ?>
 
 <!-- configuration file for kmerHadoopApp
-  --
-  -- this file should be in the classpath of hadoop somewhere.
-  --
+
+   this file should be in the classpath of hadoop somewhere.
+
   -->
 
 <configuration>
@@ -18,7 +18,7 @@
     -->
     <property>
         <name>cassandrahost</name>
-        <value>thorium1</value>
+        <value>paris</value>
     </property>
 
     <!-- specifies the port number for cassandra data store
@@ -29,9 +29,9 @@
     </property>
 
     <!-- specifies the maximum size in bytes of each input split, therefore
-      -- specifies the number of map processes that hadoop will spawn.  ie
-      -- 1000 byte file with a max split of 100 bytes will result in 10 map
-      -- processes (spread on the hadoop cluster).
+       specifies the number of map processes that hadoop will spawn.  ie
+       1000 byte file with a max split of 100 bytes will result in 10 map
+       processes (spread on the hadoop cluster).
       -->
     <property>
         <name>mapred.max.split.size</name>
