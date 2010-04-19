@@ -75,8 +75,29 @@ enum ReadCounters {
 }
 
 /**
- * hadoop application to read sequence reads from file, generate the unique kmers
- * and insert into cassandra.
+ * hadoop application to read sequence reads from cassandra, generate the unique kmers
+ * and insert back into cassandra.  reads from the "read" table, and inserts kmers into
+ * the "hash" table.  see discussion of datamodel.
+ *
+ * Configuration parameters are set in a properties file called "kmer2-conf.xml" and should be
+ * accessible from the classpath.
+ *
+ *    - version
+ *      0.1
+ *    - cassandrahost
+ *      paris
+ *    - cassandraport
+ *      9160
+ *    - mapred.max.split.size
+ *      3000000
+ *    - keyspace
+ *      jgi
+ *    - readtablename
+ *      reads
+ *    - kmertablename
+ *      hash
+ *    - inputsplitsize
+ *      100000
  */
 public class KmerCountFromCassandra {
 
@@ -87,6 +108,8 @@ public class KmerCountFromCassandra {
      */
     public static class TokenizerMapper extends Mapper<String, SortedMap<byte[], IColumn>, Text, IntWritable>
     {
+        static int DEFAULTKMERSIZE = 20;
+
         private final static IntWritable one = new IntWritable(1);
         private Text word = new Text();
 
@@ -101,11 +124,19 @@ public class KmerCountFromCassandra {
         String cassandraTable = null;
         String cassandraHost = null;
         int cassandraPort = 0;
+        String keyspace = null;
+        String readtablename = null;
+        String kmertablename = null;
+
+        /*
+        kmer options
+         */
+        int k = DEFAULTKMERSIZE;
 
         /*
         batched operations
          */
-        Map mutation_map = null;
+        HashMap<String, HashMap<String, LinkedList<Mutation>>> mutation_map = null;
 
 
         /**
@@ -123,13 +154,20 @@ public class KmerCountFromCassandra {
             log.info("initializing mapper class for job: " + context.getJobName());
             log.info("\tcontext = " + context.toString());
             log.info("\tinitializing mapper on host: " + InetAddress.getLocalHost().getHostName());
-
             log.info("\tconnecting to cassandra host: " + context.getConfiguration().get("cassandrahost"));
+            log.info("\tkeyspace = " + context.getConfiguration().get("keyspace"));
+            log.info("\treadtablename = " + context.getConfiguration().get("readtablename"));
+            log.info("\tkmertablename = " + context.getConfiguration().get("kmertablename"));
+            log.info("\tusing kmer option k = " + context.getConfiguration().getInt("k", DEFAULTKMERSIZE));
 
             if (tr == null) {
                 cassandraHost = context.getConfiguration().get("cassandrahost");
                 cassandraPort = context.getConfiguration().getInt("cassandraport", 9160);
-                cassandraTable = context.getConfiguration().get("cassandratable");
+                keyspace = context.getConfiguration().get("keyspace");
+                readtablename = context.getConfiguration().get("readtablename");
+                kmertablename = context.getConfiguration().get("kmertablename");
+
+                k = context.getConfiguration().getInt("k", DEFAULTKMERSIZE);
 
                 try {
                     tr = new TSocket(cassandraHost, cassandraPort);
@@ -186,17 +224,17 @@ public class KmerCountFromCassandra {
                     context.getCounter(ReadCounters.WELLFORMEND).increment(1);
 
                     int seqsize = sequence.length();
-                    int kmersize = context.getConfiguration().getInt("kmersize", 20);
+                    int kmersize = k;
 
                     clear();
                     int i;
                     for (i = 0; i < seqsize - kmersize - 1; i++) {
                         String kmer = sequence.substring(i, i + kmersize);
 
-                        insert(kmer, key, i);
+                        insert(kmertablename, kmer, key, i);
 
                     }
-                    int numbytessent = commit();
+                    int numbytessent = commit(keyspace);
 
                     context.getCounter(ReadCounters.KMERCOUNT).increment(i);
                     context.getCounter(ReadCounters.BYTESSENTOVERNETWORK).increment(numbytessent);
@@ -209,18 +247,19 @@ public class KmerCountFromCassandra {
          *
          */
         private void clear() {
-            mutation_map = new HashMap();
+            mutation_map = new HashMap<String, HashMap<String, LinkedList<Mutation>>>();
         }
 
         /**
-         * insert new data operation.  inserts key[column] = value
+         * insert new data operation.  inserts key[column] = value into mutation_map
          *
-         * @param key
-         * @param column
-         * @param value
-         * @throws IOException
+         * @param tableName the table in which to insert the column/value
+         * @param key identifies the row in which to add the column/value
+         * @param column the new column name to add
+         * @param value the value to add for the column
+         * @throws IOException if there is any error
          */
-        private void insert(String key, String column, int value) throws IOException {
+        private void insert(String tableName, String key, String column, int value) throws IOException {
 
             if (mutation_map == null) {
                 clear();
@@ -229,8 +268,8 @@ public class KmerCountFromCassandra {
             long timestamp = System.currentTimeMillis();
 
             if (mutation_map.get(key) == null) {
-                mutation_map.put(key, new HashMap());
-                ((HashMap) mutation_map.get(key)).put("hash", new LinkedList());
+                mutation_map.put(key, new HashMap<String, LinkedList<Mutation>>());
+                (mutation_map.get(key)).put(tableName, new LinkedList<Mutation>());
             }
 
             Mutation kmerinsert = new Mutation();
@@ -241,7 +280,7 @@ public class KmerCountFromCassandra {
             c.setColumn(new Column(column.getBytes(), b, timestamp));
             kmerinsert.setColumn_or_supercolumn(c);
 
-            ((List) ((HashMap) mutation_map.get(key)).get("hash")).add(kmerinsert);
+            ((mutation_map.get(key)).get(tableName)).add(kmerinsert);
 
         }
 
@@ -249,13 +288,14 @@ public class KmerCountFromCassandra {
          * flush data store operations to cassandra server, return (roughly) the number of bytes
          * sent.
          *
+         * @param keySpace is the keyspace for the cassandra datastore
          * @return the number of bytes sent (roughly)
-         * @throws IOException
+         * @throws IOException if there is some error
          */
-        private int commit() throws IOException {
+        private int commit(String keySpace) throws IOException {
 
             try {
-                client.batch_mutate("jgi", mutation_map, ConsistencyLevel.ONE);
+                client.batch_mutate(keySpace, (Map) mutation_map, ConsistencyLevel.ONE);
             } catch (Exception e) {
                 throw new IOException(e);
             }
@@ -300,44 +340,28 @@ public class KmerCountFromCassandra {
         process arguments
          */
 
-        if (otherArgs.length != 3) {
-            System.err.println("Usage: kmercountfromcassandra <readtable> <kmersize> <outputdir>");
+        if (otherArgs.length != 2) {
+            System.err.println("Usage: kmercountfromcassandra <kmersize> <outputdir>");
             System.exit(2);
         }
 
         conf.set("cassandrahost", conf.getStrings("cassandrahost", "localhost")[0]);
         conf.setInt("cassandraport", Integer.parseInt(conf.getStrings("cassandraport", "9160")[0]));
-        conf.set("cassandratable", otherArgs[0]);
-        conf.setInt("kmersize", Integer.parseInt(otherArgs[1]));
+        conf.setInt("k", Integer.parseInt(otherArgs[0]));
 
         log.info("main() [version " + conf.getStrings("version", "unknown!")[0] + "] starting with following parameters");
         log.info("\tcassandrahost: " + conf.get("cassandrahost"));
         log.info("\tcassandraport: " + conf.getInt("cassandraport", 9160));
-        log.info("\tsequence table: " + otherArgs[0]);
-        log.info("\tkmersize     : " + Integer.parseInt(otherArgs[1]));
-        log.info("\toutput file  : " + otherArgs[2]);
+        log.info("\tkeyspace     : " + conf.get("keyspace"));
+        log.info("\tread table   : " + conf.get("readtablename"));
+        log.info("\tkmer table   : " + conf.get("kmertablename"));
+        log.info("\tk            : " + Integer.parseInt(otherArgs[0]));
+        log.info("\toutput file  : " + otherArgs[1]);
 
         /*
         setup configuration parameters
          */
 
-/*
-        Job job = new Job(conf, "wordcount");
-         job.setJarByClass(KmerCountFromCassandra.class);
-         job.setMapperClass(TokenizerMapper.class);
-         job.setOutputKeyClass(Text.class);
-         job.setOutputValueClass(IntWritable.class);
-
-         job.setInputFormatClass(ColumnFamilyInputFormat.class);
-         FileOutputFormat.setOutputPath(job, new Path("/tmp/xxx"));
-
-         ConfigHelper.setColumnFamily(job.getConfiguration(), "jgi", "reads");
-//            ConfigHelper.setInputSplitSize(job.getConfiguration(), 10);
-         SlicePredicate predicate = new SlicePredicate().setColumn_names(Arrays.asList("sequence".getBytes()));
-         ConfigHelper.setSlicePredicate(job.getConfiguration(), predicate);
-*/
-
-        
         Job job = new Job(conf, "kmerfromcassandra");
         job.setJarByClass(KmerCountFromCassandra.class);
         job.setInputFormatClass(ColumnFamilyInputFormat.class);
@@ -349,12 +373,12 @@ public class KmerCountFromCassandra {
         job.setOutputValueClass(IntWritable.class);
         job.setNumReduceTasks(0);  // no reduce tasks needed
 
-        ConfigHelper.setColumnFamily(job.getConfiguration(), "jgi", "reads");
-        //ConfigHelper.setInputSplitSize(job.getConfiguration(), 10);
+        ConfigHelper.setColumnFamily(job.getConfiguration(), conf.get("keyspace"), conf.get("readtablename"));
+        ConfigHelper.setInputSplitSize(job.getConfiguration(), conf.getInt("inputsplitsize", 1000000));
         SlicePredicate predicate = new SlicePredicate().setSlice_range(new SliceRange(new byte[0], new byte[0],false,10));
         ConfigHelper.setSlicePredicate(job.getConfiguration(), predicate);
 
-        FileOutputFormat.setOutputPath(job, new Path(otherArgs[2]));
+        FileOutputFormat.setOutputPath(job, new Path(otherArgs[1]));
         System.exit(job.waitForCompletion(true) ? 0 : 1);
     }
 
