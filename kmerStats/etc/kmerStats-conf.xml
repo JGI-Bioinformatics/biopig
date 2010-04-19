@@ -1,0 +1,33 @@
+<?xml version="1.0" ?>
+
+<!-- configuration file for kmerHadoopApp
+
+   this file should be in the classpath of hadoop somewhere.
+
+  -->
+
+<configuration>
+    <!-- version number for application.  should match build version in pom.xml
+    -->
+    <property>
+        <name>version</name>
+        <value>0.1</value>
+    </property>
+
+    <!-- specifies the hostname for the cassandra data store
+    -->
+    <property>
+        <name>cassandrahost</name>
+        <value>localhost</value>
+    </property>
+
+    <!-- specifies the port number for cassandra data store
+    -->
+    <property>
+        <name>cassandraport</name>
+        <value>9160</value>
+    </property>
+
+
+</configuration>
+
