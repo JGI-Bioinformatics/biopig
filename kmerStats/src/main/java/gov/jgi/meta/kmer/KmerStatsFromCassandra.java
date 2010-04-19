@@ -66,8 +66,8 @@ import org.apache.log4j.Logger;
  *
  */
 enum ReadCounters {
-   MALFORMED,
-   WELLFORMEND,
+    NUMTRUNCATIONS,
+   READCOUNT,
    KMERCOUNT,
    BYTESSENTOVERNETWORK
 }
@@ -88,6 +88,74 @@ public class KmerStatsFromCassandra {
         private Text word = new Text();
 
         Logger log = Logger.getLogger(TokenizerMapper.class);
+
+        int minCoverage;
+
+        /**
+         * initialization of mapper retrieves connection parameters from context and opens socket
+         * to cassandra data server
+         *
+         * @param context
+         * @throws IOException
+         * @throws InterruptedException
+         */
+        protected void setup(Mapper.Context context)
+                throws IOException, InterruptedException
+        {
+
+            log.info("initializing mapper class for job: " + context.getJobName());
+            log.info("\tinitializing mapper on host: " + InetAddress.getLocalHost().getHostName());
+            log.info("\tminimum kmer coverage: " + context.getConfiguration().get("mincoverage"));
+
+            minCoverage = context.getConfiguration().getInt("mincoverage", 2);
+
+        }
+
+        /**
+         * the map function, processes a single record where record = <kmerhash, <readid, pos>, <readid, pos> etc>
+         * and generates some simple statistics as output.
+         *
+         */
+        public void map(String key, SortedMap<byte[], IColumn> columns, Context context)
+                throws IOException, InterruptedException {
+
+            int count = columns.size();
+            log.debug("\tkey/size = " + key + "/" + count);
+            log.debug("\thostname = " + InetAddress.getLocalHost().getHostName());
+
+            context.getCounter(ReadCounters.KMERCOUNT).increment(1);
+
+            if (count < minCoverage) {
+
+                context.getCounter(ReadCounters.NUMTRUNCATIONS).increment(1);
+
+                Set s=columns.entrySet();
+                Iterator i=s.iterator();
+
+
+                while(i.hasNext())
+                {
+
+                    Map.Entry m =(Map.Entry)i.next();
+                    String readid = new String((byte []) m.getKey());
+                    IColumn column = (IColumn) m.getValue();
+                    int position = IntSumReducer.byteArrayToInt(column.value());
+
+                    log.debug(key + "[" + readid + "]" + " = " + position);
+
+                    word.set(readid);
+                    context.write(word, new IntWritable(position));
+                }
+            }
+        }
+    }
+
+
+    public static class IntSumReducer extends Reducer<Text, IntWritable, Text, IntWritable>
+    {
+        private IntWritable result = new IntWritable();
+
+        Logger log = Logger.getLogger(IntSumReducer.class);
 
         /*
         cassandra configuration parameters
@@ -113,7 +181,7 @@ public class KmerStatsFromCassandra {
          * @throws IOException
          * @throws InterruptedException
          */
-        protected void setup(Context context)
+        protected void setup(Reducer.Context context)
                 throws IOException, InterruptedException
         {
 
@@ -144,46 +212,11 @@ public class KmerStatsFromCassandra {
          *
          * @param context
          */
-        protected void cleanup(Context context) {
+        protected void cleanup(Reducer.Context context) {
             if (tr != null) {
                 tr.close();
             }
         }
-
-
-        /**
-         * the map function, processes a single record where record = <kmerhash, <readid, pos>, <readid, pos> etc>
-         * and generates some simple statistics as output.
-         *
-         */
-        public void map(String key, SortedMap<byte[], IColumn> columns, Context context)
-                throws IOException, InterruptedException {
-
-            log.debug("\tkey = " + key);
-            log.debug("\thostname = " + InetAddress.getLocalHost().getHostName());
-
-            Set s=columns.entrySet();
-
-            Iterator i=s.iterator();
-            int count = s.size();
-
-            while(i.hasNext())
-            {
-
-                Map.Entry m =(Map.Entry)i.next();
-                String readid = new String((byte []) m.getKey());
-                IColumn column = (IColumn) m.getValue();
-                int position = byteArrayToInt(column.value());
-
-                log.debug(key + "[" + readid + "]" + " = " + position);
-
-                word.set(readid);
-                context.write(word, new IntWritable(position));
-            }
-
-
-        }
-
 
         /**
          * clear current batched operations.
@@ -287,25 +320,20 @@ public class KmerStatsFromCassandra {
             return value;
         }
 
-    }
-
-
-    public static class IntSumReducer extends Reducer<Text, IntWritable, Text, IntWritable>
-    {
-        private IntWritable result = new IntWritable();
 
         public void reduce(Text key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException
         {
             int min = 100000000;
 
-            //logger.info("inside IntSumReducer... karan");
+            log.debug("inside IntSumReducer... karan");
+            log.debug("\tkey = " + key);
 
             for (IntWritable val : values)
             {
                 if (val.get() < min) min = val.get();
             }
 
-            result.set(min);
+                result.set(min);
             context.write(key, result);
         }
     }
@@ -319,6 +347,8 @@ public class KmerStatsFromCassandra {
      */
     public static void main(String[] args) throws Exception {
 
+        int minCoverage;
+
         Configuration conf = new Configuration();
         
         conf.addResource("kmerStats-conf.xml");  // set kmer application properties
@@ -329,20 +359,22 @@ public class KmerStatsFromCassandra {
         process arguments
          */
 
-        if (otherArgs.length != 2) {
-            System.err.println("Usage: kmerstatsfromcassandra <kmerhashtable> <outputdir>");
+        if (otherArgs.length != 3) {
+            System.err.println("Usage: kmerstatsfromcassandra <kmerhashtable> <mincoverage> <outputdir>");
             System.exit(2);
         }
 
         conf.set("cassandrahost", conf.getStrings("cassandrahost", "localhost")[0]);
         conf.setInt("cassandraport", Integer.parseInt(conf.getStrings("cassandraport", "9160")[0]));
         conf.set("kmertablename", otherArgs[0]);
+        minCoverage = Integer.parseInt(otherArgs[1]);
+        conf.setInt("mincoverage", minCoverage);
 
         log.info("main() [version " + conf.getStrings("version", "unknown!")[0] + "] starting with following parameters");
         log.info("\tcassandrahost: " + conf.get("cassandrahost"));
         log.info("\tcassandraport: " + conf.getInt("cassandraport", 9160));
         log.info("\tkmer table   : " + otherArgs[0]);
-        log.info("\toutput file  : " + otherArgs[1]);
+        log.info("\toutput file  : " + otherArgs[2]);
 
         /*
         setup configuration parameters
@@ -361,10 +393,10 @@ public class KmerStatsFromCassandra {
 
         ConfigHelper.setColumnFamily(job.getConfiguration(), "jgi", "hash");
         //ConfigHelper.setInputSplitSize(job.getConfiguration(), 10);
-        SlicePredicate predicate = new SlicePredicate().setSlice_range(new SliceRange(new byte[0], new byte[0],false,10));
+        SlicePredicate predicate = new SlicePredicate().setSlice_range(new SliceRange(new byte[0], new byte[0],false, minCoverage));
         ConfigHelper.setSlicePredicate(job.getConfiguration(), predicate);
 
-        FileOutputFormat.setOutputPath(job, new Path(otherArgs[1]));
+        FileOutputFormat.setOutputPath(job, new Path(otherArgs[2]));
         System.exit(job.waitForCompletion(true) ? 0 : 1);
     }
 
