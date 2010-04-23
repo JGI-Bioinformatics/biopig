@@ -54,7 +54,7 @@ import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.protocol.TProtocol;
 import org.apache.thrift.transport.TSocket;
 import org.apache.thrift.transport.TTransport;
-
+import net.sf.json.*;
 import org.apache.log4j.Logger;
 
 
@@ -140,6 +140,24 @@ public class KmerCountFromCassandra {
 
 
         /**
+         * generate an random index from 0 to size-1 such that each hostname will map to the same
+         * index consistently.
+         *
+         * @param hostname
+         * @param size max size of index
+         * @return an integer from 0 to size-1 (inclusive)
+         */
+        private int hashHost(String hostname, int size) {
+            int s = 0;
+            byte[] b = hostname.getBytes();
+
+            for (byte a : b ) {
+                s += (int) a;
+            }
+            return s % size;
+        }
+
+        /**
          * initialization of mapper retrieves connection parameters from context and opens socket
          * to cassandra data server
          *
@@ -159,25 +177,74 @@ public class KmerCountFromCassandra {
             log.info("\treadtablename = " + context.getConfiguration().get("readtablename"));
             log.info("\tkmertablename = " + context.getConfiguration().get("kmertablename"));
             log.info("\tusing kmer option k = " + context.getConfiguration().getInt("k", DEFAULTKMERSIZE));
+            log.info("\tdatahostmapping = " + context.getConfiguration().get("datahostmapping"));
 
             if (tr == null) {
-                cassandraHost = context.getConfiguration().get("cassandrahost");
-                cassandraPort = context.getConfiguration().getInt("cassandraport", 9160);
+
+                k = context.getConfiguration().getInt("k", DEFAULTKMERSIZE);
+                cassandraHost =  context.getConfiguration().get("cassandrahost");
+                cassandraPort =  context.getConfiguration().getInt("cassandraport", 9160);
                 keyspace = context.getConfiguration().get("keyspace");
                 readtablename = context.getConfiguration().get("readtablename");
                 kmertablename = context.getConfiguration().get("kmertablename");
+                JSONObject hostmapping = null;
+                String hostname = InetAddress.getLocalHost().getHostName();
 
-                k = context.getConfiguration().getInt("k", DEFAULTKMERSIZE);
+                if (context.getConfiguration().get("datahostmapping") != null)
+                    hostmapping = JSONObject.fromObject(context.getConfiguration().get("datahostmapping"));
 
                 try {
-                    tr = new TSocket(cassandraHost, cassandraPort);
-                    proto = new TBinaryProtocol(tr);
-                    client = new Cassandra.Client(proto);
-                    tr.open();
-                } catch (Exception e) {
+
+
+                    /*
+                    need to determine the datahost to talk with.  the host specified is only the seed, there may be
+                    others and different hosts should spread out connections.  If user has specified a host mapping,
+                    than use that, otherwise, query the seed to determine the set of hosts, and pick one at random
+                    (but try to ensure that the same host goes to the same server every time)
+                     */
+
+                    String useHost = null;
+                    if (hostmapping != null && hostmapping.get(hostname) != null) {
+
+                        useHost = hostmapping.getString(hostname);
+                        log.info("my mapping = " + useHost);
+
+                    } else {
+
+                        tr = new TSocket(cassandraHost, cassandraPort);
+                        proto = new TBinaryProtocol(tr);
+                        client = new Cassandra.Client(proto);
+                        tr.open();
+
+                        String jsonhostList = client.get_string_property("token map");  // this is a json map
+                        JSONObject jsonObject = JSONObject.fromObject( jsonhostList );
+                        Set s = jsonObject.keySet();
+                        log.info("\tnumber of hosts: " + s.size());
+                        int i = hashHost(hostname, s.size());
+
+                        useHost = jsonObject.values().toArray()[i].toString();
+                        log.info("\tpicking host: " + useHost);
+
+                    }
+
+                    if (useHost != null) {
+
+                        if (tr != null) tr.close();
+
+                        cassandraHost = useHost;
+                        log.info("\tconnecting to " + cassandraHost + "/" + cassandraPort);
+                        tr = new TSocket(cassandraHost, cassandraPort);
+                        proto = new TBinaryProtocol(tr);
+                        client = new Cassandra.Client(proto);
+                        tr.open();
+                    }
+
+                 } catch (Exception e) {
                     log.fatal("ERROR: " + e);
                     throw new IOException("unable to connect to cassandrahost at " + cassandraHost + "/" + cassandraPort);
                 }
+
+
             }
         }
 
@@ -345,8 +412,12 @@ public class KmerCountFromCassandra {
             System.exit(2);
         }
 
+        if (conf.get("datahostmapping") != null) conf.set("datahostmapping", conf.get("datahostmapping"));
         conf.set("cassandrahost", conf.getStrings("cassandrahost", "localhost")[0]);
         conf.setInt("cassandraport", Integer.parseInt(conf.getStrings("cassandraport", "9160")[0]));
+        conf.set("keyspace", conf.getStrings("keyspace", "jgi")[0]);
+        conf.set("readtablename", conf.getStrings("readtablename", "reads")[0]);
+        conf.set("kmertablename", conf.getStrings("kmertablename", "hash")[0]);
         conf.setInt("k", Integer.parseInt(otherArgs[0]));
 
         log.info("main() [version " + conf.getStrings("version", "unknown!")[0] + "] starting with following parameters");
@@ -357,6 +428,9 @@ public class KmerCountFromCassandra {
         log.info("\tkmer table   : " + conf.get("kmertablename"));
         log.info("\tk            : " + Integer.parseInt(otherArgs[0]));
         log.info("\toutput file  : " + otherArgs[1]);
+        log.info("\tinputsplitsize:" + conf.getInt("inputsplitsize", 1000000));
+        log.info("\trangebatchsize:" +  conf.getInt("rangebatchsize", 1000000));
+        log.info("\tdatahostmapping:" + conf.get("datahostmapping"));
 
         /*
         setup configuration parameters
@@ -375,6 +449,7 @@ public class KmerCountFromCassandra {
 
         ConfigHelper.setColumnFamily(job.getConfiguration(), conf.get("keyspace"), conf.get("readtablename"));
         ConfigHelper.setInputSplitSize(job.getConfiguration(), conf.getInt("inputsplitsize", 1000000));
+        ConfigHelper.setRangeBatchSize(job.getConfiguration(), conf.getInt("rangebatchsize", 100000));
         SlicePredicate predicate = new SlicePredicate().setSlice_range(new SliceRange(new byte[0], new byte[0],false,10));
         ConfigHelper.setSlicePredicate(job.getConfiguration(), predicate);
 
