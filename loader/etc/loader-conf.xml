@@ -18,7 +18,7 @@
     -->
     <property>
         <name>cassandrahost</name>
-        <value>thorium1</value>
+        <value>paris</value>
     </property>
 
     <!-- specifies the port number for cassandra data store
