@@ -82,7 +82,7 @@ public class KmerStatsFromCassandra {
      * generates the kmers and inserts them directly into the cassandra datastore.
      *
      */
-    public static class TokenizerMapper extends Mapper<String, SortedMap<byte[], IColumn>, Text, IntWritable>
+    public static class TokenizerMapper extends Mapper<String, SortedMap<byte[], IColumn>, IntWritable, IntWritable>
     {
         private final static IntWritable one = new IntWritable(1);
         private Text word = new Text();
@@ -125,9 +125,9 @@ public class KmerStatsFromCassandra {
 
             context.getCounter(ReadCounters.KMERCOUNT).increment(1);
 
-            if (count < minCoverage) {
+//            if (count < minCoverage) {
 
-                context.getCounter(ReadCounters.NUMTRUNCATIONS).increment(1);
+//                context.getCounter(ReadCounters.NUMTRUNCATIONS).increment(1);
 
                 Set s=columns.entrySet();
                 Iterator i=s.iterator();
@@ -143,15 +143,17 @@ public class KmerStatsFromCassandra {
 
                     log.debug(key + "[" + readid + "]" + " = " + position);
 
-                    word.set(readid);
-                    context.write(word, new IntWritable(position));
+//                    word.set(readid);
+//                    context.write(word, new IntWritable(position));
                 }
-            }
+  //          }
+
+            context.write(new IntWritable(count), one);
         }
     }
 
 
-    public static class IntSumReducer extends Reducer<Text, IntWritable, Text, IntWritable>
+    public static class IntSumReducer extends Reducer<IntWritable, IntWritable, IntWritable, IntWritable>
     {
         private IntWritable result = new IntWritable();
 
@@ -321,20 +323,20 @@ public class KmerStatsFromCassandra {
         }
 
 
-        public void reduce(Text key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException
+        public void reduce(IntWritable key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException
         {
-            int min = 100000000;
+            //int min = 100000000;
+            int sum = 0;
 
             log.debug("inside IntSumReducer... karan");
             log.debug("\tkey = " + key);
 
             for (IntWritable val : values)
             {
-                if (val.get() < min) min = val.get();
+                sum += val.get();
             }
 
-                result.set(min);
-            context.write(key, result);
+            context.write(key, new IntWritable(sum));
         }
     }
 
@@ -387,12 +389,12 @@ public class KmerStatsFromCassandra {
         job.setMapperClass(TokenizerMapper.class);
         job.setCombinerClass(IntSumReducer.class);
         job.setReducerClass(IntSumReducer.class);
-        job.setOutputKeyClass(Text.class);
+        job.setOutputKeyClass(IntWritable.class);
         job.setOutputValueClass(IntWritable.class);
-        job.setNumReduceTasks(1); 
+        job.setNumReduceTasks(1);
 
         ConfigHelper.setColumnFamily(job.getConfiguration(), "jgi", "hash");
-        //ConfigHelper.setInputSplitSize(job.getConfiguration(), 10);
+        //ConfigHelper.setInputSplitSize(job.getConfiguration(), 100000);
         SlicePredicate predicate = new SlicePredicate().setSlice_range(new SliceRange(new byte[0], new byte[0],false, minCoverage));
         ConfigHelper.setSlicePredicate(job.getConfiguration(), predicate);
 
