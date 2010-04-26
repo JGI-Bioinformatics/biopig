@@ -296,15 +296,25 @@ public class KmerCountFromCassandra {
                     clear();
                     int i;
                     for (i = 0; i < seqsize - kmersize - 1; i++) {
+                        int direction = 1;
+                        /*
+                        determine both the kmer and its reverse, and use only the lexiographically
+                        smaller one as the cannonmical representation of the kmer
+                         */
                         String kmer = sequence.substring(i, i + kmersize);
+                        String kmerReverse = new StringBuffer(kmer).reverse().toString();
+                        if (kmerReverse.compareTo(kmer) < 0) {
+                            kmer = kmerReverse;
+                            direction = -1;
+                        }
 
-                        insert(kmertablename, kmer, key, i);
-
+                        insert(kmertablename, kmer, key, i * direction);
                     }
                     int numbytessent = commit(keyspace);
 
                     context.getCounter(ReadCounters.KMERCOUNT).increment(i);
-                    context.getCounter(ReadCounters.BYTESSENTOVERNETWORK).increment(numbytessent);
+                    context.getCounter("bandwidth", cassandraHost).increment(numbytessent);
+                    //context.getCounter(ReadCounters.BYTESSENTOVERNETWORK).increment(numbytessent);
                 }
             }
         }
