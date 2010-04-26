@@ -35,7 +35,8 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.util.*;
 
-import gov.jgi.meta.hadoop.input.FastaInputFormat;
+
+import gov.jgi.meta.cassandra.DataStore;
 import org.apache.cassandra.db.IColumn;
 import org.apache.cassandra.hadoop.ColumnFamilyInputFormat;
 import org.apache.cassandra.hadoop.ConfigHelper;
@@ -46,7 +47,6 @@ import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
-import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.reduce.IntSumReducer;
 import org.apache.hadoop.util.GenericOptionsParser;
@@ -115,16 +115,7 @@ public class KmerCountFromCassandra {
 
         Logger log = Logger.getLogger(TokenizerMapper.class);
 
-        /*
-        cassandra configuration parameters
-         */
-        TTransport tr = null;
-        TProtocol proto = null;
-        Cassandra.Client client = null;
-        String cassandraTable = null;
-        String cassandraHost = null;
-        int cassandraPort = 0;
-        String keyspace = null;
+        DataStore ds = null;
         String readtablename = null;
         String kmertablename = null;
 
@@ -132,30 +123,6 @@ public class KmerCountFromCassandra {
         kmer options
          */
         int k = DEFAULTKMERSIZE;
-
-        /*
-        batched operations
-         */
-        HashMap<String, HashMap<String, LinkedList<Mutation>>> mutation_map = null;
-
-
-        /**
-         * generate an random index from 0 to size-1 such that each hostname will map to the same
-         * index consistently.
-         *
-         * @param hostname
-         * @param size max size of index
-         * @return an integer from 0 to size-1 (inclusive)
-         */
-        private int hashHost(String hostname, int size) {
-            int s = 0;
-            byte[] b = hostname.getBytes();
-
-            for (byte a : b ) {
-                s += (int) a;
-            }
-            return s % size;
-        }
 
         /**
          * initialization of mapper retrieves connection parameters from context and opens socket
@@ -179,73 +146,12 @@ public class KmerCountFromCassandra {
             log.info("\tusing kmer option k = " + context.getConfiguration().getInt("k", DEFAULTKMERSIZE));
             log.info("\tdatahostmapping = " + context.getConfiguration().get("datahostmapping"));
 
-            if (tr == null) {
+            ds = new DataStore();
+            ds.initialize(context.getConfiguration());
 
-                k = context.getConfiguration().getInt("k", DEFAULTKMERSIZE);
-                cassandraHost =  context.getConfiguration().get("cassandrahost");
-                cassandraPort =  context.getConfiguration().getInt("cassandraport", 9160);
-                keyspace = context.getConfiguration().get("keyspace");
-                readtablename = context.getConfiguration().get("readtablename");
-                kmertablename = context.getConfiguration().get("kmertablename");
-                JSONObject hostmapping = null;
-                String hostname = InetAddress.getLocalHost().getHostName();
-
-                if (context.getConfiguration().get("datahostmapping") != null)
-                    hostmapping = JSONObject.fromObject(context.getConfiguration().get("datahostmapping"));
-
-                try {
-
-
-                    /*
-                    need to determine the datahost to talk with.  the host specified is only the seed, there may be
-                    others and different hosts should spread out connections.  If user has specified a host mapping,
-                    than use that, otherwise, query the seed to determine the set of hosts, and pick one at random
-                    (but try to ensure that the same host goes to the same server every time)
-                     */
-
-                    String useHost = null;
-                    if (hostmapping != null && hostmapping.get(hostname) != null) {
-
-                        useHost = hostmapping.getString(hostname);
-                        log.info("my mapping = " + useHost);
-
-                    } else {
-
-                        tr = new TSocket(cassandraHost, cassandraPort);
-                        proto = new TBinaryProtocol(tr);
-                        client = new Cassandra.Client(proto);
-                        tr.open();
-
-                        String jsonhostList = client.get_string_property("token map");  // this is a json map
-                        JSONObject jsonObject = JSONObject.fromObject( jsonhostList );
-                        Set s = jsonObject.keySet();
-                        log.info("\tnumber of hosts: " + s.size());
-                        int i = hashHost(hostname, s.size());
-
-                        useHost = jsonObject.values().toArray()[i].toString();
-                        log.info("\tpicking host: " + useHost);
-
-                    }
-
-                    if (useHost != null) {
-
-                        if (tr != null) tr.close();
-
-                        cassandraHost = useHost;
-                        log.info("\tconnecting to " + cassandraHost + "/" + cassandraPort);
-                        tr = new TSocket(cassandraHost, cassandraPort);
-                        proto = new TBinaryProtocol(tr);
-                        client = new Cassandra.Client(proto);
-                        tr.open();
-                    }
-
-                 } catch (Exception e) {
-                    log.fatal("ERROR: " + e);
-                    throw new IOException("unable to connect to cassandrahost at " + cassandraHost + "/" + cassandraPort);
-                }
-
-
-            }
+            k = context.getConfiguration().getInt("k", DEFAULTKMERSIZE);
+            readtablename = context.getConfiguration().get("readtablename");
+            kmertablename = context.getConfiguration().get("kmertablename");
         }
 
         /**
@@ -254,9 +160,9 @@ public class KmerCountFromCassandra {
          * @param context
          */
         protected void cleanup(Context context) {
-            if (tr != null) {
-                tr.close();
-            }
+
+            if (ds != null) ds.cleanup();
+            
         }
 
 
@@ -293,7 +199,7 @@ public class KmerCountFromCassandra {
                     int seqsize = sequence.length();
                     int kmersize = k;
 
-                    clear();
+                    ds.clear();
                     int i;
                     for (i = 0; i < seqsize - kmersize - 1; i++) {
                         int direction = 1;
@@ -308,95 +214,17 @@ public class KmerCountFromCassandra {
                             direction = -1;
                         }
 
-                        insert(kmertablename, kmer, key, i * direction);
+                        ds.insert(kmertablename, kmer, key, i * direction);
                     }
-                    int numbytessent = commit(keyspace);
+                    int numbytessent = ds.commit();
 
                     context.getCounter(ReadCounters.KMERCOUNT).increment(i);
-                    context.getCounter("bandwidth", cassandraHost).increment(numbytessent);
+                    context.getCounter("bandwidth", ds.cassandraHost).increment(numbytessent);
                     //context.getCounter(ReadCounters.BYTESSENTOVERNETWORK).increment(numbytessent);
                 }
             }
         }
-
-        /**
-         * clear current batched operations.
-         *
-         */
-        private void clear() {
-            mutation_map = new HashMap<String, HashMap<String, LinkedList<Mutation>>>();
-        }
-
-        /**
-         * insert new data operation.  inserts key[column] = value into mutation_map
-         *
-         * @param tableName the table in which to insert the column/value
-         * @param key identifies the row in which to add the column/value
-         * @param column the new column name to add
-         * @param value the value to add for the column
-         * @throws IOException if there is any error
-         */
-        private void insert(String tableName, String key, String column, int value) throws IOException {
-
-            if (mutation_map == null) {
-                clear();
-            }
-
-            long timestamp = System.currentTimeMillis();
-
-            if (mutation_map.get(key) == null) {
-                mutation_map.put(key, new HashMap<String, LinkedList<Mutation>>());
-                (mutation_map.get(key)).put(tableName, new LinkedList<Mutation>());
-            }
-
-            Mutation kmerinsert = new Mutation();
-
-            byte[] b = intToByteArray(value);
-
-            ColumnOrSuperColumn c = new ColumnOrSuperColumn();
-            c.setColumn(new Column(column.getBytes(), b, timestamp));
-            kmerinsert.setColumn_or_supercolumn(c);
-
-            ((mutation_map.get(key)).get(tableName)).add(kmerinsert);
-
-        }
-
-        /**
-         * flush data store operations to cassandra server, return (roughly) the number of bytes
-         * sent.
-         *
-         * @param keySpace is the keyspace for the cassandra datastore
-         * @return the number of bytes sent (roughly)
-         * @throws IOException if there is some error
-         */
-        private int commit(String keySpace) throws IOException {
-
-            try {
-                client.batch_mutate(keySpace, (Map) mutation_map, ConsistencyLevel.ONE);
-            } catch (Exception e) {
-                throw new IOException(e);
-            }
-            return mutation_map.toString().length();
-
-        }
-
-        /**
-         * convet int to byte array assuming 8 bytes per integer
-         * @param value to convert
-         * @return a fresh byte array
-         */
-        public static byte[] intToByteArray(int value) {
-                byte[] b = new byte[8];
-                for (int i = 0; i < 8; i++) {
-                    int offset = (b.length - 1 - i) * 8;
-                    b[i] = (byte) ((value >>> offset) & 0xFF);
-                }
-                return b;
-            }
-
     }
-
-
 
     /**
      * starts off the hadoop application

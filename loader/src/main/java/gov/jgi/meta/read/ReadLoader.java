@@ -34,8 +34,8 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.util.*;
 
-import gov.jgi.meta.hadoop.input.FastaInputFormat;
-import org.apache.cassandra.thrift.*;
+import gov.jgi.meta.cassandra.DataStore;
+import gov.jgi.meta.hadoop.input.*;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
@@ -89,21 +89,7 @@ public class ReadLoader {
 
         Logger log = Logger.getLogger(FastaTokenizerMapper.class);
 
-        /*
-        cassandra configuration parameters
-         */
-        TTransport tr = null;
-        TProtocol proto = null;
-        Cassandra.Client client = null;
-        String cassandraTable = null;
-        String cassandraHost = null;
-        int cassandraPort = 0;
-
-        /*
-        batched operations
-         */
-        Map mutation_map = null;
-
+        DataStore ds = null;
 
         /**
          * initialization of mapper retrieves connection parameters from context and opens socket
@@ -123,21 +109,7 @@ public class ReadLoader {
 
             log.info("\tconnecting to cassandra host: " + context.getConfiguration().get("cassandrahost"));
 
-            if (tr == null) {
-                cassandraHost = context.getConfiguration().get("cassandrahost");
-                cassandraPort = context.getConfiguration().getInt("cassandraport", 9160);
-                cassandraTable = context.getConfiguration().get("cassandratable");
-
-                try {
-                    tr = new TSocket(cassandraHost, cassandraPort);
-                    proto = new TBinaryProtocol(tr);
-                    client = new Cassandra.Client(proto);
-                    tr.open();
-                } catch (Exception e) {
-                    log.fatal("ERROR: " + e);
-                    throw new IOException("unable to connect to cassandrahost at " + cassandraHost + "/" + cassandraPort);
-                }
-            }
+            ds.initialize(context.getConfiguration());
         }
 
         /**
@@ -147,12 +119,8 @@ public class ReadLoader {
          */
         protected void cleanup(Context context) throws IOException {
 
-            if (mutation_map != null && currentSize > 0) {
-                commit();
-            }
-            if (tr != null) {
-                tr.close();
-            }
+            if (ds != null) ds.cleanup();
+            
         }
 
 
@@ -203,99 +171,18 @@ public class ReadLoader {
             insert data into cassandra
             */
 
-            insert(key_id, "sequence", segment, sequence);
+            ds.insert(key_id, "sequence", segment, sequence);
 
             if (currentSize > batchSize) {
 
-                int numbytessent = commit();
+                int numbytessent = ds.commit();
                 context.getCounter(ReadCounters.BYTESSENTOVERNETWORK).increment(numbytessent);
-                clear();
+                ds.clear();
 
             }
 
         }
-
-        /**
-         * clear current batched operations.
-         *
-         */
-        private void clear() {
-            currentSize = 0;
-            mutation_map = new HashMap();
-        }
-
-        /**
-         * insert new data operation.  inserts key[column.subcolumn] = value
-         *
-         * @param key is the key for the table to insert (the tablename is specifed as config parameter)
-         * @param column is the supercolumn name
-         * @param subcolumn subcolumn name
-         * @param value the string value to insert
-         * @throws IOException if some error occurs.
-         */
-        private void insert(String key, String column, String subcolumn, String value) throws IOException {
-
-            if (mutation_map == null) {
-                clear();
-            }
-
-            long timestamp = System.currentTimeMillis();
-
-            if (mutation_map.get(key) == null) {
-                mutation_map.put(key, new HashMap());
-                ((HashMap) mutation_map.get(key)).put(cassandraTable, new LinkedList());
-            }
-
-            Mutation kmerinsert = new Mutation();
-
-            List<Column> lc = new LinkedList<Column>();
-            lc.add(new Column(subcolumn.getBytes(), value.getBytes(), timestamp));
-
-            ColumnOrSuperColumn c = new ColumnOrSuperColumn();
-            c.setSuper_column(new SuperColumn(column.getBytes(), lc));
-            kmerinsert.setColumn_or_supercolumn(c);
-
-            ((List) ((HashMap) mutation_map.get(key)).get(cassandraTable)).add(kmerinsert);
-
-            ++currentSize;
-        }
-
-        /**
-         * flush data store operations to cassandra server, return (roughly) the number of bytes
-         * sent.
-         *
-         * @return the number of bytes sent (roughly)
-         * @throws IOException if cassandra complains about anything.
-         */
-        private int commit() throws IOException {
-
-            try {
-                client.batch_mutate("jgi", mutation_map, ConsistencyLevel.ONE);
-            } catch (Exception e) {
-                throw new IOException(e);
-            }
-
-            return mutation_map.toString().length();
-
-        }
-
-        /**
-         * convet int to byte array assuming 8 bytes per integer
-         * @param value to convert
-         * @return a fresh byte array
-         */
-        public static byte[] intToByteArray(int value) {
-                byte[] b = new byte[8];
-                for (int i = 0; i < 8; i++) {
-                    int offset = (b.length - 1 - i) * 8;
-                    b[i] = (byte) ((value >>> offset) & 0xFF);
-                }
-                return b;
-            }
-
     }
-
-
 
     /**
      * starts off the hadoop application

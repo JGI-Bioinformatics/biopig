@@ -2,7 +2,7 @@
 
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-	<groupId>gov.jgi.meta.kmer2</groupId>
+	<groupId>gov.jgi.gentech</groupId>
 	<artifactId>kmerCassandraHadoopApp</artifactId>
 	<packaging>jar</packaging>
 	<version>0.1</version>
@@ -13,7 +13,20 @@
 		<name>Joint Genomics Institute, US Department of Energy</name>
 		<url>http://www.jgi.gov</url>
 	</organization>
+
+    <parent>
+        <groupId>gov.jgi.gentech</groupId>
+        <artifactId>pipeline</artifactId>
+        <version>0.1</version>
+    </parent>
+
     <dependencies>
+        <dependency>
+            <groupId>gov.jgi.gentech</groupId>
+            <artifactId>pipelinelibrary</artifactId>
+            <version>0.1</version>
+        </dependency>
+
         <dependency>
             <groupId>log4j</groupId>
             <artifactId>log4j</artifactId>
@@ -75,6 +88,24 @@
     <build>
         <plugins>
             <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <configuration>
+                    <descriptors>
+                        <descriptor>src/main/assembly/job.xml</descriptor>
+                    </descriptors>
+                </configuration>
+                <executions>
+                          <execution>
+                            <id>make-assembly</id> <!-- this is used for inheritance merges -->
+                            <phase>package</phase> <!-- append to the packaging phase. -->
+                            <goals>
+                              <goal>single</goal> <!-- goals == mojos -->
+                            </goals>
+                          </execution>
+                        </executions>
+            </plugin>
+
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
@@ -93,4 +124,8 @@
             
         </plugins>
     </build>
+
+
+
+
 </project>
