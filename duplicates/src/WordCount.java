@@ -59,23 +59,19 @@ public class WordCount extends Configured implements Tool
             IColumn column = columns.get(columnName.getBytes());
             if (column == null)
                 return;
-            //String value = new String(column.value());
-            String value = "test"; 
 
-            logger.info("read " + key + ":" + value + " from " + context.getInputSplit());
+            String value = nw String(column.getSubColumn("1".getBytes()).value()).substring(0,20) +
+                new String(column.getSubColumn("2".getBytes()).value()).substring(0,20);
 
-            int i = 0;
-//           for (int i = 0; i < value.length()-8; i++) {
-                word.set("karan");
-                context.write(word, one);
-//           }
+            word.set(value);
+            context.write(word, one);
 
         }
 
         protected void setup(org.apache.hadoop.mapreduce.Mapper.Context context)
             throws IOException, InterruptedException
         {
-            this.columnName = context.getConfiguration().get(CONF_COLUMN_NAME);
+
         }
 
     }

@@ -1,0 +1,70 @@
+<?xml version="1.0" ?>
+
+<!-- configuration file for kmerHadoopApp
+
+   this file should be in the classpath of hadoop somewhere.
+
+  -->
+
+<configuration>
+    <!-- version number for application.  should match build version in pom.xml
+    -->
+    <property>
+        <name>version</name>
+        <value>0.1</value>
+    </property>
+
+    <!-- specifies the hostname for the cassandra data store
+    -->
+    <property>
+        <name>cassandrahost</name>
+        <value>localhost</value>
+    </property>
+
+    <!-- specifies the port number for cassandra data store
+    -->
+    <property>
+        <name>cassandraport</name>
+        <value>9160</value>
+    </property>
+
+    <property>
+        <name>keyspace</name>
+        <value>jgi</value>
+    </property>
+
+    <!-- the table in the datastore where the reads are stores -->
+    <property>
+        <name>readtablename</name>
+        <value>reads</value>
+    </property>
+
+    <!-- the table in the datastore to write the kmer hash values -->
+    <property>
+        <name>kmertablename</name>
+        <value>hash</value>
+    </property>
+
+    <property>
+        <name>inputsplitsize</name>
+        <value>1000000</value>
+    </property>
+
+    <property>
+        <name>rangebatchsize</name>
+        <value>100000</value>
+    </property>
+
+    <property>
+        <name>datahostmapping</name>
+        <value>{"paris": "paris"}</value>
+    </property>
+    <property>
+        <name>mapred.max.split.size</name>
+        <value>3000000</value>
+    </property>
+
+
+
+</configuration>
+
