@@ -1,3 +1,6 @@
 [submodule "cassandra"]
 	path = cassandra
 	url = http://github.com/apache/cassandra.git
+[submodule "pig"]
+	path = pig
+	url = http://github.com/apache/pig.git
