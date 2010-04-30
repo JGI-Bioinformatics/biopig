@@ -32,7 +32,6 @@ package gov.jgi.meta.read;
 
 import java.io.IOException;
 import java.net.InetAddress;
-import java.util.*;
 
 import gov.jgi.meta.cassandra.DataStore;
 import gov.jgi.meta.hadoop.input.*;
@@ -45,10 +44,6 @@ import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.util.GenericOptionsParser;
-import org.apache.thrift.protocol.TBinaryProtocol;
-import org.apache.thrift.protocol.TProtocol;
-import org.apache.thrift.transport.TSocket;
-import org.apache.thrift.transport.TTransport;
 
 import org.apache.log4j.Logger;
 
@@ -56,21 +51,17 @@ import org.apache.log4j.Logger;
 /**
  * custom counters
  *
- * MALFORMED is the number of ignored reads due to some simple syntax checking
- * WELLFORMED is the number of reads that were read
- * KMERCOUNT is the number of kmers that were generated
- * BYTESSENTOVERNETWORK is the data that is sent to the cassandra data store
+ * MALFORMED is the number of ignored reads that failed simple syntax checking
+ * WELLFORMED is the number of reads that were read and processed
  *
  */
 enum ReadCounters {
    MALFORMED,
-   WELLFORMEND,
-   BYTESSENTOVERNETWORK
+   WELLFORMEND
 }
 
 /**
- * hadoop application to read sequence reads from file, generate the unique kmers
- * and insert into cassandra.
+ * hadoop application to read sequence reads from file and inserts into cassandra.
  */
 public class ReadLoader {
 
@@ -89,13 +80,16 @@ public class ReadLoader {
 
         Logger log = Logger.getLogger(FastaTokenizerMapper.class);
 
+        /**
+         * abstracts the details of connections to the cassandra servers
+         */
         DataStore ds = null;
 
         /**
-         * initialization of mapper retrieves connection parameters from context and opens socket
-         * to cassandra data server
+         * initialization of mapper retrieves connection parameters from context and
+         * opens connection to datastore
          *
-         * @param context
+         * @param context is the mapper context for this job
          * @throws IOException
          * @throws InterruptedException
          */
@@ -109,7 +103,7 @@ public class ReadLoader {
 
             log.info("\tconnecting to cassandra host: " + context.getConfiguration().get("cassandrahost"));
 
-            ds.initialize(context.getConfiguration());
+            ds = new DataStore(context.getConfiguration());
         }
 
         /**
@@ -134,8 +128,7 @@ public class ReadLoader {
          * @throws IOException
          * @throws InterruptedException
          */
-        public void map(Object key, Text value, Context context
-        ) throws IOException, InterruptedException {
+        public void map(Object key, Text value, Context context) throws IOException, InterruptedException {
 
 
             log.debug("map function called with value = " + value.toString());
@@ -176,7 +169,7 @@ public class ReadLoader {
             if (currentSize > batchSize) {
 
                 int numbytessent = ds.commit();
-                context.getCounter(ReadCounters.BYTESSENTOVERNETWORK).increment(numbytessent);
+                context.getCounter("bandwidth", ds.cassandraHost).increment(numbytessent);
                 ds.clear();
 
             }

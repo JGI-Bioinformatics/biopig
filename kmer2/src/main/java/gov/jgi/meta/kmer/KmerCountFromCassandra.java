@@ -50,11 +50,6 @@ import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.reduce.IntSumReducer;
 import org.apache.hadoop.util.GenericOptionsParser;
-import org.apache.thrift.protocol.TBinaryProtocol;
-import org.apache.thrift.protocol.TProtocol;
-import org.apache.thrift.transport.TSocket;
-import org.apache.thrift.transport.TTransport;
-import net.sf.json.*;
 import org.apache.log4j.Logger;
 
 
@@ -146,8 +141,7 @@ public class KmerCountFromCassandra {
             log.info("\tusing kmer option k = " + context.getConfiguration().getInt("k", DEFAULTKMERSIZE));
             log.info("\tdatahostmapping = " + context.getConfiguration().get("datahostmapping"));
 
-            ds = new DataStore();
-            ds.initialize(context.getConfiguration());
+            ds = new DataStore(context.getConfiguration());
 
             k = context.getConfiguration().getInt("k", DEFAULTKMERSIZE);
             readtablename = context.getConfiguration().get("readtablename");
