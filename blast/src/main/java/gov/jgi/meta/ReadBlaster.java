@@ -28,7 +28,9 @@ package gov.jgi.meta;/*
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
 import java.util.Map;
 import java.util.Set;
@@ -37,16 +39,21 @@ import gov.jgi.meta.cassandra.DataStore;
 import gov.jgi.meta.exec.BlastCommand;
 import gov.jgi.meta.hadoop.input.*;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.Job;
-import org.apache.hadoop.mapreduce.Mapper;
-import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.io.compress.CompressionCodec;
+import org.apache.hadoop.io.compress.GzipCodec;
+import org.apache.hadoop.mapreduce.*;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.util.GenericOptionsParser;
 
+import org.apache.hadoop.util.Progressable;
+import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.log4j.Logger;
 
 /**
@@ -57,7 +64,6 @@ public class ReadBlaster {
     /**
      * map task reads portions of the fasta file provided from the input split and
      * generated the kmers and inserts them directly into the cassandra datastore.
-     *
      */
     public static class FastaTokenizerMapper
             extends Mapper<Object, Map<String, String>, Text, IntWritable> {
@@ -88,8 +94,7 @@ public class ReadBlaster {
          * @throws InterruptedException
          */
         protected void setup(Context context)
-                throws IOException, InterruptedException
-        {
+                throws IOException, InterruptedException {
 
             log.info("initializing mapper class for job: " + context.getJobName());
             log.info("\tcontext = " + context.toString());
@@ -97,7 +102,7 @@ public class ReadBlaster {
 
             log.info("\tconnecting to cassandra host: " + context.getConfiguration().get("cassandrahost"));
 
-            ds = new DataStore(context.getConfiguration());
+            //ds = new DataStore(context.getConfiguration());
 
             blastCmd = new BlastCommand(context.getConfiguration());
 
@@ -119,8 +124,8 @@ public class ReadBlaster {
          * the map function, processes a single record where record = <read id, sequence string>.  mapper generates
          * kmer's of appropriate size and inserts them into the cassandra datastore.
          *
-         * @param key - read id as defined in the fasta file
-         * @param value - sequence string (AATTGGCC...)
+         * @param key     - read id as defined in the fasta file
+         * @param value   - sequence string (AATTGGCC...)
          * @param context - configuration context
          * @throws java.io.IOException
          * @throws InterruptedException
@@ -130,7 +135,7 @@ public class ReadBlaster {
 
             // formatdb -i est.fa -o T -p F
             // "blastall -m 8 -p tblastn -b 1000000 -a 10 -o $workdir/cazy.blastout -d $blast_db -i $cazy
-            
+
             log.debug("map function called with value = " + value.toString());
             log.debug("\tcontext = " + context.toString());
             log.debug("\tkey = " + key.toString());
@@ -147,8 +152,7 @@ public class ReadBlaster {
     }
 
 
-    public static class IntSumReducer extends Reducer<Text, IntWritable, Text, IntWritable>
-    {
+    public static class IntSumReducer extends Reducer<Text, IntWritable, Text, IntWritable> {
         private IntWritable result = new IntWritable();
 
         Logger log = Logger.getLogger(IntSumReducer.class);
@@ -162,8 +166,7 @@ public class ReadBlaster {
          * @throws InterruptedException
          */
         protected void setup(Reducer.Context context)
-                throws IOException, InterruptedException
-        {
+                throws IOException, InterruptedException {
 
             log.info("initializing mapper class for job: " + context.getJobName());
             log.info("\tcontext = " + context.toString());
@@ -181,24 +184,117 @@ public class ReadBlaster {
 
         }
 
-        public void reduce(Text key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException
-        {
+        public void reduce(Text key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {
             //int min = 100000000;
             int sum = 0;
 
             log.debug("inside IntSumReducer... karan");
             log.debug("\tkey = " + key);
 
-            for (IntWritable val : values)
-            {
+            for (IntWritable val : values) {
                 sum += val.get();
             }
-
             context.write(key, new IntWritable(sum));
         }
     }
 
+    public static class ReadOutputFormat<K, V> extends FileOutputFormat<K, V> {
+        protected class ReadRecordWriter<K, V>
+                extends RecordWriter<K, V> {
+            private final String utf8 = "UTF-8";
+            private final byte[] newline;
 
+            {
+                try {
+                    newline = "\n".getBytes(utf8);
+                } catch (UnsupportedEncodingException uee) {
+                    throw new IllegalArgumentException("can't find " + utf8 + " encoding");
+                }
+            }
+
+            protected DataOutputStream out;
+            private final byte[] keyValueSeparator;
+
+            public ReadRecordWriter(DataOutputStream out, String keyValueSeparator) {
+                this.out = out;
+                try {
+                    this.keyValueSeparator = keyValueSeparator.getBytes(utf8);
+                } catch (UnsupportedEncodingException uee) {
+                    throw new IllegalArgumentException("can't find " + utf8 + " encoding");
+                }
+            }
+
+            public ReadRecordWriter(DataOutputStream out) {
+                this(out, "\n");
+            }
+
+            /**
+             * Write the object to the byte stream, handling Text as a special
+             * case.
+             *
+             * @param o the object to print
+             * @throws IOException if the write throws, we pass it on
+             */
+            private void writeObject(Object o) throws IOException {
+                if (o instanceof Text) {
+                    Text to = (Text) o;
+                    out.write(to.getBytes(), 0, to.getLength());
+                } else {
+                    out.write(o.toString().getBytes(utf8));
+                }
+            }
+
+            public synchronized void write(K key, V value)
+                    throws IOException {
+
+                boolean nullKey = key == null || key instanceof NullWritable;
+                boolean nullValue = value == null || value instanceof NullWritable;
+                if (nullKey && nullValue) {
+                    return;
+                }
+                if (!nullKey) {
+                    writeObject(">" + key);
+                }
+                if (!(nullKey || nullValue)) {
+                    out.write(keyValueSeparator);
+                }
+                if (!nullValue) {
+                    writeObject(value);
+                }
+                out.write(newline);
+            }
+
+            public synchronized void close(TaskAttemptContext context) throws IOException {
+                out.close();
+            }
+        }
+
+        public ReadRecordWriter<K, V>  getRecordWriter(TaskAttemptContext job) throws IOException, InterruptedException {
+            Configuration conf = job.getConfiguration();
+            boolean isCompressed = getCompressOutput(job);
+            String keyValueSeparator = conf.get("mapred.textoutputformat.separator",
+                    "\t");
+            CompressionCodec codec = null;
+            String extension = "";
+            if (isCompressed) {
+                Class<? extends CompressionCodec> codecClass =
+                        getOutputCompressorClass(job, GzipCodec.class);
+                codec = (CompressionCodec) ReflectionUtils.newInstance(codecClass, conf);
+                extension = codec.getDefaultExtension();
+            }
+            Path file = getDefaultWorkFile(job, extension);
+            FileSystem fs = file.getFileSystem(conf);
+            if (!isCompressed) {
+                FSDataOutputStream fileOut = fs.create(file, false);
+                return new ReadRecordWriter<K, V>(fileOut, keyValueSeparator);
+            } else {
+                FSDataOutputStream fileOut = fs.create(file, false);
+                return new ReadRecordWriter<K, V>(new DataOutputStream
+                        (codec.createOutputStream(fileOut)),
+                        keyValueSeparator);
+            }
+        }
+    }
 
 
     /**
@@ -246,6 +342,7 @@ public class ReadBlaster {
         job.setReducerClass(IntSumReducer.class);
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(IntWritable.class);
+        job.setOutputFormatClass(ReadOutputFormat.class);
         job.setNumReduceTasks(1);  // no reduce tasks needed
 
         FileInputFormat.addInputPath(job, new Path(otherArgs[0]));

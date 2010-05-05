@@ -158,8 +158,7 @@ public class BlatCommand {
 
 
     /**
-     * given a list of sequences, creates a db for use with blast using
-     * formatdb executable
+     * given a list of sequences, creates a db for use with blat
      *
      * @param seqList is the list of sequences to create the database with
      * @return the full path of the location of the database
@@ -175,7 +174,7 @@ public class BlatCommand {
          */
         try {
             tmpdir = createTempDir();
-            seqFile = new File(tmpdir, "seqfile.fa");
+            seqFile = new File(tmpdir, "reads.fa");
             out = new BufferedWriter(new FileWriter(seqFile.getPath()));
 
             /*
@@ -208,7 +207,47 @@ public class BlatCommand {
      * @param inputQuery  is the full path of the cazy database to search against the reference
      * @return a list of sequence ids in the reference that match the cazy database
      */
-    public Set<String> exec(Map<String, String> seqMap, String inputQuery) {
+    public Set<String> exec(Map<String, String> seqMap, String blatInputFile) {
+
+        /*
+        first, take the blatInputFile and find the corresponding sequence in the
+        seqMap.  find both the exact sequence id, as well as its matching pair
+        and write to temporary file.
+        */
+        Map<String,String> l = new HashMap<String,String>();
+
+        try {
+            Text t = new Text();
+            FileInputStream fstream = new FileInputStream(blatInputFile);
+            FastaBlockLineReader in = new FastaBlockLineReader(fstream);
+            int bytes = in.readLine(t, l);
+        } catch (Exception e) {
+            log.error(e);
+            return null;
+        }
+        try {
+            File tmpdir = createTempDir();
+            File seqFile = new File(tmpdir, "reads.fa");
+            BufferedWriter out = new BufferedWriter(new FileWriter(seqFile.getPath()));
+
+            for (String key : l.keySet()) {
+                String key1 = key+"/1";
+                String key2 = key+"/2";
+                if (seqMap.containsKey(key1)) {
+                    out.write(">" + key1 + "\n");
+                    out.write(seqMap.get(key1) + "\n");
+                }
+                if (seqMap.containsKey(key2)) {
+                    out.write(">" + key2 + "\n");
+                    out.write(seqMap.get(key2) + "\n");
+                }
+            }
+
+            out.close();
+        } catch (Exception e) {
+            log.error(e);
+            return null;
+        }
 
         String seqFile = dumpToFile(seqMap);
 
@@ -223,7 +262,7 @@ public class BlatCommand {
         List<String> commands = new ArrayList<String>();
         commands.add("/bin/sh");
         commands.add("-c");
-        commands.add(commandPath + " " + commandLine + seqFile + inputQuery + " blat.output");
+        commands.add(commandPath + " " + commandLine + seqFile + " " + blatInputFile + " blat.output");
 
         try {
 
