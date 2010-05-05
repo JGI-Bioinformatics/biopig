@@ -32,9 +32,14 @@ package gov.jgi.meta.hadoop.input;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
+import org.biojava.bio.seq.DNATools;
+import org.biojava.bio.seq.Sequence;
+import org.biojava.bio.symbol.IllegalSymbolException;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.List;
+import java.util.Map;
 
 /**
  * A class that provides a line reader from an input stream.
@@ -102,7 +107,7 @@ public class FastaBlockLineReader {
    * or '\r\n' (CR+LF).  EOF also terminates an otherwise unterminated
    * line.
    *
-   * @param str the object to store the given line (without newline)
+   * @param set the object to store the given line (without newline)
    * @param maxLineLength the maximum number of bytes to store into str;
    *  the rest of the line is silently discarded.
    * @param maxBytesToConsume the maximum number of bytes to consume
@@ -115,7 +120,7 @@ public class FastaBlockLineReader {
    *
    * @throws java.io.IOException if the underlying stream throws
    */
-  public int readLine(Text key, Text str, int maxLineLength,
+  public int readLine(Text key, Map<String,String> set, int maxLineLength,
                       int maxBytesToConsume) throws IOException {
     /* We're reading data from in, but the head of the stream may be
      * already buffered in buffer, so we have several cases:
@@ -133,6 +138,7 @@ public class FastaBlockLineReader {
      * consuming it until we have a chance to look at the char that
      * follows.
      */
+    Text str = new Text();
     str.clear();
     key.clear();
     int txtLength = 0; //tracks str.getLength(), as an optimization
@@ -182,7 +188,7 @@ public class FastaBlockLineReader {
       if (appendLength > maxLineLength - txtLength) {
         appendLength = maxLineLength - txtLength;
       }
-      if (appendLength > 0) {
+      if (appendLength >= 0) {
         if (keySeen == 0) {
             // set the key first
             key.append(buffer, startPosn, appendLength);
@@ -193,7 +199,31 @@ public class FastaBlockLineReader {
             txtLength += appendLength;
         }
       }
-    } while (bytesConsumed < maxBytesToConsume && recordEnd == 0);
+      if (recordEnd == 1) {
+          try {
+
+              System.out.println("key = " + key.toString());
+              assert(key.toString() != null);
+              assert(key.toString() != "");
+              assert(str.toString() != null);
+              assert(str.toString() != "");
+              if (key.toString().startsWith("756:1:1:1339:14587/2")) {
+                  assert(false);
+              }
+              set.put(key.toString(), str.toString());
+              recordEnd = 0;
+              str.clear();
+              key.clear();
+              txtLength = 0; //tracks str.getLength(), as an optimization
+              recordEnd = 0;
+              seenData = 0;
+              newline = 0;
+              keySeen = 0;
+          } catch (Exception e) {
+              throw new IOException(e);
+          }
+      }
+    } while (bytesConsumed < maxBytesToConsume);
 
     if (bytesConsumed > (long)Integer.MAX_VALUE)
       throw new IOException("Too many bytes before newline: " + bytesConsumed);
@@ -202,23 +232,23 @@ public class FastaBlockLineReader {
 
   /**
    * Read from the InputStream into the given Text.
-   * @param str the object to store the given line
+   * @param l the object to store the given line
    * @param maxLineLength the maximum number of bytes to store into str.
    * @return the number of bytes read including the newline
    * @throws java.io.IOException if the underlying stream throws
    */
-  public int readLine(Text key, Text str, int maxLineLength) throws IOException {
-    return readLine(key, str, maxLineLength, Integer.MAX_VALUE);
+  public int readLine(Text key, Map<String,String> l, int maxLineLength) throws IOException {
+    return readLine(key, l, maxLineLength, Integer.MAX_VALUE);
 }
 
   /**
    * Read from the InputStream into the given Text.
-   * @param str the object to store the given line
+   * @param l the object to store the given line
    * @return the number of bytes read including the newline
    * @throws java.io.IOException if the underlying stream throws
    */
-  public int readLine(Text key, Text str) throws IOException {
-    return readLine(key, str, Integer.MAX_VALUE, Integer.MAX_VALUE);
+  public int readLine(Text key, Map<String,String> l) throws IOException {
+    return readLine(key, l, Integer.MAX_VALUE, Integer.MAX_VALUE);
   }
 
 }

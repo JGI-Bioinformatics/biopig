@@ -43,14 +43,16 @@ import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
+import org.biojava.bio.seq.Sequence;
 
 import java.io.IOException;
+import java.util.*;
 
 
 /**
  * Treats keys as offset in file and value as line.
  */
-public class FastaBlockRecordReader extends RecordReader<Text, Text> {
+public class FastaBlockRecordReader extends RecordReader<Text, Map<String,String>> {
   private static final Log LOG = LogFactory.getLog(FastaBlockRecordReader.class);
 
   private CompressionCodecFactory compressionCodecs = null;
@@ -60,7 +62,7 @@ public class FastaBlockRecordReader extends RecordReader<Text, Text> {
   private FastaBlockLineReader in;
   private int maxLineLength;
   private Text key = null;
-  private Text value = null;
+  private Map<String,String> value = null;
 
   public void initialize(InputSplit genericSplit,
                          TaskAttemptContext context) throws IOException {
@@ -79,7 +81,7 @@ public class FastaBlockRecordReader extends RecordReader<Text, Text> {
     FSDataInputStream fileIn = fs.open(split.getPath());
     boolean skipFirstLine = false;
     if (codec != null) {
-      in = new FastaLineReader(codec.createInputStream(fileIn), job);
+      in = new FastaBlockLineReader(codec.createInputStream(fileIn), job);
       end = Long.MAX_VALUE;
     } else {
       if (start != 0) {
@@ -87,10 +89,10 @@ public class FastaBlockRecordReader extends RecordReader<Text, Text> {
         --start;
         fileIn.seek(start);
       }
-      in = new FastaLineReader(fileIn, job);
+      in = new FastaBlockLineReader(fileIn, job);
     }
     if (skipFirstLine) {  // skip first line and re-establish "start".
-      start += in.readLine(new Text(), new Text(), 0,
+      start += in.readLine(new Text(), new HashMap<String,String>(), 0,
                            (int)Math.min((long)Integer.MAX_VALUE, end - start));
     }
     this.pos = start;
@@ -101,13 +103,15 @@ public class FastaBlockRecordReader extends RecordReader<Text, Text> {
       key = new Text();
     }
     if (value == null) {
-      value = new Text();
+      value = new HashMap<String,String>();
     }
     int newSize = 0;
     while (pos < end) {
       newSize = in.readLine(key, value, maxLineLength,
                             Math.max((int)Math.min(Integer.MAX_VALUE, end-pos),
                                      maxLineLength));
+
+      
       if (newSize == 0) {
         break;
       }
@@ -135,7 +139,7 @@ public class FastaBlockRecordReader extends RecordReader<Text, Text> {
   }
 
   @Override
-  public Text getCurrentValue() {
+  public Map<String,String> getCurrentValue() {
     return value;
   }
 

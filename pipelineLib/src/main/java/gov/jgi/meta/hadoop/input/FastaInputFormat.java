@@ -39,6 +39,7 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.biojava.bio.seq.Sequence;
 
 
 /** An {@link FastaInputFormat} is for fasta text files.  Files are broken
@@ -51,10 +52,10 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
  * the identifier is from after the ">" till new line, and the sequence is
  * the following line till the next ">"
  */
-public class FastaInputFormat extends FileInputFormat<Text, Text> {
+public class FastaInputFormat extends FileInputFormat<Text, Sequence> {
 
   @Override
-  public RecordReader<Text, Text>
+  public RecordReader<Text, Sequence>
     createRecordReader(InputSplit split,
                        TaskAttemptContext context) {
     return new FastaRecordReader();

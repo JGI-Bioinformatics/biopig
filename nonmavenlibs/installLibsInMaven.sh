@@ -12,3 +12,5 @@ mvn install:install-file -Dfile=high-scale-lib.jar -DgroupId=high-scale-lib -Dar
 
 mvn install:install-file -Dfile=clhm-production.jar -DgroupId=com.reardencommerce -DartifactId=clhm -Dversion=UNKNOWN -Dpackaging=jar -DgeneratePom=true
 
+mvn install:install-file -Dfile=biojava.jar -DgroupId=org.biojava -DartifactId=biojava -Dversion=UNKNOWN -Dpackaging=jar -DgeneratePom=true
+

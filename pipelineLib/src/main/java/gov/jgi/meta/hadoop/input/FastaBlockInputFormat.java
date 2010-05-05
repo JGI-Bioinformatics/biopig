@@ -39,6 +39,10 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.biojava.bio.seq.Sequence;
+
+import java.util.List;
+import java.util.Map;
 
 
 /** An {@link FastaBlockInputFormat} is for fasta text files.  Files are broken
@@ -53,10 +57,10 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
  *
  * This class splits the fasta records into a single large multi-fasta block.
  */
-public class FastaBlockInputFormat extends FileInputFormat<Text, Text> {
+public class FastaBlockInputFormat extends FileInputFormat<Text, Map<String,String>> {
 
   @Override
-  public RecordReader<Text, Text>
+  public RecordReader<Text, Map<String,String>>
     createRecordReader(InputSplit split,
                        TaskAttemptContext context) {
     return new FastaBlockRecordReader();

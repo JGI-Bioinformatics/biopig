@@ -44,6 +44,9 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 
+import org.biojava.bio.seq.*;
+import org.biojava.bio.symbol.IllegalSymbolException;
+
 import java.io.IOException;
 
 
@@ -51,7 +54,7 @@ import java.io.IOException;
 /**
  * Treats keys as offset in file and value as line.
  */
-public class FastaRecordReader extends RecordReader<Text, Text> {
+public class FastaRecordReader extends RecordReader<Text, Sequence> {
   private static final Log LOG = LogFactory.getLog(FastaRecordReader.class);
 
   private CompressionCodecFactory compressionCodecs = null;
@@ -61,7 +64,7 @@ public class FastaRecordReader extends RecordReader<Text, Text> {
   private FastaLineReader in;
   private int maxLineLength;
   private Text key = null;
-  private Text value = null;
+  private Sequence value = null;
 
   public void initialize(InputSplit genericSplit,
                          TaskAttemptContext context) throws IOException {
@@ -98,17 +101,25 @@ public class FastaRecordReader extends RecordReader<Text, Text> {
   }
 
   public boolean nextKeyValue() throws IOException {
+    Text txtvalue = null;
+
     if (key == null) {
       key = new Text();
     }
-    if (value == null) {
-      value = new Text();
+    if (txtvalue == null) {
+      txtvalue = new Text();
     }
     int newSize = 0;
     while (pos < end) {
-      newSize = in.readLine(key, value, maxLineLength,
+      newSize = in.readLine(key, txtvalue, maxLineLength,
                             Math.max((int)Math.min(Integer.MAX_VALUE, end-pos),
                                      maxLineLength));
+      try {
+          value = DNATools.createDNASequence(txtvalue.toString(), key.toString());
+      } catch (IllegalSymbolException e) {
+          throw new IOException(e);
+      }
+        
       if (newSize == 0) {
         break;
       }
@@ -136,7 +147,7 @@ public class FastaRecordReader extends RecordReader<Text, Text> {
   }
 
   @Override
-  public Text getCurrentValue() {
+  public Sequence getCurrentValue() {
     return value;
   }
 
