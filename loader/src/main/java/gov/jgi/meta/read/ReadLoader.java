@@ -46,6 +46,7 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.util.GenericOptionsParser;
 
 import org.apache.log4j.Logger;
+import org.biojava.bio.seq.Sequence;
 
 
 /**
@@ -71,7 +72,7 @@ public class ReadLoader {
      *
      */
     public static class FastaTokenizerMapper
-            extends Mapper<Object, Text, Text, IntWritable> {
+            extends Mapper<Object, Sequence, Text, IntWritable> {
 
         private final static IntWritable one = new IntWritable(1);
         private Text word = new Text();
@@ -128,7 +129,7 @@ public class ReadLoader {
          * @throws IOException
          * @throws InterruptedException
          */
-        public void map(Object key, Text value, Context context) throws IOException, InterruptedException {
+        public void map(Object key, Sequence value, Context context) throws IOException, InterruptedException {
 
 
             log.debug("map function called with value = " + value.toString());
@@ -136,9 +137,12 @@ public class ReadLoader {
             log.debug("\tkey = " + key.toString());
             log.debug("\thostname = " + InetAddress.getLocalHost().getHostName());
 
-            String sequence = value.toString();
 
-            if (!sequence.matches("[ATGCN]*")) {
+            //String sequence = value.toString();
+
+            String sequence = value.seqString();
+
+            if (!sequence.matches("[ATGCN]*") && !sequence.matches("[atgcn]*")) {
                 log.error("sequence " + key + " is not well formed: " + value);
 
                 context.getCounter(ReadCounters.MALFORMED).increment(1);
@@ -160,9 +164,11 @@ public class ReadLoader {
                 key_id = key.toString();
                 segment = "0";
             }
+
             /*
             insert data into cassandra
             */
+
 
             ds.insert(key_id, "sequence", segment, sequence);
 
@@ -173,6 +179,7 @@ public class ReadLoader {
                 ds.clear();
 
             }
+
 
         }
     }

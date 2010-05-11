@@ -203,98 +203,181 @@ public class BlatCommand {
     /**
      * execute the blast command and return a list of sequence ids that match
      *
-     * @param seqMap is the key/value map of sequences that act as reference keyed by name
-     * @param inputQuery  is the full path of the cazy database to search against the reference
+     * @param seqDatabase is the key/value map of sequences that act as reference keyed by name
+     * @param seqQueryFilepath  is the full path of the cazy database to search against the reference
      * @return a list of sequence ids in the reference that match the cazy database
      */
-    public Set<String> exec(Map<String, String> seqMap, String blatInputFile) {
+    public Set<String> exec(Map<String, String> seqDatabase, String seqQueryFilepath) {
 
         /*
         first, take the blatInputFile and find the corresponding sequence in the
         seqMap.  find both the exact sequence id, as well as its matching pair
         and write to temporary file.
         */
-        Map<String,String> l = new HashMap<String,String>();
+        //Map<String,String> l = new HashMap<String,String>();
+
+        File seqQueryFile = null;
+        File tmpdir;
+
+        log.info("Preparing Blat execution");
+
+        Map<String, String> l = new HashMap<String, String>();
+        int numGroups = 0;
+        int numReads = 0;
+        try {
+             FileReader input = new FileReader(seqQueryFilepath);
+
+            /* Filter FileReader through a Buffered read to read a line at a
+               time */
+             BufferedReader bufRead = new BufferedReader(input);
+
+             String line;    // String that holds current file line
+
+            // Read first line
+            line = bufRead.readLine();
+
+            // Read through file one line at time. Print line # and line
+            while (line != null){
+                numGroups++;
+                String[] a = line.split("\t", 2);
+                l.put(a[0], a[1]);
+                numReads += a[1].split("\t").length;
+                line = bufRead.readLine();
+            }
+            bufRead.close();
+
+         } catch (Exception e) {
+             log.error(e);
+             return null;
+         }
+
+         log.info("read " + numReads + " Reads in " + numGroups + " gene groups");
+
+//        try {
+//            Text t = new Text();
+//            FileInputStream fstream = new FileInputStream(seqQueryFilepath);
+//            FastaBlockLineReader in = new FastaBlockLineReader(fstream);
+//            int bytes = in.readLine(t, l);
+//        } catch (Exception e) {
+//            log.error(e);
+//            return null;
+//        }
+
+        String seqFilepath = dumpToFile(seqDatabase);
+
+        if (seqFilepath == null) {
+            /*
+            didn't run formatdb, so return with fail
+             */
+            return null;
+        }
 
         try {
-            Text t = new Text();
-            FileInputStream fstream = new FileInputStream(blatInputFile);
-            FastaBlockLineReader in = new FastaBlockLineReader(fstream);
-            int bytes = in.readLine(t, l);
+            tmpdir = createTempDir();
         } catch (Exception e) {
             log.error(e);
             return null;
         }
-        try {
-            File tmpdir = createTempDir();
-            File seqFile = new File(tmpdir, "reads.fa");
-            BufferedWriter out = new BufferedWriter(new FileWriter(seqFile.getPath()));
 
-            for (String key : l.keySet()) {
-                String key1 = key+"/1";
-                String key2 = key+"/2";
-                if (seqMap.containsKey(key1)) {
-                    out.write(">" + key1 + "\n");
-                    out.write(seqMap.get(key1) + "\n");
+        Map<String, String> s = new HashMap<String, String>();
+
+        for (String k : l.keySet()) {
+            try {
+                seqQueryFile = new File(tmpdir, "blatquery.fa");
+                BufferedWriter out = new BufferedWriter(new FileWriter(seqQueryFile.getPath()));
+                for (String key : l.get( k ).split("\t")) {
+                    String key1 = key+"/1";
+                    String key2 = key+"/2";
+                    if (seqDatabase.containsKey(key1)) {
+                        out.write(">" + key1 + "\n");
+                        out.write(seqDatabase.get(key1) + "\n");
+                    }
+                    if (seqDatabase.containsKey(key2)) {
+                        out.write(">" + key2 + "\n");
+                        out.write(seqDatabase.get(key2) + "\n");
+                    }
                 }
-                if (seqMap.containsKey(key2)) {
-                    out.write(">" + key2 + "\n");
-                    out.write(seqMap.get(key2) + "\n");
-                }
+                out.close();
+            } catch (Exception e) {
+                log.error(e);
+                return null;
             }
 
-            out.close();
-        } catch (Exception e) {
-            log.error(e);
-            return null;
-        }
+            List<String> commands = new ArrayList<String>();
+            commands.add("/bin/sh");
+            commands.add("-c");
+            commands.add(commandPath + " " + commandLine + " " + seqFilepath + " " + seqQueryFile.getPath() + " blat.output");
 
-        String seqFile = dumpToFile(seqMap);
+            try {
 
-        if (seqFile == null) {
-            /*
-             didn't run formatdb, so return with fail
-            */
-            return null;
-
-        }
-
-        List<String> commands = new ArrayList<String>();
-        commands.add("/bin/sh");
-        commands.add("-c");
-        commands.add(commandPath + " " + commandLine + seqFile + " " + blatInputFile + " blat.output");
-
-        try {
-
-            log.debug("command = " + commands);
-            SystemCommandExecutor commandExecutor = new SystemCommandExecutor(commands);
-            exitValue = commandExecutor.executeCommand();
+                log.debug("command = " + commands);
+                SystemCommandExecutor commandExecutor = new SystemCommandExecutor(commands);
+                exitValue = commandExecutor.executeCommand();
 
 
-            // stdout and stderr of the command are returned as StringBuilder objects
-            stdout = commandExecutor.getStandardOutputFromCommand().toString();
-            stderr = commandExecutor.getStandardErrorFromCommand().toString();
+                // stdout and stderr of the command are returned as StringBuilder objects
+                stdout = commandExecutor.getStandardOutputFromCommand().toString();
+                stderr = commandExecutor.getStandardErrorFromCommand().toString();
 
-            log.debug("exit = " + exitValue);
-            log.debug("stdout = " + stdout);
-            log.debug("stderr = " + stderr);
+                //log.debug("exit = " + exitValue);
+                //log.debug("stdout = " + stdout);
+                //log.debug("stderr = " + stderr);
 
-        } catch (Exception e) {
-            log.error(e);
-            return null;
-        }
+            } catch (Exception e) {
+                log.error(e);
+                return null;
+            }
 
         /*
         now parse the output
          */
-        String[] lines = stdout.split("\n");
-        Set<String> s = new HashSet<String>();
 
-        for (String line : lines) {
-            s.add(line.split("\t")[1]);
+
+            try {
+                FileReader input = new FileReader("blat.output");
+
+                /* Filter FileReader through a Buffered read to read a line at a
+              time */
+                BufferedReader bufRead = new BufferedReader(input);
+
+                String line;    // String that holds current file line
+                int count = 0;  // Line number of count
+
+                // Read first line
+                line = bufRead.readLine();
+
+                // Read through file one line at time. Print line # and line
+                while (line != null){
+                    String[] a = line.split("\t");
+                    if (s.containsKey(k)) {
+                        s.put(k, s.get(k) + "\t" + a[1]);
+                    } else {
+                        s.put(k, a[1]);
+                    }
+                    line = bufRead.readLine();
+                    count++;
+                }
+
+                bufRead.close();
+
+            } catch (Exception e) {
+                log.error(e);
+                return null;
+            }
         }
 
-        return s;
+        log.info("Postprocessing Blat");
+        log.info("  numGroups = " + s.keySet().size());
+        int xcount = 0;
+        Set<String> ss = new HashSet<String>();
+        for (String x : s.keySet()) {
+            int xx = s.get(x).split("\t").length;
+            xcount += xx;
+            ss.add(x + "\t" + s.get(x));
+        }
+        log.info("  numReads = " + xcount);
+        log.info("  avgSize/group = " + xcount/s.keySet().size());
+        return ss;
     }
 
 
@@ -355,7 +438,7 @@ public class BlatCommand {
 
         Configuration conf = new Configuration();
 
-        conf.addResource("blast-test-conf.xml");
+        conf.addResource("blat-test-conf.xml");
         String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
 
         /*
@@ -366,7 +449,6 @@ public class BlatCommand {
             System.err.println("Usage: blat <seqfilepath> <ecfilepath>");
             System.exit(2);
         }
-
 
         Map<String,String> l = new HashMap<String,String>();
         Set<String> r;

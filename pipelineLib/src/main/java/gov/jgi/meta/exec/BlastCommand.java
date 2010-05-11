@@ -34,6 +34,7 @@ import gov.jgi.meta.hadoop.input.FastaBlockLineReader;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.util.GenericOptionsParser;
 import org.apache.log4j.Logger;
@@ -47,16 +48,22 @@ import java.util.*;
 
 /**
  * class that wraps execution of commandline Blast program.
+ *
+ * Use this by creating a new BlastCommand object, then running exec. IE:
+ *    blastCmd = new BlastCommand(context.getConfiguration());
+ *    s = blastCmd.exec(value, geneDBFilePath);
+ *
+ * value is a MAP<STRING, STRING> of <readids, sequences> and geneDBFilePath
+ * is a file path in hdfs.  this object creates local files, then does a
+ * system.exec.  stdout is returned as a set of strings representing each
+ * line in the output.
+ *
  */
-
 public class BlastCommand {
-
 
     String DEFAULTCOMMANDLINE = "-m 8 -p tblastn -b 1000000 -a 10";
     String DEFAULTCOMMANDPATH = "/home/asczyrba/src/blast-2.2.20/bin/blastall";
     String DEFAULTTMPDIR = "/tmp/blast";
-
-    // get commandline from configuration parameters
 
     // blastall -m 8 -p tblastn -b 1000000 -a 10 -o $workdir/cazy.blastout -d $blast_db -i $cazy
 
@@ -64,12 +71,9 @@ public class BlastCommand {
     // -m 8 alignment view options - tabular
     // -b 1000000 number of sequences to show alignments of (max number)
     // -a 10 number of processors to use
-
     // -o output file
     // -d blast database directory where formatdb was run
     // -i input sequence
-
-    // need to return list of id's of hits
 
     /**
      * logger
@@ -104,6 +108,12 @@ public class BlastCommand {
     int exitValue = 0;
 
     /**
+     * flag to leave working directories along (if false) or to remove
+     * them after execution (if true)
+     */
+    Boolean cleanup = true;
+
+    /**
      * new blast command based on default parameters
      */
     public BlastCommand() {
@@ -117,15 +127,18 @@ public class BlastCommand {
      * new blast command based on values stored in the configuration.
      * <p/>
      * Looks for the following config values: blast.commandline,
-     * blast.commandpath, and blast.tmpdir
+     * blast.commandpath, and blast.tmpdir, blast.cleanup
      *
      * @param config is the hadoop configuration with overriding values
      *               for commandline options and paths
+     * @throws IOException if executable can not be found
      */
-    public BlastCommand(Configuration config) {
+    public BlastCommand(Configuration config) throws IOException {
 
         String c;
-        
+
+        log.info("initializing new blast command");
+
         if ((c = config.get("blast.commandline")) != null) {
             commandLine = c;
         } else {
@@ -141,6 +154,32 @@ public class BlastCommand {
         } else {
             tmpDir = DEFAULTTMPDIR;
         }
+
+        cleanup = config.getBoolean("blast.cleanup", true);
+
+        /*
+        do sanity check to make sure all paths exist
+         */
+        checkFileExists(commandLine);
+        checkFileExists(commandPath);
+        checkDirExists(tmpDir);
+
+        /*
+        if all is good, create a working space inside tmpDir
+         */
+
+        tmpDirFile = createTempDir();
+
+    }
+
+    private int checkFileExists(String filePath) throws IOException {
+        // TODO: fill out this function
+        return 0;
+    }
+
+    private int checkDirExists(String filePath) throws IOException {
+        // TODO: fill out this function
+        return 0;
     }
 
     /**
@@ -166,65 +205,97 @@ public class BlastCommand {
      *
      * @param seqList is the list of sequences to create the database with
      * @return the full path of the location of the database
+     * @throws IOException if it can't read or write to the files
+     * @throws InterruptedException if system.exec is interrupted.
      */
-    private String execFormatDB(Map<String, String> seqList) {
+    private String execFormatDB(Map<String, String> seqList) throws IOException, InterruptedException {
 
         File tmpdir;
         BufferedWriter out;
 
+        log.debug("blastcmd: formating the sequence db using formatdb");
+
         /*
         open temp file
          */
-        try {
-            tmpdir = createTempDir();
-            out = new BufferedWriter(new FileWriter(tmpdir.getPath() + "/seqfile"));
+        log.debug("blastcmd: using temp directory " + tmpDirFile.getPath());
 
-            /*
+        out = new BufferedWriter(new FileWriter(tmpDirFile.getPath() + "/seqfile"));
+
+        /*
             write out the sequences to file
-            */
-            for (String key : seqList.keySet()) {
-                assert(seqList.get(key) != null);
-                out.write(">" + key + "\n");
-                out.write(seqList.get(key) + "\n");
-            }
-
-            /*
-            close temp file
-             */
-            out.close();
-
-        } catch (Exception e) {
-            log.error(e);
-            return null;
+         */
+        for (String key : seqList.keySet()) {
+            assert(seqList.get(key) != null);
+            out.write(">" + key + "\n");
+            out.write(seqList.get(key) + "\n");
         }
 
+        /*
+            close temp file
+         */
+        out.close();
+
+        log.debug("blastcmd: done writing sequence file");
 
         /*
         execute formatdb command
          */
 
         List<String> commands = new ArrayList<String>();
-        File seqFile = new File(tmpdir, "seqfile");
+        File seqFile = new File(tmpDirFile, "seqfile");
         commands.add("/bin/sh");
         commands.add("-c");
-        commands.add("cd " + tmpdir.getPath() + ";" + " formatdb -o T -p F -i " + seqFile.getPath() + " -n " + "seqfile");
+        commands.add("cd " + tmpDirFile.getPath() + ";" + " formatdb -o T -p F -i " + seqFile.getPath() + " -n " + "seqfile");
 
-        try {
+        log.debug("blastcmd: formatdbcommand = " + commands);
 
-            log.debug("formatdbcommand = " + commands);
-            SystemCommandExecutor commandExecutor = new SystemCommandExecutor(commands);
-            int r = commandExecutor.executeCommand();
+        SystemCommandExecutor commandExecutor = new SystemCommandExecutor(commands);
+        int r = commandExecutor.executeCommand();
 
-            log.debug("return value = " + r);
-            log.debug("stdout = " + commandExecutor.getStandardOutputFromCommand().toString());
-            log.debug("stderr = " + commandExecutor.getStandardErrorFromCommand().toString());
-
-        } catch (Exception e) {
-            log.error(e);
-            return null;
-        }
+        log.debug("return value = " + r);
+        log.debug("stdout = " + commandExecutor.getStandardOutputFromCommand().toString());
+        log.debug("stderr = " + commandExecutor.getStandardErrorFromCommand().toString());
 
         return seqFile.getPath();
+    }
+
+    /**
+     * copies a file from DFS to local working directory
+     *
+     * @param dfsPath is the pathname to a file in DFS
+     * @return the path of the new file in local scratch space
+     * @throws IOException if it can't access the files
+     */
+    private String copyDBFile(String dfsPath) throws IOException {
+
+        Configuration conf = new Configuration();
+        FileSystem fs = FileSystem.get(conf);
+
+        Path filenamePath = new Path(dfsPath);
+        File localFile = new File(tmpDirFile, filenamePath.getName());
+
+        if (!fs.exists(filenamePath)) {
+            throw new IOException("file not found: " + dfsPath);
+        }
+
+        FSDataInputStream in = fs.open(filenamePath);
+        BufferedReader d
+                  = new BufferedReader(new InputStreamReader(in));
+
+        BufferedWriter out = new BufferedWriter(new FileWriter(localFile.getPath()));
+
+        String line;
+        line = d.readLine();
+
+        while (line != null) {
+            out.write(line+"\n");
+            line = d.readLine();
+        }
+        in.close();
+        out.close();
+
+        return localFile.getPath();
     }
 
     /**
@@ -233,10 +304,13 @@ public class BlastCommand {
      * @param seqMap is the key/value map of sequences that act as reference keyed by name
      * @param cazyEC  is the full path of the cazy database to search against the reference
      * @return a list of sequence ids in the reference that match the cazy database
+     * @throws IOException if it can't access files for whatever reason,
+     * @throws InterruptedException if system.exec is interrupted
      */
-    public Set<String> exec(Map<String, String> seqMap, String cazyEC) {
+    public Set<String> exec(Map<String, String> seqMap, String cazyEC) throws IOException, InterruptedException {
 
         String seqDir = execFormatDB(seqMap);
+        String localCazyEC = copyDBFile(cazyEC);
 
         if (seqDir == null) {
             /*
@@ -249,14 +323,13 @@ public class BlastCommand {
         List<String> commands = new ArrayList<String>();
         commands.add("/bin/sh");
         commands.add("-c");
-        commands.add(commandPath + " " + commandLine + " -d " + seqDir + " -i " + cazyEC);
+        commands.add(commandPath + " " + commandLine + " -d " + seqDir + " -i " + localCazyEC);
 
         try {
 
             log.debug("command = " + commands);
             SystemCommandExecutor commandExecutor = new SystemCommandExecutor(commands);
             exitValue = commandExecutor.executeCommand();
-
 
             // stdout and stderr of the command are returned as StringBuilder objects
             stdout = commandExecutor.getStandardOutputFromCommand().toString();
@@ -277,9 +350,7 @@ public class BlastCommand {
         String[] lines = stdout.split("\n");
         Set<String> s = new HashSet<String>();
 
-        for (String line : lines) {
-            s.add(line.split("\t")[1]);
-        }
+        s.addAll(Arrays.asList(lines));
 
         return s;
     }

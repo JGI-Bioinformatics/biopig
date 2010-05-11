@@ -70,6 +70,10 @@ public class FastaBlockRecordReader extends RecordReader<Text, Map<String,String
     Configuration job = context.getConfiguration();
     this.maxLineLength = job.getInt("mapred.linerecordreader.maxlength",
                                     Integer.MAX_VALUE);
+
+
+    LOG.info("one split- start: " + split.getStart() + " end: " + (split.getStart() + split.getLength()));
+
     start = split.getStart();
     end = start + split.getLength();
     final Path file = split.getPath();
@@ -104,6 +108,7 @@ public class FastaBlockRecordReader extends RecordReader<Text, Map<String,String
     }
     if (value == null) {
       value = new HashMap<String,String>();
+
     }
     int newSize = 0;
     while (pos < end) {
@@ -111,7 +116,8 @@ public class FastaBlockRecordReader extends RecordReader<Text, Map<String,String
                             Math.max((int)Math.min(Integer.MAX_VALUE, end-pos),
                                      maxLineLength));
 
-      
+      LOG.info("split value is size " + value.size());
+
       if (newSize == 0) {
         break;
       }

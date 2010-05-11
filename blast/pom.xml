@@ -8,7 +8,7 @@
     <packaging>jar</packaging>
     <version>0.1</version>
     <name>blastHadoopApp</name>
-    <description>Hadoop/Cassandra application that runs blast in parallel </description>
+    <description>Hadoop/Cassandra application that runs blast in parallel</description>
     <url></url>
     <organization>
         <name>Joint Genomics Institute, US Department of Energy</name>
@@ -19,6 +19,13 @@
         <artifactId>pipeline</artifactId>
         <version>0.1</version>
     </parent>
+    <pluginRepositories>
+        <pluginRepository>
+            <id>tlc</id>
+            <name>TLC Repository</name>
+            <url>http://commons.ucalgary.ca/pub/m2</url>
+        </pluginRepository>
+    </pluginRepositories>
     <dependencies>
         <dependency>
             <groupId>gov.jgi.gentech</groupId>
@@ -73,7 +80,48 @@
         </dependency>
     </dependencies>
     <build>
+        <finalName>${project.artifactId}-${project.version}-r${buildNumber}</finalName>
         <plugins>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>buildnumber-maven-plugin</artifactId>
+                <version>1.0-beta-3</version>
+                <executions>
+                    <execution>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>create</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <format>{0,number}</format>
+                    <items>
+                        <item>buildNumber/d*</item>
+                    </items>
+                    <doCheck>false</doCheck>
+                    <doUpdate>true</doUpdate>
+                    <revisionOnScmFailure>1</revisionOnScmFailure>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>2.1</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                        </manifest>
+                        <manifestEntries>
+                            <Implementation-Build>${buildNumber}</Implementation-Build>
+                        </manifestEntries>
+                    </archive>
+                </configuration>
+            </plugin>
+
+
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
                 <configuration>
