@@ -125,10 +125,9 @@ public class FastaBlockLineReader {
         int startPosn;
         Text recordBlock = new Text();
 
-        maxBytesToConsume = maxBytesToConsume / 100;
-
         LOG.info("starting reading file, buffersize = " + bufferSize);
-
+        LOG.info("max-bytes-to-consume = " + maxBytesToConsume);
+        
         /*
         first thing to do is to move forward till you see a start character
          */

@@ -38,8 +38,6 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.util.GenericOptionsParser;
 import org.apache.log4j.Logger;
-import org.biojava.bio.seq.DNATools;
-import org.biojava.bio.seq.Sequence;
 import com.devdaily.system.*;
 
 import java.io.*;
@@ -116,11 +114,12 @@ public class BlastCommand {
     /**
      * new blast command based on default parameters
      */
-    public BlastCommand() {
+    public BlastCommand() throws IOException {
         // look in configuration file to determine default values
         commandLine = DEFAULTCOMMANDLINE;
         commandPath = DEFAULTCOMMANDPATH;
         tmpDir = DEFAULTTMPDIR;
+        tmpDirFile = createTempDir();
     }
 
     /**
@@ -324,6 +323,9 @@ public class BlastCommand {
         commands.add("/bin/sh");
         commands.add("-c");
         commands.add(commandPath + " " + commandLine + " -d " + seqDir + " -i " + localCazyEC);
+
+
+        // TODO: remove the try statement to throw exception in case of failure
 
         try {
 

@@ -14,7 +14,8 @@
         <module>kmer2</module>
         <module>loader</module>
         <module>pipelineLib</module>
-	<module>blast</module>
+        <module>blast</module>
+        <module>blat</module>
     </modules>
 
 </project>

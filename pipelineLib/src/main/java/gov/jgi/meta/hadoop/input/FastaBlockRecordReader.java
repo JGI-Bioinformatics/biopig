@@ -72,7 +72,7 @@ public class FastaBlockRecordReader extends RecordReader<Text, Map<String,String
                                     Integer.MAX_VALUE);
 
 
-    LOG.info("one split- start: " + split.getStart() + " end: " + (split.getStart() + split.getLength()));
+    LOG.info("INITIALIZE SPLIT: start: " + split.getStart() + " end: " + (split.getStart() + split.getLength()));
 
     start = split.getStart();
     end = start + split.getLength();
@@ -95,10 +95,10 @@ public class FastaBlockRecordReader extends RecordReader<Text, Map<String,String
       }
       in = new FastaBlockLineReader(fileIn, job);
     }
-    if (skipFirstLine) {  // skip first line and re-establish "start".
-      start += in.readLine(new Text(), new HashMap<String,String>(), 0,
-                           (int)Math.min((long)Integer.MAX_VALUE, end - start));
-    }
+//    if (skipFirstLine) {  // skip first line and re-establish "start".
+//      start += in.readLine(new Text(), new HashMap<String,String>(), 0,
+//                           (int)Math.min((long)Integer.MAX_VALUE, end - start));
+//    }
     this.pos = start;
   }
 
@@ -113,7 +113,7 @@ public class FastaBlockRecordReader extends RecordReader<Text, Map<String,String
     int newSize = 0;
     while (pos < end) {
       newSize = in.readLine(key, value, maxLineLength,
-                            Math.max((int)Math.min(Integer.MAX_VALUE, end-pos),
+                            Math.min((int)Math.min(Integer.MAX_VALUE, end-pos),
                                      maxLineLength));
 
       LOG.info("split value is size " + value.size());

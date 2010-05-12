@@ -33,7 +33,11 @@ package gov.jgi.meta.exec;
 import com.devdaily.system.SystemCommandExecutor;
 import gov.jgi.meta.hadoop.input.FastaBlockLineReader;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.util.GenericOptionsParser;
 import org.apache.log4j.Logger;
 
@@ -43,29 +47,26 @@ import java.util.*;
 
 /**
  * class that wraps execution of commandline BLAT program.
+ *
+ * Use this by creating a new BlatCommand than invoking the
+ * exec method.  eg:
+ *
+ * BlatCommand b = new BlatCommand();
+ * r = b.exec(l, otherArgs[1]);
+ *
+ * Exec dumps input seqence database (l) into a file, then
+ * reads the groups from the second argument.  For each group,
+ * create a temp file holding the sequences of interest (determined
+ * by looking them up in the database), and then executing blat
+ * as system process.
  */
 
 public class BlatCommand {
 
 
     String DEFAULTCOMMANDLINE = "-out=blast8";
-    String DEFAULTCOMMANDPATH = "blat";
+    String DEFAULTCOMMANDPATH = "/jgi/tools/bin/blat";
     String DEFAULTTMPDIR = "/tmp/blat";
-
-    // get commandline from configuration parameters
-
-    // blastall -m 8 -p tblastn -b 1000000 -a 10 -o $workdir/cazy.blastout -d $blast_db -i $cazy
-
-    // -p program name
-    // -m 8 alignment view options - tabular
-    // -b 1000000 number of sequences to show alignments of (max number)
-    // -a 10 number of processors to use
-
-    // -o output file
-    // -d blast database directory where formatdb was run
-    // -i input sequence
-
-    // need to return list of id's of hits
 
     /**
      * logger
@@ -100,13 +101,21 @@ public class BlatCommand {
     int exitValue = 0;
 
     /**
+     * flat to determine whether to clean up directories after
+     * execution
+     */
+    Boolean cleanup = true;
+
+    /**
      * new blast command based on default parameters
      */
-    public BlatCommand() {
+    public BlatCommand() throws IOException {
         // look in configuration file to determine default values
         commandLine = DEFAULTCOMMANDLINE;
         commandPath = DEFAULTCOMMANDPATH;
         tmpDir = DEFAULTTMPDIR;
+
+        tmpDirFile = createTempDir();
     }
 
     /**
@@ -118,7 +127,7 @@ public class BlatCommand {
      * @param config is the hadoop configuration with overriding values
      *               for commandline options and paths
      */
-    public BlatCommand(Configuration config) {
+    public BlatCommand(Configuration config) throws IOException {
 
         String c;
 
@@ -137,6 +146,22 @@ public class BlatCommand {
         } else {
             tmpDir = DEFAULTTMPDIR;
         }
+
+        cleanup = config.getBoolean("blat.cleanup", true);
+
+         /*
+         do sanity check to make sure all paths exist
+          */
+         //checkFileExists(commandLine);
+         //checkFileExists(commandPath);
+         //checkDirExists(tmpDir);
+
+        /*
+        if all is good, create a working space inside tmpDir
+         */
+
+        tmpDirFile = createTempDir();
+
     }
 
     /**
@@ -148,8 +173,10 @@ public class BlatCommand {
         /*
         delete the tmp files if they exist
          */
+        log.info("deleting tmp file: " + tmpDirFile.getPath());
+        
         if (tmpDirFile != null) {
-            recursiveDelete(tmpDirFile);
+            if (cleanup) recursiveDelete(tmpDirFile);
             tmpDirFile = null;
         }
 
@@ -166,15 +193,14 @@ public class BlatCommand {
     private String dumpToFile(Map<String, String> seqList) {
 
         File tmpdir;
-        BufferedWriter out;
+        BufferedWriter out;       
         File seqFile = null;
 
         /*
         open temp file
          */
         try {
-            tmpdir = createTempDir();
-            seqFile = new File(tmpdir, "reads.fa");
+            seqFile = new File(tmpDirFile, "reads.fa");
             out = new BufferedWriter(new FileWriter(seqFile.getPath()));
 
             /*
@@ -200,6 +226,46 @@ public class BlatCommand {
         return seqFile.getPath();
     }
 
+
+        /**
+     * copies a file from DFS to local working directory
+     *
+     * @param dfsPath is the pathname to a file in DFS
+     * @return the path of the new file in local scratch space
+     * @throws IOException if it can't access the files
+     */
+    private String copyDBFile(String dfsPath) throws IOException {
+
+        Configuration conf = new Configuration();
+        FileSystem fs = FileSystem.get(conf);
+
+        Path filenamePath = new Path(dfsPath);
+        File localFile = new File(tmpDirFile, filenamePath.getName());
+
+        if (!fs.exists(filenamePath)) {
+            throw new IOException("file not found: " + dfsPath);
+        }
+
+        FSDataInputStream in = fs.open(filenamePath);
+        BufferedReader d
+                  = new BufferedReader(new InputStreamReader(in));
+
+        BufferedWriter out = new BufferedWriter(new FileWriter(localFile.getPath()));
+
+        String line;
+        line = d.readLine();
+
+        while (line != null) {
+            out.write(line+"\n");
+            line = d.readLine();
+        }
+        in.close();
+        out.close();
+
+        return localFile.getPath();
+    }
+
+
     /**
      * execute the blast command and return a list of sequence ids that match
      *
@@ -207,7 +273,7 @@ public class BlatCommand {
      * @param seqQueryFilepath  is the full path of the cazy database to search against the reference
      * @return a list of sequence ids in the reference that match the cazy database
      */
-    public Set<String> exec(Map<String, String> seqDatabase, String seqQueryFilepath) {
+    public Set<String> exec(Map<String, String> seqDatabase, String seqQueryFilepath, Mapper.Context context)  throws IOException, InterruptedException  {
 
         /*
         first, take the blatInputFile and find the corresponding sequence in the
@@ -220,23 +286,39 @@ public class BlatCommand {
         File tmpdir;
 
         log.info("Preparing Blat execution");
+        context.setStatus("Preparing Blat execution");
 
         Map<String, String> l = new HashMap<String, String>();
         int numGroups = 0;
         int numReads = 0;
-        try {
-             FileReader input = new FileReader(seqQueryFilepath);
 
-            /* Filter FileReader through a Buffered read to read a line at a
-               time */
-             BufferedReader bufRead = new BufferedReader(input);
+            /*
+            open query file.
+             */
 
-             String line;    // String that holds current file line
+            Configuration conf = new Configuration();
+            FileSystem fs = FileSystem.get(conf);
 
-            // Read first line
-            line = bufRead.readLine();
+            Path filenamePath = new Path(seqQueryFilepath);
 
-            // Read through file one line at time. Print line # and line
+            if (!fs.exists(filenamePath)) {
+                 throw new IOException("file not found: " + seqQueryFilepath);
+             }
+
+            FSDataInputStream in = fs.open(filenamePath);
+            BufferedReader bufRead
+                    = new BufferedReader(new InputStreamReader(in));
+
+            /*
+            Filter FileReader through a Buffered read to read a line at a time
+            */
+
+            String line = bufRead.readLine();    // String that holds current file line
+
+            /*
+            read the line into key/value with key being the first column, value is all the
+            remaining columns
+             */
             while (line != null){
                 numGroups++;
                 String[] a = line.split("\t", 2);
@@ -246,48 +328,52 @@ public class BlatCommand {
             }
             bufRead.close();
 
-         } catch (Exception e) {
-             log.error(e);
-             return null;
-         }
 
          log.info("read " + numReads + " Reads in " + numGroups + " gene groups");
 
-//        try {
-//            Text t = new Text();
-//            FileInputStream fstream = new FileInputStream(seqQueryFilepath);
-//            FastaBlockLineReader in = new FastaBlockLineReader(fstream);
-//            int bytes = in.readLine(t, l);
-//        } catch (Exception e) {
-//            log.error(e);
-//            return null;
-//        }
-
+        /*
+        now dump the database from the map to a file
+         */
         String seqFilepath = dumpToFile(seqDatabase);
 
         if (seqFilepath == null) {
             /*
-            didn't run formatdb, so return with fail
+            return with fail
              */
-            return null;
-        }
-
-        try {
-            tmpdir = createTempDir();
-        } catch (Exception e) {
-            log.error(e);
             return null;
         }
 
         Map<String, String> s = new HashMap<String, String>();
 
+        /*
+        now loop through all the lines previously read in, write out a seqfile in temp directory
+        then execute blat.
+         */
+        int numBlats = 0;
+        int totalBlats = l.size();
+
         for (String k : l.keySet()) {
-            try {
-                seqQueryFile = new File(tmpdir, "blatquery.fa");
+            numBlats++;
+
+            /*
+            k is a grouping key
+             */
+
+            context.setStatus("Executing Blat " + numBlats + "/" + totalBlats);
+                /*
+                create a new file in temp direectory
+                 */
+                seqQueryFile = new File(tmpDirFile, "blatquery.fa");
                 BufferedWriter out = new BufferedWriter(new FileWriter(seqQueryFile.getPath()));
+
+                /*
+                look up all the sequences and write them to the file.  include the paired ends
+                 */
                 for (String key : l.get( k ).split("\t")) {
-                    String key1 = key+"/1";
-                    String key2 = key+"/2";
+
+                    String key1 = key+"/1";  // forward
+                    String key2 = key+"/2";  // backward
+
                     if (seqDatabase.containsKey(key1)) {
                         out.write(">" + key1 + "\n");
                         out.write(seqDatabase.get(key1) + "\n");
@@ -297,86 +383,103 @@ public class BlatCommand {
                         out.write(seqDatabase.get(key2) + "\n");
                     }
                 }
-                out.close();
-            } catch (Exception e) {
-                log.error(e);
-                return null;
-            }
 
+                /*
+                close the temporary file
+                 */
+                out.close();
+
+
+            /*
+            now set up a blat execution
+             */
             List<String> commands = new ArrayList<String>();
             commands.add("/bin/sh");
             commands.add("-c");
-            commands.add(commandPath + " " + commandLine + " " + seqFilepath + " " + seqQueryFile.getPath() + " blat.output");
+            commands.add(commandPath + " " + commandLine + " " + seqFilepath + " " + seqQueryFile.getPath() + " " +
+                    tmpDirFile.getPath() + "/blat.output");
 
-            try {
 
-                log.debug("command = " + commands);
+                log.info("command = " + commands);
+
                 SystemCommandExecutor commandExecutor = new SystemCommandExecutor(commands);
                 exitValue = commandExecutor.executeCommand();
-
 
                 // stdout and stderr of the command are returned as StringBuilder objects
                 stdout = commandExecutor.getStandardOutputFromCommand().toString();
                 stderr = commandExecutor.getStandardErrorFromCommand().toString();
 
-                //log.debug("exit = " + exitValue);
-                //log.debug("stdout = " + stdout);
-                //log.debug("stderr = " + stderr);
+                log.info("exit = " + exitValue);
+                log.info("stdout = " + stdout);
+                log.info("stderr = " + stderr);
 
-            } catch (Exception e) {
-                log.error(e);
-                return null;
-            }
 
-        /*
-        now parse the output
-         */
-
+            /*
+            now parse the output and clean up
+            */
 
             try {
-                FileReader input = new FileReader("blat.output");
+                
+                FileReader input = new FileReader(tmpDirFile.getPath()+"/blat.output");
 
-                /* Filter FileReader through a Buffered read to read a line at a
-              time */
-                BufferedReader bufRead = new BufferedReader(input);
+                /*
+                Filter FileReader through a Buffered read to read a line at a time
+                */
+                BufferedReader bufRead2 = new BufferedReader(input);
 
-                String line;    // String that holds current file line
+                String line2;    // String that holds current file line
                 int count = 0;  // Line number of count
 
                 // Read first line
-                line = bufRead.readLine();
+                line2 = bufRead2.readLine();
 
                 // Read through file one line at time. Print line # and line
-                while (line != null){
-                    String[] a = line.split("\t");
+                while (line2 != null){
+                    String[] a = line2.split("\t");
                     if (s.containsKey(k)) {
                         s.put(k, s.get(k) + "\t" + a[1]);
                     } else {
                         s.put(k, a[1]);
                     }
-                    line = bufRead.readLine();
+                    line2 = bufRead2.readLine();
                     count++;
                 }
 
-                bufRead.close();
+                bufRead2.close();
 
-            } catch (Exception e) {
+            } catch (Exception e){
                 log.error(e);
                 return null;
             }
+
+            /*
+            should clean up - note: files get overwritten, so don't worry about it. :-)
+             */
+
         }
+
+        context.setStatus("Postprocessing Blat output");
+        /*
+        post processing.  since i need to return in the format of
+        <groupid> <readid1> <readid2> <readid3> ...
+        as a single string (one string per line).
+         */
 
         log.info("Postprocessing Blat");
         log.info("  numGroups = " + s.keySet().size());
-        int xcount = 0;
+
         Set<String> ss = new HashSet<String>();
-        for (String x : s.keySet()) {
-            int xx = s.get(x).split("\t").length;
-            xcount += xx;
-            ss.add(x + "\t" + s.get(x));
+
+        for (String k : s.keySet()) {
+
+            /*
+            for each grouping
+             */
+            ss.add(k + "\t" + s.get(k));
+
         }
-        log.info("  numReads = " + xcount);
-        log.info("  avgSize/group = " + xcount/s.keySet().size());
+
+        
         return ss;
     }
 
@@ -459,7 +562,7 @@ public class BlatCommand {
         int bytes = in.readLine(t, l);
 
         BlatCommand b = new BlatCommand();
-        r = b.exec(l, otherArgs[1]);
+        r = b.exec(l, otherArgs[1], null);
 
         System.out.println("matches = " + r);
     }
