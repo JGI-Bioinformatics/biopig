@@ -153,7 +153,7 @@ public class FastaBlockLineReader {
         /*
         now bufferPosn should be at the start of a fasta record
          */
-        startPosn = bufferPosn;  // startPosn guaranteed to be at a ">"
+        startPosn = bufferPosn-1;  // startPosn guaranteed to be at a ">"
 
         /*
         find the next record start
@@ -177,6 +177,7 @@ public class FastaBlockLineReader {
                     break; // EOF
                 }
             }
+
         } while (buffer[bufferPosn++] != '>' || (totalBytesRead + bufferPosn - startPosn) < maxBytesToConsume);
 
         LOG.info("last copy to buffer. totalbytes so far = " + totalBytesRead);

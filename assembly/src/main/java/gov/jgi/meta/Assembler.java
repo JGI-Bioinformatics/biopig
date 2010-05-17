@@ -34,19 +34,22 @@ package gov.jgi.meta;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
 import gov.jgi.meta.cassandra.DataStore;
-import gov.jgi.meta.exec.BlatCommand;
+import gov.jgi.meta.exec.AssemblerCommand;
 import gov.jgi.meta.hadoop.input.*;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.*;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.util.GenericOptionsParser;
 
@@ -60,9 +63,9 @@ import org.apache.log4j.Logger;
  * WELLFORMED is the number of reads that were read and processed
  *
  */
-enum BlatCounters {
-   NUMBER_OF_SUCCESSFUL_BLATCOMMANDS,
-   NUMBER_OF_ERROR_BLATCOMMANDS,
+enum AssemblyCounters {
+   NUMBER_OF_SUCCESSFUL_ASSEMBLERCOMMANDS,
+   NUMBER_OF_ERROR_ASSEMBLERCOMMANDS,
    NUMBER_OF_MATCHED_READS,
    NUMBER_OF_GROUPS,
    NUMBER_OF_READS
@@ -70,9 +73,14 @@ enum BlatCounters {
 
 
 /**
- * hadoop application to read sequence reads from file perform BLAT
- * operations against constant database.
+ * hadoop application to take the output of the blatHadoopApplication and
+ * assemble the reads in each group.
  *
+ * The blat output is a grouping of readids per geneid.  That is, something
+ * like:
+ * <geneid1 (or group id)>\t<readid1>\t<readid2>\t...
+ *
+ * This application looks up the readids in the read
  * Set the following properties in a file called: blat-conf.xml that should
  * be in the classpath of hadoop.  The following parameters are used:
  *
@@ -82,29 +90,29 @@ enum BlatCounters {
  *   number of reduce steps
  *
  * Blast execution:
- *   blat.commandline - the commandline for blast to execute.
- *   blat.commandpath - the full path to the blast executable (must be accessible
+ *   assembly.commandline - the commandline for blast to execute.
+ *   assembly.commandpath - the full path to the blast executable (must be accessible
  *                       on all the hadoop nodes)
- *   blat.tmpdir - a temporary directory in which a per-run temp directory is
+ *   assembly.tmpdir - a temporary directory in which a per-run temp directory is
  *                  created.
- *   blat.cleanup - if false, leave the working directories
+ *   assembly.cleanup - if false, leave the working directories
  *
  */
-public class BlatFilter {
+public class Assembler {
 
     /**
      * map task reads portions of the fasta file provided from the input split and
      * generated the kmers and inserts them directly into the cassandra datastore.
      */
-    public static class FastaTokenizerMapper
-            extends Mapper<Object, Map<String, String>, Text, Text> {
+    public static class LineTokenizerMapper
+            extends Mapper<LongWritable, Text, Text, Text> {
 
         private final static IntWritable one = new IntWritable(1);
         private Text word = new Text();
         private int batchSize = 100;
         private int currentSize = 0;
 
-        Logger log = Logger.getLogger(FastaTokenizerMapper.class);
+        Logger log = Logger.getLogger(LineTokenizerMapper.class);
 
         /**
          * abstracts the details of connections to the cassandra servers
@@ -114,7 +122,7 @@ public class BlatFilter {
         /**
          * blast command wrapper
          */
-        BlatCommand blatCmd = null;
+        AssemblerCommand assemblerCmd = null;
 
         /**
          * initialization of mapper retrieves connection parameters from context and
@@ -130,7 +138,7 @@ public class BlatFilter {
             log.debug("initializing map task for job: " + context.getJobName());
             log.debug("initializing maptask on host: " + InetAddress.getLocalHost().getHostName());
 
-            blatCmd = new BlatCommand(context.getConfiguration());
+            assemblerCmd = new AssemblerCommand(context.getConfiguration());
 
         }
 
@@ -151,85 +159,63 @@ public class BlatFilter {
         /**
          * the map function processes a block of fasta reads through the blast program
          *
-         * @param key     - unused (just junk)
-         * @param value   - a map of <readid, sequence>'s
-         * @param context - configuration context
-         * @throws java.io.IOException
-         * @throws InterruptedException
          */
-        public void map(Object key, Map<String, String> value, Context context) throws IOException, InterruptedException {
+        public void map(LongWritable lineNum, Text lineValue, Context context) throws IOException, InterruptedException {
 
             log.debug("map task started for job: " + context.getJobName() + " on host: " +  InetAddress.getLocalHost().getHostName());
 
-            String blastOutputFilePath = context.getConfiguration().get("blastoutputfile");
-            Boolean skipExecution = context.getConfiguration().getBoolean("blat.skipexecution", false);
+//            String blastOutputFilePath = context.getConfiguration().get("blastoutputfile");
+            Boolean skipExecution = context.getConfiguration().getBoolean("assembly.skipexecution", false);
             
-            context.getCounter(BlatCounters.NUMBER_OF_READS).increment(value.size());
+//            context.getCounter(AssemblyCounters.NUMBER_OF_READS).increment(value.size());
 
             if (skipExecution) {
                 /*
                 print some diagnostics instead of executing blat
                  */
 
-                System.out.println("Running Blat MAP task");
+                System.out.println("Running Assembly task");
                 System.out.println("\thost = " + InetAddress.getLocalHost().getHostName() );
-                System.out.println("\treadset size = " + value.size());
+                System.out.println("\treadset size = " + lineValue);
 
             }
             /*
             execute the blast command
              */
-            Set<String> s = null;
+            Map<String,String> s = null;
+            Map<String,String> map = new HashMap<String,String>();
 
+            String[] a = lineValue.toString().split("\t",2);
+            String groupId = a[0];
+            for (String read : a[1].split("\t")) {
+                String[] b = read.split("&",2);
+                map.put(b[0],b[1]);
+            }
             try {
                 if (!skipExecution)
-                    s = blatCmd.exec(value, blastOutputFilePath, context);
+                    s = assemblerCmd.exec(groupId, map, context);
                 else
-                    s = new HashSet<String>();
+                    s = new HashMap<String,String>();
             } catch (Exception e) {
                 /*
                 something bad happened.  update the counter and throw exception
                  */
                 log.error(e);
-                context.getCounter(BlatCounters.NUMBER_OF_ERROR_BLATCOMMANDS).increment(1);
+//                context.getCounter(AssemblyCounters.NUMBER_OF_ERROR_BLATCOMMANDS).increment(1);
                 throw new IOException(e);
             }
 
             /*
-            blast executed but did not return sensible values, thow error.
-             */
-//            if (s == null || s.size() <= 1) {
-//                context.getCounter(BlatCounters.NUMBER_OF_ERROR_BLATCOMMANDS).increment(1);
-//                log.error("blast did not execute correctly");
-//                throw new IOException("blast did not execute properly");
-//            }
-
-            /*
             blast must have been successful
              */
-            context.getCounter(BlatCounters.NUMBER_OF_SUCCESSFUL_BLATCOMMANDS).increment(1);
-            context.getCounter(BlatCounters.NUMBER_OF_MATCHED_READS).increment(s.size());
+            //context.getCounter(AssemblyCounters.NUMBER_OF_SUCCESSFUL_BLATCOMMANDS).increment(1);
+            //context.getCounter(AssemblyCounters.NUMBER_OF_MATCHED_READS).increment(s.size());
 
-            log.debug("blat retrieved " + s.size() + " results");
+            log.debug("assembler retrieved " + s.size() + " results");
 
-            for (String k : s) {
+            for (String k : s.keySet()) {
 
-                /*
-                blat returns the stdout, line by line.  the output is split by tab and
-                the first column is the id of the gene, second column is the read id
-                 */
-                String[] a = k.split(", ", 2);
-
-                /*
-                note that we strip out the readid direction.  that is, we don't care if the
-                read is a forward read (id/1) or backward (id/2).
-                 */
-                Text groupkey = new Text(a[0]);
-                String[] sequences = a[1].split(", ");
-
-                for (String seqid : sequences) {
-                    context.write(groupkey, new Text(seqid+"&"+value.get(seqid)));
-                }
+                context.write(new Text(k), new Text(s.get(k)));
 
             }
 
@@ -276,23 +262,16 @@ public class BlatFilter {
         public void reduce(Text key, Iterable<Text> values, Context context)
                 throws InterruptedException, IOException {
 
-            Text reads = new Text();
+//            Text reads = new Text();
 
-            context.getCounter(BlatCounters.NUMBER_OF_GROUPS).increment(1);
+//            context.getCounter(AssemblyCounters.NUMBER_OF_GROUPS).increment(1);
 
             log.debug("running reducer class for job: " + context.getJobName());
             log.debug("\trunning reducer on host: " + InetAddress.getLocalHost().getHostName());
 
-            int i = 0;
             for (Text t : values){
-                if (i > 0) {
-                    reads.append("\t".getBytes(), 0, 1);
-                }
-                reads.append(t.getBytes(), 0, t.getLength());
-                i++;
+                context.write(key, t);
             }
-
-            context.write(key, reads);
 
         }
     }
@@ -307,37 +286,36 @@ public class BlatFilter {
 
         Configuration conf = new Configuration();
 
-        conf.addResource("blat-conf.xml");  // application configuration properties
+        conf.addResource("assembler-conf.xml");  // application configuration properties
         String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
 
-        Logger log = Logger.getLogger(BlatFilter.class);
+        Logger log = Logger.getLogger(Assembler.class);
 
         /*
         process arguments
          */
 
-        if (otherArgs.length != 3) {
-            System.err.println("Usage: blat <readfile> <blatoutputfile> <outputdir>");
+        if (otherArgs.length != 2) {
+            System.err.println("Usage: assembler <blatFilterOutputFile> <outputdir>");
             System.exit(2);
         }
 
-        conf.set("blastoutputfile", otherArgs[1]);
         conf.setInt("io.file.buffer.size", 1024 * 1024);
+   	conf.setInt("mapred.line.input.format.linespermap", 1);
 
         log.info("main() [version " + conf.getStrings("version", "unknown!")[0] + "] starting with following parameters");
-        log.info("\tsequence file: " + otherArgs[0]);
-        log.info("\tgene db file : " + otherArgs[1]);
-        log.info("\tblat.cleanup : " + conf.getBoolean("blat.cleanup", true));
-        log.info("\tblat.skipexecution: " + conf.getBoolean("blat.skipexecution", false));
+        log.info("\tblat results file: " + otherArgs[0]);
+        log.info("\tassembly.cleanup : " + conf.getBoolean("assembly.cleanup", true));
+        log.info("\tassembly.skipexecution: " + conf.getBoolean("assembly.skipexecution", false));
 
         /*
         setup blast configuration parameters
          */
 
-        Job job = new Job(conf, "loader");
-        job.setJarByClass(BlatFilter.class);
-        job.setInputFormatClass(FastaBlockInputFormat.class);
-        job.setMapperClass(FastaTokenizerMapper.class);
+        Job job = new Job(conf, "assembler");
+        job.setJarByClass(Assembler.class);
+        job.setInputFormatClass(TextInputFormat.class);
+        job.setMapperClass(LineTokenizerMapper.class);
         //job.setCombinerClass(IntSumReducer.class);
         job.setReducerClass(IntSumReducer.class);
         job.setOutputKeyClass(Text.class);
@@ -345,7 +323,7 @@ public class BlatFilter {
         job.setNumReduceTasks(1);
         
         FileInputFormat.addInputPath(job, new Path(otherArgs[0]));
-        FileOutputFormat.setOutputPath(job, new Path(otherArgs[2]));
+        FileOutputFormat.setOutputPath(job, new Path(otherArgs[1]));
 
         System.exit(job.waitForCompletion(true) ? 0 : 1);
     }

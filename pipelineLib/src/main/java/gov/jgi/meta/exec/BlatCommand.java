@@ -106,6 +106,8 @@ public class BlatCommand {
      */
     Boolean cleanup = true;
 
+    Boolean paired = true;
+
     /**
      * new blast command based on default parameters
      */
@@ -116,6 +118,7 @@ public class BlatCommand {
         tmpDir = DEFAULTTMPDIR;
 
         tmpDirFile = createTempDir();
+
     }
 
     /**
@@ -148,6 +151,7 @@ public class BlatCommand {
         }
 
         cleanup = config.getBoolean("blat.cleanup", true);
+        paired = config.getBoolean("blat.paired", true);
 
          /*
          do sanity check to make sure all paths exist
@@ -343,7 +347,7 @@ public class BlatCommand {
             return null;
         }
 
-        Map<String, String> s = new HashMap<String, String>();
+        Map<String, Set<String>> s = new HashMap<String, Set<String>>();
 
         /*
         now loop through all the lines previously read in, write out a seqfile in temp directory
@@ -360,35 +364,63 @@ public class BlatCommand {
              */
 
             context.setStatus("Executing Blat " + numBlats + "/" + totalBlats);
-                /*
-                create a new file in temp direectory
-                 */
-                seqQueryFile = new File(tmpDirFile, "blatquery.fa");
-                BufferedWriter out = new BufferedWriter(new FileWriter(seqQueryFile.getPath()));
+            /*
+           create a new file in temp direectory
+            */
+            seqQueryFile = new File(tmpDirFile, "blatquery.fa");
+            BufferedWriter out = new BufferedWriter(new FileWriter(seqQueryFile.getPath()));
 
-                /*
-                look up all the sequences and write them to the file.  include the paired ends
-                 */
-                for (String key : l.get( k ).split("\t")) {
+            /*
+           look up all the sequences and write them to the file.  include the paired ends
+            */
+            int queryCount = 0;
+            for (String key : l.get(k).split("\t")) {
 
-                    String key1 = key+"/1";  // forward
-                    String key2 = key+"/2";  // backward
+                if (paired) {
+
+                    /*
+                    for paired end data, look for both pairs
+                     */
+
+                    String key1 = key + "/1";  // forward
+                    String key2 = key + "/2";  // backward
 
                     if (seqDatabase.containsKey(key1)) {
+                        queryCount++;
                         out.write(">" + key1 + "\n");
                         out.write(seqDatabase.get(key1) + "\n");
                     }
                     if (seqDatabase.containsKey(key2)) {
+                        queryCount++;
                         out.write(">" + key2 + "\n");
                         out.write(seqDatabase.get(key2) + "\n");
                     }
+                } else {
+
+                    /*
+                    if data is not paired, just look up key
+                     */
+
+                    if (seqDatabase.containsKey(key)) {
+                        queryCount++;
+                        out.write(">" + key + "\n");
+                        out.write(seqDatabase.get(key) + "\n");
+                    }
                 }
+            }
+            /*
+            close the temporary file
+            */
+            out.close();
 
+            if (queryCount == 0) {
                 /*
-                close the temporary file
-                 */
-                out.close();
-
+               means that none of these queries were in this portion of the database.  no point
+               executing blat, so just return
+                */
+                log.info("skipping blat since i didn't find any query sequences in this database");
+                continue;
+            }
 
             /*
             now set up a blat execution
@@ -400,18 +432,18 @@ public class BlatCommand {
                     tmpDirFile.getPath() + "/blat.output");
 
 
-                log.info("command = " + commands);
+            log.info("command = " + commands);
 
-                SystemCommandExecutor commandExecutor = new SystemCommandExecutor(commands);
-                exitValue = commandExecutor.executeCommand();
+            SystemCommandExecutor commandExecutor = new SystemCommandExecutor(commands);
+            exitValue = commandExecutor.executeCommand();
 
-                // stdout and stderr of the command are returned as StringBuilder objects
-                stdout = commandExecutor.getStandardOutputFromCommand().toString();
-                stderr = commandExecutor.getStandardErrorFromCommand().toString();
+            // stdout and stderr of the command are returned as StringBuilder objects
+            stdout = commandExecutor.getStandardOutputFromCommand().toString();
+            stderr = commandExecutor.getStandardErrorFromCommand().toString();
 
-                log.info("exit = " + exitValue);
-                log.info("stdout = " + stdout);
-                log.info("stderr = " + stderr);
+            log.info("exit = " + exitValue);
+            log.info("stdout = " + stdout);
+            log.info("stderr = " + stderr);
 
 
             /*
@@ -419,8 +451,10 @@ public class BlatCommand {
             */
 
             try {
-                
-                FileReader input = new FileReader(tmpDirFile.getPath()+"/blat.output");
+
+                log.info("reading outputfile: " + tmpDirFile.getPath() + "/blat.output");
+
+                FileReader input = new FileReader(tmpDirFile.getPath() + "/blat.output");
 
                 /*
                 Filter FileReader through a Buffered read to read a line at a time
@@ -434,12 +468,15 @@ public class BlatCommand {
                 line2 = bufRead2.readLine();
 
                 // Read through file one line at time. Print line # and line
-                while (line2 != null){
-                    String[] a = line2.split("\t");
+                while (line2 != null) {
+                    log.info("line: " + count);
+                    String[] a = line2.split("\t",3);
                     if (s.containsKey(k)) {
-                        s.put(k, s.get(k) + "\t" + a[1]);
+                        s.get(k).add(a[1]);
+                        //s.put(k, s.get(k)); //.concat("\t" + a[1]));
                     } else {
-                        s.put(k, a[1]);
+                        s.put(k, new HashSet<String>());
+                        //s.put(k, a[1]);
                     }
                     line2 = bufRead2.readLine();
                     count++;
@@ -447,9 +484,9 @@ public class BlatCommand {
 
                 bufRead2.close();
 
-            } catch (Exception e){
+                log.info("done reading file");
+            } catch (Exception e) {
                 log.error(e);
-                return null;
             }
 
             /*
@@ -471,14 +508,8 @@ public class BlatCommand {
         Set<String> ss = new HashSet<String>();
 
         for (String k : s.keySet()) {
-
-            /*
-            for each grouping
-             */
-            ss.add(k + "\t" + s.get(k));
-
+            ss.add(k + ", " + s.get(k).toString());
         }
-
         
         return ss;
     }

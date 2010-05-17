@@ -27,7 +27,7 @@
     -->
     <!--
     <property>
-        <name>blast.commandline</name>
+        <name>assembly.commandline</name>
         <value></value>
     </property>
     -->
@@ -37,7 +37,7 @@
     -->
     <!--
     <property>
-        <name>blast.commandpath</name>
+        <name>assembly.commandpath</name>
         <value></value>
     </property>
     -->
@@ -47,24 +47,19 @@
     -->
     <!--
     <property>
-        <name>blast.tmpdir</name>
+        <name>assembly.tmpdir</name>
         <value></value>
     </property>
     -->
 
     <property>
-        <name>blat.cleanup</name>
+        <name>assembly.cleanup</name>
+        <value>false</value>
+    </property>
+
+    <property>
+        <name>assembly.skipexecution</name>
         <value>true</value>
-    </property>
-
-    <property>
-        <name>blat.skipexecution</name>
-        <value>false</value>
-    </property>
-
-    <property>
-        <name>blat.paired</name>
-        <value>false</value>
     </property>
 
 </configuration>

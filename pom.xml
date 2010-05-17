@@ -16,6 +16,7 @@
         <module>pipelineLib</module>
         <module>blast</module>
         <module>blat</module>
+	<module>assembly</module>
     </modules>
 
 </project>
