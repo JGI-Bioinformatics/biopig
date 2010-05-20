@@ -59,7 +59,7 @@
 
     <property>
         <name>assembly.skipexecution</name>
-        <value>true</value>
+        <value>false</value>
     </property>
 
 </configuration>

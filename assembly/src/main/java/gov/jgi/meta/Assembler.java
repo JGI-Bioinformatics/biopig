@@ -301,7 +301,6 @@ public class Assembler {
         }
 
         conf.setInt("io.file.buffer.size", 1024 * 1024);
-   	conf.setInt("mapred.line.input.format.linespermap", 1);
 
         log.info("main() [version " + conf.getStrings("version", "unknown!")[0] + "] starting with following parameters");
         log.info("\tblat results file: " + otherArgs[0]);

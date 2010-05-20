@@ -64,7 +64,7 @@
 
     <property>
         <name>blat.paired</name>
-        <value>false</value>
+        <value>true</value>
     </property>
 
 </configuration>

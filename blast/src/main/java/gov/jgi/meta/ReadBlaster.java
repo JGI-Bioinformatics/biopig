@@ -315,6 +315,7 @@ public class ReadBlaster {
          */
 
         Job job = new Job(conf, "loader");
+
         job.setJarByClass(ReadBlaster.class);
         job.setInputFormatClass(FastaBlockInputFormat.class);
         job.setMapperClass(FastaTokenizerMapper.class);

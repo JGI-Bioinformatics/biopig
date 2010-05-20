@@ -42,7 +42,7 @@ import java.io.*;
 import java.util.*;
 
 
-/**
+/**                   
  * class that wraps execution of commandline velvet program.
  *
  * Use this by creating a new AssemblerCommand than invoking the
@@ -226,6 +226,8 @@ public class AssemblerCommand {
      */
     public Map<String,String> exec(String groupId, Map<String, String> seqDatabase, Mapper.Context context)  throws IOException, InterruptedException  {
 
+        Map<String, String> s = new HashMap<String, String>();
+
         /*
         first, take the blatInputFile and find the corresponding sequence in the
         seqMap.  find both the exact sequence id, as well as its matching pair
@@ -250,8 +252,6 @@ public class AssemblerCommand {
              */
             return null;
         }
-
-        Map<String, String> s = new HashMap<String, String>();
 
         if (context != null) context.setStatus("Executing Assembler");
             /*
@@ -288,7 +288,7 @@ public class AssemblerCommand {
             int bytes = in.readLine(t, s);
 
         } catch (Exception e) {
-            log.error("unable to find outputfile");
+            log.error("unable to find outputfile:" + e);
             return null;
         }
 

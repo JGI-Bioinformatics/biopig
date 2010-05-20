@@ -240,7 +240,8 @@ public class BlastCommand {
         /*
         execute formatdb command
          */
-
+                               // TODO: formatdb should be parameterized as well!
+        
         List<String> commands = new ArrayList<String>();
         File seqFile = new File(tmpDirFile, "seqfile");
         commands.add("/bin/sh");

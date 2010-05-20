@@ -226,15 +226,22 @@ public class FastaBlockLineReader {
             /*
            now read the sequence
             */
-            i = j;
-            while (j < recordBlock.getLength()) {
-                int c = recordBlock.charAt(j++);
-                if (c == CR || c == LF) {
-                    break;
+            do {
+                i = j;
+                while (j < recordBlock.getLength()) {
+                    int c = recordBlock.charAt(j++);
+                    if (c == CR || c == LF) {
+                        break;
+                    }
                 }
-            }
-            s.append(recordBlock.getBytes(), i, j - i - 1);
-            set.put(k.toString(), s.toString());
+                s.append(recordBlock.getBytes(), i, j - i - 1);
+                set.put(k.toString(), s.toString());
+
+
+                while (j < recordBlock.getLength() && (recordBlock.charAt(j) == CR || recordBlock.charAt(j) == LF)) j++;
+                           
+            } while (j < recordBlock.getLength() && recordBlock.charAt(j) != '>');
+
             numRecordsRead++;
 
             /*
