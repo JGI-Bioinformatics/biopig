@@ -284,11 +284,13 @@ public class BlatFilter {
             log.debug("\trunning reducer on host: " + InetAddress.getLocalHost().getHostName());
 
             int i = 0;
+//            context.write(key, new Text(values.toString()));
             for (Text t : values){
                 if (i > 0) {
-                    reads.append("\t".getBytes(), 0, 1);
+                    reads.append(("\t"+t).getBytes(), 0, t.getLength() + 1);
+                } else {
+                    reads.append(t.getBytes(), 0, t.getLength());
                 }
-                reads.append(t.getBytes(), 0, t.getLength());
                 i++;
             }
 
@@ -329,7 +331,7 @@ public class BlatFilter {
         log.info("\tgene db file : " + otherArgs[1]);
         log.info("\tblat.cleanup : " + conf.getBoolean("blat.cleanup", true));
         log.info("\tblat.skipexecution: " + conf.getBoolean("blat.skipexecution", false));
-
+        log.info("\tblat.numreducers: " + conf.getInt("blat.numreducers", 1));
         /*
         setup blast configuration parameters
          */
@@ -338,11 +340,11 @@ public class BlatFilter {
         job.setJarByClass(BlatFilter.class);
         job.setInputFormatClass(FastaBlockInputFormat.class);
         job.setMapperClass(FastaTokenizerMapper.class);
-        //job.setCombinerClass(IntSumReducer.class);
+        job.setCombinerClass(IntSumReducer.class);
         job.setReducerClass(IntSumReducer.class);
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(Text.class);
-        job.setNumReduceTasks(1);
+        job.setNumReduceTasks(conf.getInt("blat.numreducers", 1));
         
         FileInputFormat.addInputPath(job, new Path(otherArgs[0]));
         FileOutputFormat.setOutputPath(job, new Path(otherArgs[2]));

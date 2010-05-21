@@ -306,6 +306,7 @@ public class Assembler {
         log.info("\tblat results file: " + otherArgs[0]);
         log.info("\tassembly.cleanup : " + conf.getBoolean("assembly.cleanup", true));
         log.info("\tassembly.skipexecution: " + conf.getBoolean("assembly.skipexecution", false));
+        log.info("\tblat.numreducers: " + conf.getInt("assembly.numreducers", 1));
 
         /*
         setup blast configuration parameters
@@ -315,11 +316,11 @@ public class Assembler {
         job.setJarByClass(Assembler.class);
         job.setInputFormatClass(TextInputFormat.class);
         job.setMapperClass(LineTokenizerMapper.class);
-        //job.setCombinerClass(IntSumReducer.class);
+        job.setCombinerClass(IntSumReducer.class);
         job.setReducerClass(IntSumReducer.class);
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(Text.class);
-        job.setNumReduceTasks(1);
+        job.setNumReduceTasks(conf.getInt("assembly.numreducers", 1));
         
         FileInputFormat.addInputPath(job, new Path(otherArgs[0]));
         FileOutputFormat.setOutputPath(job, new Path(otherArgs[1]));

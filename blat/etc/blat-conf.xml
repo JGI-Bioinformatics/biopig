@@ -67,5 +67,10 @@
         <value>true</value>
     </property>
 
+    <property>
+        <name>blat.numreducers</name>
+        <value>10</value>
+    </property>
+
 </configuration>
 
