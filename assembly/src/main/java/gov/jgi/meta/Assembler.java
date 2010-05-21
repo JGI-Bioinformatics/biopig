@@ -215,7 +215,7 @@ public class Assembler {
 
             for (String k : s.keySet()) {
 
-                context.write(new Text(k), new Text(s.get(k)));
+                context.write(new Text(groupId), new Text(s.get(k)));
 
             }
 
