@@ -30,6 +30,10 @@
 
 package gov.jgi.meta.exec;
 
+import org.apache.hadoop.mapreduce.Mapper;
+import java.io.IOException;
+import java.util.Map;
+
 
 /**
  * Created by IntelliJ IDEA.
@@ -38,5 +42,8 @@ package gov.jgi.meta.exec;
  * Time: 5:27:28 PM
  * To change this template use File | Settings | File Templates.
  */
-public class SimpleCommand {
+public interface CommandLineProgram {
+
+        public Map<String,String> exec(String groupId, Map<String, String> seqDatabase, Mapper.Context context)  throws IOException, InterruptedException;
+
 }

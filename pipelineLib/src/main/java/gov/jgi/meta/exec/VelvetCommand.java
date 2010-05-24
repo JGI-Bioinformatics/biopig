@@ -42,37 +42,66 @@ import java.io.*;
 import java.util.*;
 
 
-/**                   
+/**
  * class that wraps execution of commandline velvet program.
  *
- * Use this by creating a new AssemblerCommand than invoking the
+ * Use this by creating a new velvetCommand than invoking the
  * exec method.  eg:
  *
- * AssemblerCommand b = new AssemblerCommand();
- * r = b.exec(...)
+ * VelvetCommand v = new VelvetCommand();
+ * r = v.exec(...)
  *
  */
 
-public class AssemblerCommand {
+public class VelvetCommand implements CommandLineProgram {
 
+    /**
+     * default commandline for velveth:  from the pdf manual:
+     * > ./velveth output_directory hash_length [[-file_format][-read_type] filename]
+     * The hash length, also known as k-mer length, corresponds to the length, in
+     * base pairs, of the words being hashed. See 5.1 for a detailed explanation of how
+     * to choose the hash length.
+     * Supported file formats are:
+     * fasta (default)
+     * fastq
+     * fasta.gz
+     * fastq.gz
+     * eland
+     * gerald
+     * Read categories are:
+     * short (default)
+     * shortPaired
+     * short2 (same as short, but for a separate insert-size library)
+     * shortPaired2 (see above)
+     * long (for Sanger, 454 or even reference sequences)
+     * longPaired
+     */
+    String DEFAULT_VELVETH_COMMANDLINE = "21";
 
-    String DEFAULTCOMMANDLINE = "-k 0";
-    String DEFAULTCOMMANDPATH = "/home/asczyrba/bin/cap3";
-    String DEFAULTTMPDIR = "/tmp/cap3";
+    /**
+     * see options for velvetg
+     */
+    String DEFAULT_VELVETG_COMMANDLINE = "";
+    String DEFAULT_VELVETH_COMMANDPATH = "/jgi/tools/bin/velveth";
+    String DEFAULT_VELVETG_COMMANDPATH = "/jgi/tools/bin/velvetg";
+    String DEFAULTTMPDIR = "/tmp/velvet";
 
     /**
      * logger
      */
-    Logger log = Logger.getLogger(AssemblerCommand.class);
+    Logger log = Logger.getLogger(VelvetCommand.class);
 
     /**
      * the commandline to execute (all options except the input/output)
      */
-    String commandLine = null;
+    String velveth_commandLine = null;
+    String velvetg_commandLine = null;
     /**
      * the location of the executable in the filesystem
      */
-    String commandPath = null;
+    String velveth_commandPath = null;
+    String velvetg_commandPath = null;
+
     /**
      * temporary directory to use for intermediate files
      */
@@ -101,13 +130,16 @@ public class AssemblerCommand {
     /**
      * new blast command based on default parameters
      */
-    public AssemblerCommand() throws IOException {
+    public VelvetCommand() throws IOException {
         // look in configuration file to determine default values
-        commandLine = DEFAULTCOMMANDLINE;
-        commandPath = DEFAULTCOMMANDPATH;
-        tmpDir = DEFAULTTMPDIR;
+        velveth_commandLine = DEFAULT_VELVETH_COMMANDLINE;
+        velvetg_commandLine = DEFAULT_VELVETG_COMMANDLINE;
+        velveth_commandPath = DEFAULT_VELVETH_COMMANDPATH;
+        velvetg_commandPath = DEFAULT_VELVETG_COMMANDPATH;
 
+        tmpDir = DEFAULTTMPDIR;
         tmpDirFile = createTempDir();
+
     }
 
     /**
@@ -119,27 +151,40 @@ public class AssemblerCommand {
      * @param config is the hadoop configuration with overriding values
      *               for commandline options and paths
      */
-    public AssemblerCommand(Configuration config) throws IOException {
+    public VelvetCommand(Configuration config) throws IOException {
 
         String c;
 
-        if ((c = config.get("assembly.commandline")) != null) {
-            commandLine = c;
+        if ((c = config.get("velveth.commandline")) != null) {
+            velveth_commandLine = c;
         } else {
-            commandLine = DEFAULTCOMMANDLINE;
+            velveth_commandLine = DEFAULT_VELVETH_COMMANDLINE;
         }
-        if ((c = config.get("assembly.commandpath")) != null) {
-            commandPath = c;
+        if ((c = config.get("velveth.commandpath")) != null) {
+            velveth_commandPath = c;
         } else {
-            commandPath = DEFAULTCOMMANDPATH;
+            velveth_commandPath = DEFAULT_VELVETH_COMMANDPATH;
         }
+
+
+        if ((c = config.get("velvetg.commandline")) != null) {
+            velvetg_commandLine = c;
+        } else {
+            velvetg_commandLine = DEFAULT_VELVETG_COMMANDLINE;
+        }
+        if ((c = config.get("velvetg.commandpath")) != null) {
+            velvetg_commandPath = c;
+        } else {
+            velvetg_commandPath = DEFAULT_VELVETG_COMMANDPATH;
+        }
+
         if ((c = config.get("assembly.tmpdir")) != null) {
             tmpDir = c;
         } else {
             tmpDir = DEFAULTTMPDIR;
         }
 
-        cleanup = config.getBoolean("assembly.cleanup", true);
+        cleanup = config.getBoolean("velvet.cleanup", true);
 
          /*
          do sanity check to make sure all paths exist
@@ -235,8 +280,8 @@ public class AssemblerCommand {
         */
         File seqQueryFile = null;
 
-        log.info("Preparing Assembly execution");
-        if (context != null) context.setStatus("Preparing Assembly execution");
+        log.info("Preparing Assembly execution using velvet");
+        if (context != null) context.setStatus("Preparing velvet execution");
 
         int numGroups = 0;
         int numReads = 0;
@@ -253,14 +298,19 @@ public class AssemblerCommand {
             return null;
         }
 
-        if (context != null) context.setStatus("Executing Assembler");
-            /*
-            now set up a blat execution
-             */
+        /*
+         * first execute the velveth command
+         */
+
+        if (context != null) context.setStatus("Executing velveth");
+
         List<String> commands = new ArrayList<String>();
         commands.add("/bin/sh");
         commands.add("-c");
-        commands.add(commandPath + " " + seqFilepath + " " + commandLine);
+        commands.add(velveth_commandPath + " " + tmpDirFile.getPath() + "/sillyDirectory " +
+                velveth_commandLine + " " + seqFilepath + " ; " +
+                velvetg_commandPath + " " + tmpDirFile.getPath() + "/sillyDirectory " +
+                velvetg_commandLine);
 
         log.info("command = " + commands);
 
@@ -275,15 +325,14 @@ public class AssemblerCommand {
         log.debug("stdout = " + stdout);
         log.debug("stderr = " + stderr);
 
-
         /*
             now parse the output and clean up
-            */
+         */
 
         try {
 
             Text t = new Text();
-            FileInputStream fstream = new FileInputStream(tmpDirFile.getPath()+"/reads.fa.cap.contigs");
+            FileInputStream fstream = new FileInputStream(tmpDirFile.getPath()+"/sillyDirectory/contigs.fa");
             FastaBlockLineReader in = new FastaBlockLineReader(fstream);
             int bytes = in.readLine(t, s);
 
@@ -356,7 +405,7 @@ public class AssemblerCommand {
         conf.addResource("assembly-test-conf.xml");
         String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
 
-        AssemblerCommand assemblerCmd = new AssemblerCommand(conf);
+        VelvetCommand capCmd = new VelvetCommand(conf);
 
         /*
         process arguments
@@ -393,7 +442,7 @@ public class AssemblerCommand {
                 map.put(b[0],b[1]);
             }
 
-            s = assemblerCmd.exec(groupId, map, null);
+            s = capCmd.exec(groupId, map, null);
 
             for (String contigid : s.keySet()) {
                 System.out.println(contigid + ": " + s.get(contigid));

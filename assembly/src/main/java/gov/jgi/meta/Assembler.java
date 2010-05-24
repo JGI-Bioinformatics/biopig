@@ -35,13 +35,12 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 
 import gov.jgi.meta.cassandra.DataStore;
-import gov.jgi.meta.exec.AssemblerCommand;
-import gov.jgi.meta.hadoop.input.*;
+import gov.jgi.meta.exec.CapCommand;
+import gov.jgi.meta.exec.CommandLineProgram;
+import gov.jgi.meta.exec.VelvetCommand;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
@@ -122,7 +121,7 @@ public class Assembler {
         /**
          * blast command wrapper
          */
-        AssemblerCommand assemblerCmd = null;
+        CommandLineProgram assemblerCmd = null;
 
         /**
          * initialization of mapper retrieves connection parameters from context and
@@ -138,7 +137,21 @@ public class Assembler {
             log.debug("initializing map task for job: " + context.getJobName());
             log.debug("initializing maptask on host: " + InetAddress.getLocalHost().getHostName());
 
-            assemblerCmd = new AssemblerCommand(context.getConfiguration());
+
+            String assembler = context.getConfiguration().get("assembly.command", "velvet");
+            if ("cap3".equals(assembler)) {
+
+                assemblerCmd = new CapCommand(context.getConfiguration());
+
+            } else if ("velvet".equals(assembler)) {
+
+                assemblerCmd = new CapCommand(context.getConfiguration());
+
+            } else {
+
+                throw new IOException("no assembler command provided");
+
+            }
 
         }
 
