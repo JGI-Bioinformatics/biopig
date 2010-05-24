@@ -145,7 +145,7 @@ public class Assembler {
 
             } else if ("velvet".equals(assembler)) {
 
-                assemblerCmd = new CapCommand(context.getConfiguration());
+                assemblerCmd = new VelvetCommand(context.getConfiguration());
 
             } else {
 
