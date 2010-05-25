@@ -53,14 +53,6 @@ import org.apache.hadoop.util.GenericOptionsParser;
 import org.apache.log4j.Logger;
 
 
-/*
-todo: 1. fix the paired/nonpaired problems
-todo: 2. make sure the blat counters are read correctly
-todo: 3. document code.
-todo: 4. document the configuration parameters
- */
-
-
 /**
  * custom counters
  */
@@ -296,12 +288,17 @@ public class BlatFilter {
      */
     public static void main(String[] args) throws Exception {
 
-        Configuration conf = new Configuration();
+        Logger log = Logger.getLogger(BlatFilter.class);
 
-        conf.addResource("blat-conf.xml");  // application configuration properties
+
+
+        /*
+         see the application configuration file for details on what options are read in.
+         */
+        Configuration conf = new Configuration();
+        conf.addResource("blat-conf.xml");
         String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
 
-        Logger log = Logger.getLogger(BlatFilter.class);
 
         /*
         process arguments
@@ -313,14 +310,35 @@ public class BlatFilter {
         }
 
         conf.set("blastoutputfile", otherArgs[1]);
+
+        /*
+        this improves performance of the file i/o
+         */
         conf.setInt("io.file.buffer.size", 1024 * 1024);
 
         log.info("main() [version " + conf.get("version", "unknown!")+ "] starting with following parameters");
         log.info("\tsequence file: " + otherArgs[0]);
         log.info("\tgene db file : " + otherArgs[1]);
-        log.info("\tblat.cleanup : " + conf.getBoolean("blat.cleanup", true));
-        log.info("\tblat.skipexecution: " + conf.getBoolean("blat.skipexecution", false));
-        log.info("\tblat.numreducers: " + conf.getInt("blat.numreducers", 1));
+        log.info("\t-------------------------------");
+        log.info("\tOptions:");
+
+        String[] optionalProperties = {
+                "mapred.min.split.size",
+                "mapred.max.split.size",
+                "blat.commandline",
+                "blat.commandpath",
+                "blast.tmpdir",
+                "blat.cleanup",
+                "blat.skipexecution",
+                "blat.paired",
+                "blat.numreducers"
+        };
+        for (String option : optionalProperties) {
+            if (conf.get(option) != null) {
+                log.info("\toption " + option + ":\t" + conf.get(option));
+            }
+        }
+
         /*
         setup blast configuration parameters
          */
