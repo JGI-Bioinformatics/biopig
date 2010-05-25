@@ -112,6 +112,11 @@ public class BlastCommand {
     Boolean cleanup = true;
 
     /**
+     * the effective blast database size
+     */
+    long effectiveSize = 0;
+
+    /**
      * new blast command based on default parameters
      */
     public BlastCommand() throws IOException {
@@ -155,6 +160,8 @@ public class BlastCommand {
         }
 
         cleanup = config.getBoolean("blast.cleanup", true);
+
+        effectiveSize = config.getLong("effectivedatabasesize", 0);
 
         /*
         do sanity check to make sure all paths exist
@@ -323,7 +330,7 @@ public class BlastCommand {
         List<String> commands = new ArrayList<String>();
         commands.add("/bin/sh");
         commands.add("-c");
-        commands.add(commandPath + " " + commandLine + " -d " + seqDir + " -i " + localCazyEC);
+        commands.add(commandPath + " " + commandLine + " -z " + effectiveSize + " -d " + seqDir + " -i " + localCazyEC);
 
 
         // TODO: remove the try statement to throw exception in case of failure

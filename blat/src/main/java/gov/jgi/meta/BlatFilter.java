@@ -327,7 +327,7 @@ public class BlatFilter {
                 "mapred.max.split.size",
                 "blat.commandline",
                 "blat.commandpath",
-                "blast.tmpdir",
+                "blat.tmpdir",
                 "blat.cleanup",
                 "blat.skipexecution",
                 "blat.paired",

@@ -31,9 +31,12 @@
 
 package gov.jgi.meta;
 
-import java.io.IOException;
+import java.io.*;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Map;
 import java.util.Set;
 
@@ -41,6 +44,7 @@ import gov.jgi.meta.cassandra.DataStore;
 import gov.jgi.meta.exec.BlastCommand;
 import gov.jgi.meta.hadoop.input.*;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
@@ -51,50 +55,60 @@ import org.apache.hadoop.util.GenericOptionsParser;
 
 import org.apache.log4j.Logger;
 
+/*
+todo: clean up counters
+todo: clean up options
+todo: add paired/unpaired option
+ */
 
 /**
  * custom counters
- *
- * MALFORMED is the number of ignored reads that failed simple syntax checking
- * WELLFORMED is the number of reads that were read and processed
- *
  */
 enum BlastCounters {
-   NUMBER_OF_SUCCESSFUL_BLASTCOMMANDS,
-   NUMBER_OF_ERROR_BLASTCOMMANDS,
-   NUMBER_OF_MATCHED_READS,
-   NUMBER_OF_GROUPS,
-   NUMBER_OF_READS
-}
+    /**
+     * the number times the blast commandline is executed successfully
+     */
+    NUMBER_OF_SUCCESSFUL_BLASTCOMMANDS,
+
+    /**
+     * the number of times the blast commandline returns error (non-zero return value)
+     */
+    NUMBER_OF_ERROR_BLASTCOMMANDS,
+
+    /**
+     * the sum of the reads returned by each blast exeuction
+     */
+    NUMBER_OF_MATCHED_READS,
+    NUMBER_OF_MATCHED_READS2,
+
+    /**
+     * the total number of gene groups
+     */
+    NUMBER_OF_GROUPS,
+
+    /**
+     * the total number of sequences in the read database
+     */
+    NUMBER_OF_READS,
+
+    /**
+     * total number of map tasks
+     */
+    NUMBER_OF_MAP_TASKS,
+
+    /**
+     * total number of reduce tasks
+     */
+    NUMBER_OF_REDUCE_TASKS
+};
 
 
 /**
  * hadoop application to read sequence reads from file perform BLAST
  * operations against constant database.
  *
- * The blast command takes one read file (in HDFS) and one gene library
- * (also in HDFS) and executes tblastn as a system.exec after copying the
- * sequences to a working directory.  The read file is broken into n chunks
- * by hadoop.  the gene library is not split, but copied as is to the working
- * directory.
- *
- * Set the following properties in a file called: blast-conf.xml that should
- * be in the classpath of hadoop.  The following parameters are used:
- *
- * Hadoop Tuning:
- *   mapred.min.split.size
- *   min hdfs block size (affects the number of map tasks)
- *   number of reduce steps
- *
- * Blast execution:
- *   blast.commandline - the commandline for blast to execute.  eg:
- *                       "-m 8 -p tblastn -b 1000000 -a 10"
- *   blast.commandpath - the full path to the blast executable (must be accessible
- *                       on all the hadoop nodes)
- *   blast.tmpdir - a temporary directory in which a per-run temp directory is
- *                  created.
- *   blast.cleanup - if false, leave the working directories 
- *
+ * see associated application config file for details on configuration
+ * parameters
  */
 public class ReadBlaster {
 
@@ -105,17 +119,7 @@ public class ReadBlaster {
     public static class FastaTokenizerMapper
             extends Mapper<Object, Map<String, String>, Text, Text> {
 
-        private final static IntWritable one = new IntWritable(1);
-        private Text word = new Text();
-        private int batchSize = 100;
-        private int currentSize = 0;
-
         Logger log = Logger.getLogger(FastaTokenizerMapper.class);
-
-        /**
-         * abstracts the details of connections to the cassandra servers
-         */
-        DataStore ds = null;
 
         /**
          * blast command wrapper
@@ -136,11 +140,9 @@ public class ReadBlaster {
             log.debug("initializing map task for hjob: " + context.getJobName());
             log.debug("initializing maptask on host: " + InetAddress.getLocalHost().getHostName());
 
-//             log.info("\tconnecting to cassandra host: " + context.getConfiguration().get("cassandrahost"));
-            //ds = new DataStore(context.getConfiguration());
-
             blastCmd = new BlastCommand(context.getConfiguration());
 
+            context.getCounter(BlastCounters.NUMBER_OF_MAP_TASKS).increment(1);
         }
 
         /**
@@ -150,9 +152,7 @@ public class ReadBlaster {
          */
         protected void cleanup(Context context) throws IOException {
 
-            log.trace("deleting map task for job: " + context.getJobName() + " on host: " +  InetAddress.getLocalHost().getHostName());
-
-            if (ds != null) ds.cleanup();
+            log.debug("deleting map task for job: " + context.getJobName() + " on host: " + InetAddress.getLocalHost().getHostName());
 
         }
 
@@ -168,10 +168,11 @@ public class ReadBlaster {
          */
         public void map(Object key, Map<String, String> value, Context context) throws IOException, InterruptedException {
 
-            log.debug("map task started for job: " + context.getJobName() + " on host: " +  InetAddress.getLocalHost().getHostName());
+            log.debug("map task started for job: " + context.getJobName() + " on host: " + InetAddress.getLocalHost().getHostName());
+            context.getCounter(BlastCounters.NUMBER_OF_READS).increment(value.size());
 
             String geneDBFilePath = context.getConfiguration().get("genedbfilepath");
-            context.getCounter(BlastCounters.NUMBER_OF_READS).increment(value.size());
+
             /*
             execute the blast command
              */
@@ -192,9 +193,10 @@ public class ReadBlaster {
             blast executed but did not return sensible values, thow error.
              */
             if (s == null || s.size() <= 1) {
-                context.getCounter(BlastCounters.NUMBER_OF_ERROR_BLASTCOMMANDS).increment(1);
-                log.error("blast did not execute correctly");
-                throw new IOException("blast did not execute properly");
+                return;
+//                context.getCounter(BlastCounters.NUMBER_OF_ERROR_BLASTCOMMANDS).increment(1);
+//                log.error("blast did not execute correctly");
+//                throw new IOException("blast did not execute properly");
             }
 
             /*
@@ -219,6 +221,7 @@ public class ReadBlaster {
                  */
                 context.write(new Text(a[0]), new Text(a[1].split("/")[0]));
 
+
             }
         }
     }
@@ -226,9 +229,7 @@ public class ReadBlaster {
     /**
      * simple reducer that just outputs the matches grouped by gene
      */
-    public static class IntSumReducer extends Reducer<Text, Text, Text, Text>
-    {
-        private IntWritable result = new IntWritable();
+    public static class IntSumReducer extends Reducer<Text, Text, Text, Text> {
 
         Logger log = Logger.getLogger(IntSumReducer.class);
 
@@ -242,6 +243,8 @@ public class ReadBlaster {
 
             log.debug("initializing reducer class for job: " + context.getJobName());
             log.debug("\tinitializing reducer on host: " + InetAddress.getLocalHost().getHostName());
+
+            context.getCounter(BlastCounters.NUMBER_OF_REDUCE_TASKS).increment(1);
 
         }
 
@@ -262,19 +265,23 @@ public class ReadBlaster {
         public void reduce(Text key, Iterable<Text> values, Context context)
                 throws InterruptedException, IOException {
 
-            Text reads = new Text();
+            StringBuilder sb = new StringBuilder();
 
             context.getCounter(BlastCounters.NUMBER_OF_GROUPS).increment(1);
 
             log.debug("running reducer class for job: " + context.getJobName());
             log.debug("\trunning reducer on host: " + InetAddress.getLocalHost().getHostName());
 
-            for (Text t : values){
-                reads.append("\t".getBytes(), 0, 1);
-                reads.append(t.getBytes(), 0, t.getLength());
+            int i = 0;
+            for (Text t : values) {
+                if (i++ == 0) {
+                    sb.append(t.toString());
+                } else {
+                    sb.append("\t").append(t.toString());
+                }
             }
-
-            context.write(key, reads);
+            context.getCounter(BlastCounters.NUMBER_OF_MATCHED_READS2).increment(i);
+            context.write(key, new Text(sb.toString()));
 
         }
     }
@@ -287,12 +294,14 @@ public class ReadBlaster {
      */
     public static void main(String[] args) throws Exception {
 
-        Configuration conf = new Configuration();
-
-        conf.addResource("blast-conf.xml");  // set kmer application properties
-        String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
-
         Logger log = Logger.getLogger(ReadBlaster.class);
+
+        /*
+        load the application configuration parameters
+         */
+        Configuration conf = new Configuration();
+        conf.addResource("blast-conf.xml");
+        String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
 
         /*
         process arguments
@@ -303,12 +312,53 @@ public class ReadBlaster {
             System.exit(2);
         }
 
+        long sequenceFileLength = 0;
+
+        try {
+            FileInputStream file = new FileInputStream(otherArgs[0]);
+            BufferedReader d
+                    = new BufferedReader(new InputStreamReader(file));
+
+            String line;
+            line = d.readLine();
+            while (line != null) {
+                if (line.charAt(0) != '>') sequenceFileLength += line.length();
+                line = d.readLine();
+            }
+            file.close();
+        } catch (Exception e) {
+            System.err.println(e);
+            System.exit(2);
+        }
+
+        conf.setLong("effectivedatabasesize", sequenceFileLength);
         conf.set("genedbfilepath", otherArgs[1]);
+
+        /*
+        seems to help in file i/o performance
+         */
         conf.setInt("io.file.buffer.size", 1024 * 1024);
 
         log.info("main() [version " + conf.getStrings("version", "unknown!")[0] + "] starting with following parameters");
         log.info("\tsequence file: " + otherArgs[0]);
         log.info("\tgene db file : " + otherArgs[1]);
+
+        String[] optionalProperties = {
+                "mapred.min.split.size",
+                "mapred.max.split.size",
+                "blast.commandline",
+                "blast.commandpath",
+                "blast.tmpdir",
+                "blast.cleanup",
+                "blast.numreducers"
+        };
+
+        for (String option : optionalProperties) {
+            if (conf.get(option) != null) {
+                log.info("\toption " + option + ":\t" + conf.get(option));
+            }
+        }
+
 
         /*
         setup blast configuration parameters
@@ -323,8 +373,8 @@ public class ReadBlaster {
         job.setReducerClass(IntSumReducer.class);
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(Text.class);
-        job.setNumReduceTasks(1);
-        
+        job.setNumReduceTasks(conf.getInt("blast.numreducers", 1));
+
         FileInputFormat.addInputPath(job, new Path(otherArgs[0]));
         FileOutputFormat.setOutputPath(job, new Path(otherArgs[2]));
 
