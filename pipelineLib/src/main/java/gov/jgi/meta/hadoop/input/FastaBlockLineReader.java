@@ -203,13 +203,25 @@ public class FastaBlockLineReader {
             first parse the key
              */
             i = j;
+            Boolean junkOnLine = false;
             while (j < recordBlock.getLength()) {
                 int c = recordBlock.charAt(j++);
                 if (c == CR || c == LF) {
                     break;
+                } else if (c == ' ' || c == '\t') {
+                    junkOnLine = true;
+                    break;
                 }
             }
             k.append(recordBlock.getBytes(), i, j - i - 1);
+
+            /*
+            in case there is additional metadata on the header line, ignore everything after
+            the first word.
+             */
+            if (junkOnLine) {
+                while (j < recordBlock.getLength() && recordBlock.charAt(j) != CR && recordBlock.charAt(j) != LF ) j++;
+            }
 
             //LOG.info ("key = " + k.toString());
 

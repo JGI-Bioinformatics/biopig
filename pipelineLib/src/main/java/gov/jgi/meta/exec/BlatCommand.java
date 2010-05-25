@@ -47,13 +47,13 @@ import java.util.*;
 
 /**
  * class that wraps execution of commandline BLAT program.
- *
+ * <p/>
  * Use this by creating a new BlatCommand than invoking the
  * exec method.  eg:
- *
+ * <p/>
  * BlatCommand b = new BlatCommand();
  * r = b.exec(l, otherArgs[1]);
- *
+ * <p/>
  * Exec dumps input seqence database (l) into a file, then
  * reads the groups from the second argument.  For each group,
  * create a temp file holding the sequences of interest (determined
@@ -153,12 +153,12 @@ public class BlatCommand {
         cleanup = config.getBoolean("blat.cleanup", true);
         paired = config.getBoolean("blat.paired", true);
 
-         /*
-         do sanity check to make sure all paths exist
-          */
-         //checkFileExists(commandLine);
-         //checkFileExists(commandPath);
-         //checkDirExists(tmpDir);
+        /*
+       do sanity check to make sure all paths exist
+        */
+        //checkFileExists(commandLine);
+        //checkFileExists(commandPath);
+        //checkDirExists(tmpDir);
 
         /*
         if all is good, create a working space inside tmpDir
@@ -178,7 +178,7 @@ public class BlatCommand {
         delete the tmp files if they exist
          */
         log.info("deleting tmp file: " + tmpDirFile.getPath());
-        
+
         if (tmpDirFile != null) {
             if (cleanup) recursiveDelete(tmpDirFile);
             tmpDirFile = null;
@@ -197,7 +197,7 @@ public class BlatCommand {
     private String dumpToFile(Map<String, String> seqList) {
 
         File tmpdir;
-        BufferedWriter out;       
+        BufferedWriter out;
         File seqFile = null;
 
         /*
@@ -211,7 +211,7 @@ public class BlatCommand {
             write out the sequences to file
             */
             for (String key : seqList.keySet()) {
-                assert(seqList.get(key) != null);
+                assert (seqList.get(key) != null);
                 out.write(">" + key + "\n");
                 out.write(seqList.get(key) + "\n");
             }
@@ -231,7 +231,7 @@ public class BlatCommand {
     }
 
 
-        /**
+    /**
      * copies a file from DFS to local working directory
      *
      * @param dfsPath is the pathname to a file in DFS
@@ -252,7 +252,7 @@ public class BlatCommand {
 
         FSDataInputStream in = fs.open(filenamePath);
         BufferedReader d
-                  = new BufferedReader(new InputStreamReader(in));
+                = new BufferedReader(new InputStreamReader(in));
 
         BufferedWriter out = new BufferedWriter(new FileWriter(localFile.getPath()));
 
@@ -260,7 +260,7 @@ public class BlatCommand {
         line = d.readLine();
 
         while (line != null) {
-            out.write(line+"\n");
+            out.write(line + "\n");
             line = d.readLine();
         }
         in.close();
@@ -273,11 +273,11 @@ public class BlatCommand {
     /**
      * execute the blast command and return a list of sequence ids that match
      *
-     * @param seqDatabase is the key/value map of sequences that act as reference keyed by name
-     * @param seqQueryFilepath  is the full path of the cazy database to search against the reference
+     * @param seqDatabase      is the key/value map of sequences that act as reference keyed by name
+     * @param seqQueryFilepath is the full path of the cazy database to search against the reference
      * @return a list of sequence ids in the reference that match the cazy database
      */
-    public Set<String> exec(Map<String, String> seqDatabase, String seqQueryFilepath, Mapper.Context context)  throws IOException, InterruptedException  {
+    public Set<String> exec(Map<String, String> seqDatabase, String seqQueryFilepath, Mapper.Context context) throws IOException, InterruptedException {
 
         /*
         first, take the blatInputFile and find the corresponding sequence in the
@@ -296,44 +296,44 @@ public class BlatCommand {
         int numGroups = 0;
         int numReads = 0;
 
-            /*
-            open query file.
-             */
+        /*
+       open query file.
+        */
 
-            Configuration conf = new Configuration();
-            FileSystem fs = FileSystem.get(conf);
+        Configuration conf = new Configuration();
+        FileSystem fs = FileSystem.get(conf);
 
-            Path filenamePath = new Path(seqQueryFilepath);
+        Path filenamePath = new Path(seqQueryFilepath);
 
-            if (!fs.exists(filenamePath)) {
-                 throw new IOException("file not found: " + seqQueryFilepath);
-             }
+        if (!fs.exists(filenamePath)) {
+            throw new IOException("file not found: " + seqQueryFilepath);
+        }
 
-            FSDataInputStream in = fs.open(filenamePath);
-            BufferedReader bufRead
-                    = new BufferedReader(new InputStreamReader(in));
+        FSDataInputStream in = fs.open(filenamePath);
+        BufferedReader bufRead
+                = new BufferedReader(new InputStreamReader(in));
 
-            /*
-            Filter FileReader through a Buffered read to read a line at a time
-            */
+        /*
+        Filter FileReader through a Buffered read to read a line at a time
+        */
 
-            String line = bufRead.readLine();    // String that holds current file line
+        String line = bufRead.readLine();    // String that holds current file line
 
-            /*
-            read the line into key/value with key being the first column, value is all the
-            remaining columns
-             */
-            while (line != null){
-                numGroups++;
-                String[] a = line.split("\t", 2);
-                l.put(a[0], a[1]);
-                numReads += a[1].split("\t").length;
-                line = bufRead.readLine();
-            }
-            bufRead.close();
+        /*
+       read the line into key/value with key being the first column, value is all the
+       remaining columns
+        */
+        while (line != null) {
+            numGroups++;
+            String[] a = line.split("\t", 2);
+            l.put(a[0], a[1]);
+            numReads += a[1].split("\t").length;
+            line = bufRead.readLine();
+        }
+        bufRead.close();
 
 
-         log.info("read " + numReads + " Reads in " + numGroups + " gene groups");
+        log.info("read " + numReads + " Reads in " + numGroups + " gene groups");
 
         /*
         now dump the database from the map to a file
@@ -362,6 +362,8 @@ public class BlatCommand {
             /*
             k is a grouping key
              */
+
+            log.info("processing group " + k);
 
             context.setStatus("Executing Blat " + numBlats + "/" + totalBlats);
             /*
@@ -469,14 +471,12 @@ public class BlatCommand {
 
                 // Read through file one line at time. Print line # and line
                 while (line2 != null) {
-                    log.info("line: " + count);
-                    String[] a = line2.split("\t",3);
+                    String[] a = line2.split("\t", 3);
                     if (s.containsKey(k)) {
                         s.get(k).add(a[1]);
-                        //s.put(k, s.get(k)); //.concat("\t" + a[1]));
                     } else {
                         s.put(k, new HashSet<String>());
-                        //s.put(k, a[1]);
+                        s.get(k).add(a[1]);                        
                     }
                     line2 = bufRead2.readLine();
                     count++;
@@ -508,9 +508,13 @@ public class BlatCommand {
         Set<String> ss = new HashSet<String>();
 
         for (String k : s.keySet()) {
-            ss.add(k + ", " + s.get(k).toString());
+            StringBuilder stringBuilder = new StringBuilder();
+            for (Iterator iter = s.get(k).iterator(); iter.hasNext();) {
+                stringBuilder.append(", " + iter.next());
+            }
+            ss.add(k + stringBuilder);
         }
-        
+
         return ss;
     }
 
@@ -584,7 +588,7 @@ public class BlatCommand {
             System.exit(2);
         }
 
-        Map<String,String> l = new HashMap<String,String>();
+        Map<String, String> l = new HashMap<String, String>();
         Set<String> r;
 
         Text t = new Text();

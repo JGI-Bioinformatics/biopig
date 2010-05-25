@@ -53,63 +53,71 @@ import org.apache.hadoop.util.GenericOptionsParser;
 import org.apache.log4j.Logger;
 
 
+/*
+todo: 1. fix the paired/nonpaired problems
+todo: 2. make sure the blat counters are read correctly
+todo: 3. document code.
+todo: 4. document the configuration parameters
+ */
+
+
 /**
  * custom counters
- *
- * MALFORMED is the number of ignored reads that failed simple syntax checking
- * WELLFORMED is the number of reads that were read and processed
- *
  */
 enum BlatCounters {
-   NUMBER_OF_SUCCESSFUL_BLATCOMMANDS,
-   NUMBER_OF_ERROR_BLATCOMMANDS,
-   NUMBER_OF_MATCHED_READS,
-   NUMBER_OF_GROUPS,
-   NUMBER_OF_READS
+    /**
+     * number of blat commands that return sucessfully
+     */
+    NUMBER_OF_SUCCESSFUL_BLATCOMMANDS,
+    /**
+     * number of blat commands that return with error
+     */
+    NUMBER_OF_ERROR_BLATCOMMANDS,
+    /**
+     * total number of reads in the database.
+     */
+    NUMBER_OF_READS,
+    /**
+     * total number of reads that matched in all groups
+     * (duplicates possible, eg, read x matches to multiple
+     * groups).
+     */
+    NUMBER_OF_MATCHED_READS,
+    /**
+     * total number of gene groups after blat expansion
+     * (should be same as number of groups that were read in)
+     */
+    NUMBER_OF_GROUPS,
+    /**
+     * total number of map tasks
+     */
+    NUMBER_OF_MAP_TASKS,
+    /**
+     * total number of reduce tasks
+     */
+    NUMBER_OF_REDUCE_TASKS
+
 }
 
 
 /**
  * hadoop application to read sequence reads from file perform BLAT
  * operations against constant database.
- *
+ * <p/>
  * Set the following properties in a file called: blat-conf.xml that should
- * be in the classpath of hadoop.  The following parameters are used:
- *
- * Hadoop Tuning:
- *   mapred.min.split.size
- *   min hdfs block size (affects the number of map tasks)
- *   number of reduce steps
- *
- * Blast execution:
- *   blat.commandline - the commandline for blast to execute.
- *   blat.commandpath - the full path to the blast executable (must be accessible
- *                       on all the hadoop nodes)
- *   blat.tmpdir - a temporary directory in which a per-run temp directory is
- *                  created.
- *   blat.cleanup - if false, leave the working directories
- *
+ * be in the classpath of hadoop.
+ * <p/>
  */
 public class BlatFilter {
 
     /**
-     * map task reads portions of the fasta file provided from the input split and
-     * generated the kmers and inserts them directly into the cassandra datastore.
+     * map class that maps blast output, to expanded set of reads using
+     * blat executable.
      */
     public static class FastaTokenizerMapper
             extends Mapper<Object, Map<String, String>, Text, Text> {
 
-        private final static IntWritable one = new IntWritable(1);
-        private Text word = new Text();
-        private int batchSize = 100;
-        private int currentSize = 0;
-
         Logger log = Logger.getLogger(FastaTokenizerMapper.class);
-
-        /**
-         * abstracts the details of connections to the cassandra servers
-         */
-        DataStore ds = null;
 
         /**
          * blast command wrapper
@@ -132,6 +140,7 @@ public class BlatFilter {
 
             blatCmd = new BlatCommand(context.getConfiguration());
 
+            context.getCounter(BlatCounters.NUMBER_OF_MAP_TASKS).increment(1);
         }
 
         /**
@@ -141,9 +150,7 @@ public class BlatFilter {
          */
         protected void cleanup(Context context) throws IOException {
 
-            log.info("deleting map task for job: " + context.getJobName() + " on host: " +  InetAddress.getLocalHost().getHostName());
-
-            if (ds != null) ds.cleanup();
+            log.debug("deleting map task for job: " + context.getJobName() + " on host: " + InetAddress.getLocalHost().getHostName());
 
         }
 
@@ -159,23 +166,13 @@ public class BlatFilter {
          */
         public void map(Object key, Map<String, String> value, Context context) throws IOException, InterruptedException {
 
-            log.debug("map task started for job: " + context.getJobName() + " on host: " +  InetAddress.getLocalHost().getHostName());
+            log.debug("map task started for job: " + context.getJobName() + " on host: " + InetAddress.getLocalHost().getHostName());
 
             String blastOutputFilePath = context.getConfiguration().get("blastoutputfile");
             Boolean skipExecution = context.getConfiguration().getBoolean("blat.skipexecution", false);
-            
+
             context.getCounter(BlatCounters.NUMBER_OF_READS).increment(value.size());
 
-            if (skipExecution) {
-                /*
-                print some diagnostics instead of executing blat
-                 */
-
-                System.out.println("Running Blat MAP task");
-                System.out.println("\thost = " + InetAddress.getLocalHost().getHostName() );
-                System.out.println("\treadset size = " + value.size());
-
-            }
             /*
             execute the blast command
              */
@@ -194,21 +191,16 @@ public class BlatFilter {
                 context.getCounter(BlatCounters.NUMBER_OF_ERROR_BLATCOMMANDS).increment(1);
                 throw new IOException(e);
             }
+            if (s == null) {
+                log.info("unable to retrieve results of blat execution");
+                context.getCounter(BlatCounters.NUMBER_OF_ERROR_BLATCOMMANDS).increment(1);
+            }
 
             /*
-            blast executed but did not return sensible values, thow error.
+            blat must have been successful
              */
-//            if (s == null || s.size() <= 1) {
-//                context.getCounter(BlatCounters.NUMBER_OF_ERROR_BLATCOMMANDS).increment(1);
-//                log.error("blast did not execute correctly");
-//                throw new IOException("blast did not execute properly");
-//            }
+            context.getCounter(BlatCounters.NUMBER_OF_SUCCESSFUL_BLATCOMMANDS).increment(s.size());
 
-            /*
-            blast must have been successful
-             */
-            context.getCounter(BlatCounters.NUMBER_OF_SUCCESSFUL_BLATCOMMANDS).increment(1);
-            context.getCounter(BlatCounters.NUMBER_OF_MATCHED_READS).increment(s.size());
 
             log.debug("blat retrieved " + s.size() + " results");
 
@@ -219,16 +211,13 @@ public class BlatFilter {
                 the first column is the id of the gene, second column is the read id
                  */
                 String[] a = k.split(", ", 2);
-
-                /*
-                note that we strip out the readid direction.  that is, we don't care if the
-                read is a forward read (id/1) or backward (id/2).
-                 */
                 Text groupkey = new Text(a[0]);
                 String[] sequences = a[1].split(", ");
 
+                context.getCounter(BlatCounters.NUMBER_OF_MATCHED_READS).increment(sequences.length);
+
                 for (String seqid : sequences) {
-                    context.write(groupkey, new Text(seqid+"&"+value.get(seqid)));
+                    context.write(groupkey, new Text(seqid + "&" + value.get(seqid)));
                 }
 
             }
@@ -240,9 +229,7 @@ public class BlatFilter {
     /**
      * simple reducer that just outputs the matches grouped by gene
      */
-    public static class IntSumReducer extends Reducer<Text, Text, Text, Text>
-    {
-        private IntWritable result = new IntWritable();
+    public static class IntSumReducer extends Reducer<Text, Text, Text, Text> {
 
         Logger log = Logger.getLogger(IntSumReducer.class);
 
@@ -253,6 +240,8 @@ public class BlatFilter {
          * @param context is the hadoop reducer context
          */
         protected void setup(Reducer.Context context) throws UnknownHostException {
+
+            context.getCounter(BlatCounters.NUMBER_OF_REDUCE_TASKS).increment(1);
 
             log.debug("initializing reducer class for job: " + context.getJobName());
             log.debug("\tinitializing reducer on host: " + InetAddress.getLocalHost().getHostName());
@@ -285,9 +274,9 @@ public class BlatFilter {
 
             int i = 0;
 //            context.write(key, new Text(values.toString()));
-            for (Text t : values){
+            for (Text t : values) {
                 if (i > 0) {
-                    reads.append(("\t"+t).getBytes(), 0, t.getLength() + 1);
+                    reads.append(("\t" + t).getBytes(), 0, t.getLength() + 1);
                 } else {
                     reads.append(t.getBytes(), 0, t.getLength());
                 }
@@ -326,7 +315,7 @@ public class BlatFilter {
         conf.set("blastoutputfile", otherArgs[1]);
         conf.setInt("io.file.buffer.size", 1024 * 1024);
 
-        log.info("main() [version " + conf.getStrings("version", "unknown!")[0] + "] starting with following parameters");
+        log.info("main() [version " + conf.get("version", "unknown!")+ "] starting with following parameters");
         log.info("\tsequence file: " + otherArgs[0]);
         log.info("\tgene db file : " + otherArgs[1]);
         log.info("\tblat.cleanup : " + conf.getBoolean("blat.cleanup", true));
@@ -345,7 +334,7 @@ public class BlatFilter {
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(Text.class);
         job.setNumReduceTasks(conf.getInt("blat.numreducers", 1));
-        
+
         FileInputFormat.addInputPath(job, new Path(otherArgs[0]));
         FileOutputFormat.setOutputPath(job, new Path(otherArgs[2]));
 

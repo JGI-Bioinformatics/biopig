@@ -25,7 +25,12 @@
         <name>assembly.command</name>
         <value>cap3</value>
     </property>
-    
+
+    <property>
+        <name>mapred.max.split.size</name>
+        <value>1000</value>
+    </property>
+
     <!-- the commandline to execute for the blast command, eg:
          "-m 8 -p tblastn -b 1000000 -a 10"  this is the default
     -->
