@@ -218,6 +218,8 @@ public class Assembler {
                 throw new IOException(e);
             }
 
+            if (s == null) return;
+
             /*
             blast must have been successful
              */
