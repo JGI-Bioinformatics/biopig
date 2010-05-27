@@ -285,7 +285,7 @@ public class Assembler {
             log.debug("\trunning reducer on host: " + InetAddress.getLocalHost().getHostName());
 
             for (Text t : values){
-                context.write(key, t);
+                context.write(new Text(">" + key.toString()), new Text("\n"+t.toString()));
             }
 
         }

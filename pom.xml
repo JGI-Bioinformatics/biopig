@@ -11,12 +11,11 @@
     <description>Hadoop application pipeline</description>
 
     <modules>
-        <module>kmer2</module>
-        <module>loader</module>
         <module>pipelineLib</module>
         <module>blast</module>
         <module>blat</module>
-	<module>assembly</module>
+        <module>assembly</module>
+        <module>meta</module>
     </modules>
 
 </project>

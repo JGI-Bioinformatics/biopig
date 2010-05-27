@@ -30,21 +30,9 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-import groovy.gov.jgi.meta.command.*
+
+import gov.jgi.meta.command.*
 import org.apache.log4j.Logger
-import org.apache.cassandra.thrift.Cassandra
-import org.apache.thrift.transport.TTransport
-import org.apache.thrift.protocol.TProtocol
-import org.apache.thrift.transport.TSocket
-import org.apache.thrift.protocol.TBinaryProtocol
-import org.biojavax.bio.seq.RichSequenceIterator
-import org.apache.cassandra.thrift.SlicePredicate
-import org.apache.cassandra.thrift.ColumnParent
-import org.apache.cassandra.thrift.KeySlice
-import org.apache.cassandra.thrift.SliceRange
-import org.biojava.bio.BioException
-import org.biojavax.bio.seq.RichSequence
-import org.apache.cassandra.thrift.ColumnPath
 import org.apache.log4j.PropertyConfigurator;
 
 
@@ -59,7 +47,7 @@ Logger log = Logger.getLogger("meta")
  * the set of commands that are configured
  */
 
-commandList = [ new loadCommand(), new scanCommand(), new loadHashCommand() ];
+commandList = [ new loadCommand(), new scanCommand(), new loadHashCommand(), new blastCommand() ];
 
 
 /* ==================================== */
@@ -250,6 +238,18 @@ switch (command) {
     commandList[2].execute(options.args, options);
 
     break;
+
+//------------------------------------------------------------------------------------------
+//                                     blast Command
+//------------------------------------------------------------------------------------------
+
+  case ('blast'):
+
+    commandList[3].execute(options.args, options);
+
+  break;
+
+
 
 //------------------------------------------------------------------------------------------
 //                                     delete Command

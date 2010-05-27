@@ -6,7 +6,7 @@
     <groupId>gov.jgi.gentech</groupId>
     <artifactId>assemblyHadoopApp</artifactId>
     <packaging>jar</packaging>
-    <version>0.1</version>
+    <version>0.1-SNAPSHOT</version>
     <name>assemblyHadoopApp</name>
     <description>Hadoop/Cassandra application that runs velvet assemblies in parallel</description>
     <url></url>
@@ -80,31 +80,7 @@
         </dependency>
     </dependencies>
     <build>
-        <finalName>${project.artifactId}-${project.version}-r${buildNumber}</finalName>
         <plugins>
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>buildnumber-maven-plugin</artifactId>
-                <version>1.0-beta-3</version>
-                <executions>
-                    <execution>
-                        <phase>validate</phase>
-                        <goals>
-                            <goal>create</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <format>{0,number}</format>
-                    <items>
-                        <item>buildNumber/d*</item>
-                    </items>
-                    <doCheck>false</doCheck>
-                    <doUpdate>true</doUpdate>
-                    <revisionOnScmFailure>1</revisionOnScmFailure>
-                </configuration>
-            </plugin>
-
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
@@ -113,14 +89,11 @@
                     <archive>
                         <manifest>
                             <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                            <mainClass>gov.jgi.meta.Assembler</mainClass>
                         </manifest>
-                        <manifestEntries>
-                            <Implementation-Build>${buildNumber}</Implementation-Build>
-                        </manifestEntries>
                     </archive>
                 </configuration>
             </plugin>
-
 
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>

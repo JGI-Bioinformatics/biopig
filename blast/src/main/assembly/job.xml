@@ -7,6 +7,7 @@
         <format>jar</format>
     </formats>
     <includeBaseDirectory>false</includeBaseDirectory>
+
     <dependencySets>
         <dependencySet>
             <unpack>false</unpack>

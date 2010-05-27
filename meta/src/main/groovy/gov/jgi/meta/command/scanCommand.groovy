@@ -28,7 +28,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package groovy.gov.jgi.meta.command
+package gov.jgi.meta.command
 
 import org.biojavax.bio.seq.RichSequenceIterator
 import org.apache.cassandra.thrift.SlicePredicate
@@ -69,6 +69,11 @@ class scanCommand implements command {
     }
     
     List options() {
+
+      /* return list of flags (existential) and parameters  */
+      return [
+              flags, params
+      ];
 
     }
 

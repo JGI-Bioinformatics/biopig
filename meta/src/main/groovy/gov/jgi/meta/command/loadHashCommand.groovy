@@ -28,7 +28,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package groovy.gov.jgi.meta.command
+package gov.jgi.meta.command
 
 import org.biojavax.bio.seq.RichSequenceIterator
 import org.biojavax.bio.seq.RichSequence
@@ -41,11 +41,8 @@ import org.apache.thrift.transport.TSocket
 import org.apache.thrift.protocol.TProtocol
 import org.apache.thrift.protocol.TBinaryProtocol
 import org.apache.cassandra.thrift.Mutation
-import org.apache.cassandra.thrift.ColumnOrSuperColumn
 import org.apache.cassandra.thrift.Column
-import org.apache.cassandra.thrift.SuperColumn
-
-//Todo: implement bulk loading
+import org.apache.cassandra.thrift.ColumnOrSuperColumn
 
 /**
  * loads sequence data into datastore. command looks like % meta load <table>
@@ -56,29 +53,38 @@ import org.apache.cassandra.thrift.SuperColumn
  * @param -p port for host
  *
  * @note the cassandra tables must be setup and existent.  they must also have
- * the correct structure.  (currently a supercolumn named "sequence").
+ * the correct structure.
  */
-class loadCommand implements command {
+class loadHashCommand implements command {
 
     String DEFAULTKEYSPACE = "Keyspace1"
     String DEFAULTTABLE = "Standard1"
     String DEFAULTHOST = "localhost"
     int DEFAULTPORT = 9160
+    int DEFAULTKMERSIZE = 20
 
     List flags = [
-            '-b',    // for bulkloading data
-            '-no'
     ]
 
     List params = [
             '-f',   // -f file from which to read sequences
             '-c',   // -c cassandra server to connect to
             '-p',   // -p port number
-            '-k'    // -k keyspace
+            '-k',   // -k keyspace
+            '-s'    // -s kmer size
     ]
 
+    public static byte[] intToByteArray(long value) {
+           byte[] b = new byte[8];
+           for (int i = 0; i < 8; i++) {
+               int offset = (b.length - 1 - i) * 8;
+               b[i] = (byte) ((value >>> offset) & 0xFF);
+           }
+           return b;
+    }
+
     String name() {
-        return "load"
+        return "hash"
     }
 
     List options() {
@@ -91,7 +97,7 @@ class loadCommand implements command {
     }
 
     String usage() {
-        return "load <table> - loads data from file (-f <file> or stdout) into \n\t\tcassandra host (-c) port (-p) using keyspace (-k)";
+        return "hash <table> - loads kmer hashs (of size -s) from file (-f <file> or stdout) into \n\t\tcassandra host (-c) port (-p) using keyspace (-k)";
     }
 
     /**
@@ -107,7 +113,11 @@ class loadCommand implements command {
             options['-c'] :
             (System.getProperty("meta.defaultHostname") ? System.getProperty("meta.defaultHostname") : DEFAULTHOST)
 
+        println("hostname = " + hostname);
+        
         int port = options['-p'] ? Integer.parseInt(options['-p']) : DEFAULTPORT
+        int size = options['-s'] ? Integer.parseInt(options['-s']) : DEFAULTKMERSIZE
+
         Cassandra.Client client = null;
 
         long timestamp = System.currentTimeMillis();
@@ -156,14 +166,13 @@ class loadCommand implements command {
             return 1;
         }
 
-        int count = 0
+        int count = 0;
         while (iter.hasNext()) {
 
             RichSequence rr = iter.nextRichSequence();
             String key_user_id
             String segment
 
-            count++;
 
             if (rr) {
                 if (options['-d']) println(rr.getProperties().URN);
@@ -177,88 +186,63 @@ class loadCommand implements command {
                 }
             }
 
+            //if (noconnect == 1) { count++; continue;}
 
             def seq = [:]
             seq["sequence"] = rr.getProperties().stringSequence;
-            seq["description"] = rr.getProperties().description;
 
-            /*
-             * the description field may have some non-standard metadata embedded
-             * as key=value fields.  parse and if any are found, add them to the sequence.
-             */
-            def m = rr.getProperties().description =~ /([^ =]*)=([^ ]*)/
-            m.each {match ->
-                seq[match[1]] = match[2]
-            }
+
+
+            Map mutation_map = [:]
 
             /*
             insert data into cassandra
             */
+            int seqsize = seq["sequence"].length();
 
-            if (noconnect == 1) continue;  // if noconnect, then skip the insert (useful for timing operations)
-
-            if (options['-d']) {
-                println("inserting " + key_user_id + "(segment " + segment + ")" + " into table " + keyspace + "/" + table);
-                println(seq.toString());
-            }
-
-            Map mutation_map = [:]
-            int i = 0;
-            seq.each {k, v ->
+            for (int i = 0; i < seqsize - size -1; i++ ) {
                 Mutation kmerinsert = new Mutation();
-                Mutation kmerinsert2 = new Mutation();
+                count++
+                String kmer = seq["sequence"].substring(i, i+size);
+                byte[] b = intToByteArray(i);
+
+
+                if (!mutation_map[kmer]) {
+                    mutation_map[kmer] = [:]
+                    mutation_map[kmer][table] = []
+                }
+
+                if (options['-d']) {
+                    println("inserting " + kmer + " into table " + keyspace + "/" + table + " with value " + b);
+                    println(seq.toString());
+
+                }
+
+                ColumnOrSuperColumn c = new ColumnOrSuperColumn();
+                c.setColumn(new Column(key_user_id.getBytes(), b, timestamp));
+                kmerinsert.setColumn_or_supercolumn(c);
+
+                mutation_map[kmer][table].add(kmerinsert);
+
+
+//                client.insert(keyspace,
+//                        kmer,
+//                        new ColumnPath(table).setColumn(key_user_id.getBytes()),
+//                        b,
+//                        timestamp,
+//                        ConsistencyLevel.ONE);
+
                 
-                if (!mutation_map[key_user_id]) {
-                     mutation_map[key_user_id] = [:]
-                     mutation_map[key_user_id][table] = []
-                }
 
-                /* add sequence to its own column, add the rest to metadata column */
-                if (k.equals("sequence")) {
-                    ColumnOrSuperColumn c = new ColumnOrSuperColumn();
-                    c.setSuper_column(
-                            new SuperColumn("sequence".getBytes(),
-                                    [ new Column(segment.getBytes(), seq['sequence'].getBytes(), timestamp) ]));
-                    kmerinsert.setColumn_or_supercolumn(c);
-                    mutation_map[key_user_id][table].add(kmerinsert);
-                } else if (v && v != "") {
-                    ColumnOrSuperColumn c2 = new ColumnOrSuperColumn();
-                    c2.setSuper_column(
-                            new SuperColumn("metadata".getBytes(),
-                                    [ new Column(k.getBytes(), (v ? v : "").getBytes(), timestamp) ]));
-                    kmerinsert2.setColumn_or_supercolumn(c2);
-                    mutation_map[key_user_id][table].add(kmerinsert2);
-                }
-//                if (k.equals("sequence")) {
-//                    client.insert(keyspace,
-//                            key_user_id,
-//                            new ColumnPath(table).setSuper_column('sequence'.getBytes()).setColumn(segment.getBytes()),
-//                            seq['sequence'].getBytes(),
-//                            timestamp,
-//                            ConsistencyLevel.ONE);
-//                } else {
-//                    client.insert(keyspace,
-//                            key_user_id,
-//                            new ColumnPath(table).setSuper_column('metadata'.getBytes()).setColumn(k.getBytes()),
-//                            (v ? v : "").getBytes(),
-//                            timestamp,
-//                            ConsistencyLevel.ONE);
-//                }
+            }
+            //println("mutation_map = " + mutation_map.toString());
 
-                if (i % 100) {
-                  //println("mutationmap = " + mutation_map.toString());
-                  client.batch_mutate(keyspace, mutation_map, ConsistencyLevel.ONE);
-                  mutation_map = [:]
-                }
-            }
-            if (! (i % 100 )) {
-                //println("mutationmap = " + mutation_map.toString());
-                client.batch_mutate(keyspace, mutation_map, ConsistencyLevel.ONE);
-            }
+            if (noconnect == 1) continue; // useful for timing
+
+            client.batch_mutate(keyspace, mutation_map, ConsistencyLevel.ONE);
         }
-
-        println("read " + count + " sequences");
-
+        println("inserted " + count + " kmers");
+        
         return 0;
     }
 

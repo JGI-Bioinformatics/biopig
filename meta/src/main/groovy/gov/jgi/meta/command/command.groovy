@@ -28,7 +28,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package groovy.gov.jgi.meta.command
+package gov.jgi.meta.command
 
 
 /**

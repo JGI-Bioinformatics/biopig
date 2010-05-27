@@ -1,0 +1,119 @@
+# Copyright (c) 2010, Joint Genome Institute (JGI) United States Department of Energy
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+# 1. Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+# 3. All advertising materials mentioning features or use of this software
+#     must display the following acknowledgement:
+#     This product includes software developed by the JGI.
+# 4. Neither the name of the JGI nor the
+#     names of its contributors may be used to endorse or promote products
+#     derived from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY JGI ''AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL JGI BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+
+# default meta project properties file
+#
+# customize the deployment of the metagenomics pipeline apps with the settings
+# here.  You must specify at least the installation directory and the
+# commandpaths to the various external executables.  This software also
+# assumes that hadoop is already setup externally to this software and that
+# all the hadoop binaries are in your path.  Once customized, add
+# meta.home/meta/bin to your path and you can start executing commands
+#
+# like % meta <command> command options
+
+# --------------------------------------------------------------------
+# toplevel parameters
+# --------------------------------------------------------------------
+
+meta.defaultKeyspace=jgi
+meta.defaultHostname=paris
+
+# meta.home allows for the use of ~
+# typically you would install it in ~/metagenomics
+meta.home=~/git.metagenomics
+meta.version=0.1
+
+# --------------------------------------------------------------------
+# log4j parameters
+# NOTE: will only work on meta executables, not on the backend hadoop
+# client jobs.
+# --------------------------------------------------------------------
+
+# Set root logger level to DEBUG and its only appender to A1.
+log4j.rootLogger=info, A1
+
+# A1 is set to be a ConsoleAppender.
+log4j.appender.A1=org.apache.log4j.ConsoleAppender
+
+# A1 uses PatternLayout.
+log4j.appender.A1.layout=org.apache.log4j.PatternLayout
+log4j.appender.A1.layout.ConversionPattern=%-4r [%t] %-5p %c %x - %m%n
+
+# --------------------------------------------------------------------
+# General Hadoop Parameters
+# these are set per job.
+# --------------------------------------------------------------------
+
+# defines the minimum size in bytes of each input split. used to control the maximum
+# number of map tasks.  (eg if file size is 100 bytes and min is 10, then maximum number
+#  of mappers is 10).
+#
+# mapred.min.split.size=5000
+
+# defines the maximum size in bytes of each input split.  used to control the minimum
+# number of map tasks.
+#
+# mapred.max.split.size=500000
+
+
+# --------------------------------------------------------------------
+# Blast command parameters
+# --------------------------------------------------------------------
+
+# the commandline to execute for the blast command, eg:
+# "-m 8 -p tblastn -b 1000000 -a 10"  this is the default
+#
+# blast.commandline=
+
+# the full pathname of the blast executable
+# default is: "/home/asczyrba/src/blast-2.2.20/bin/blastall"
+#
+# blast.commandpath
+
+
+# path to a temporary directory in which to do all the work
+# default is "/tmp/blast"
+#
+# blast.tmpdir=
+
+# boolean value, if false, will not delete scratch directory, useful
+# for debugging.  defaults to true
+#
+# blast.cleanup=false
+
+# boolean, if true, specifies that the read file has paired data.  if paired, then it will automatically
+# include the opposite pair in the read set before executing blat.
+# WARNING: not yet implemented
+#
+# blast.paired=false
+
+# controls how many reducers, defaults to 1
+#
+# blast.numreducers=1

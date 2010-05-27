@@ -36,9 +36,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import gov.jgi.meta.cassandra.DataStore;
 import gov.jgi.meta.exec.BlastCommand;
@@ -297,16 +295,69 @@ public class ReadBlaster {
         Logger log = Logger.getLogger(ReadBlaster.class);
 
         /*
-        load the application configuration parameters
+        load the application configuration parameters (from deployment directory)
          */
+        
         Configuration conf = new Configuration();
+
+        /*
+        first load the configuration from the build properties (typically packaged in the jar)
+         */
+        try {
+            Properties buildProperties = new Properties();
+            buildProperties.load(ClassLoader.getSystemResource("build.properties").openStream());
+            for (Enumeration e = buildProperties.propertyNames(); e.hasMoreElements() ;) {
+                String k = (String) e.nextElement();
+                System.out.println("setting " + k + " to " + buildProperties.getProperty(k));
+                System.setProperty(k, buildProperties.getProperty(k));
+                
+                if (k.matches("^meta.*")) {
+                    System.out.println("overriding property: " + k);
+                    conf.set(k, buildProperties.getProperty(k));
+                }
+            }
+
+        } catch (Exception e) {
+            System.out.println("unable to find build.properties: " + e);
+        }
+
+        /*
+        override properties with the deployment descriptor
+         */
         conf.addResource("blast-conf.xml");
+
+
+        /*
+        override properties from user's preferences defined in ~/.meta-prefs
+         */
+
+
+        try {
+            java.io.FileInputStream fis = new java.io.FileInputStream(new java.io.File(System.getenv("HOME") + "/.meta-prefs"));
+            Properties props = new Properties();
+            props.load(fis);
+            for (Enumeration e = props.propertyNames(); e.hasMoreElements() ;) {
+                String k = (String) e.nextElement();
+                if (k.matches("^meta.*")) {
+                    System.out.println("overriding property: " + k);
+                    conf.set(k, props.getProperty(k));
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("unable to find ~/.meta-prefs ... skipping");
+        }
+
+
+
+        /*
+        finally, allow user to override from commandline
+         */
         String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
+
 
         /*
         process arguments
          */
-
         if (otherArgs.length != 3) {
             System.err.println("Usage: blast <readfile> <genefile> <outputdir>");
             System.exit(2);
@@ -339,7 +390,7 @@ public class ReadBlaster {
          */
         conf.setInt("io.file.buffer.size", 1024 * 1024);
 
-        log.info("main() [version " + conf.getStrings("version", "unknown!")[0] + "] starting with following parameters");
+        log.info(System.getenv("application.name") + "[version " + System.getenv("application.version") + "] starting with following parameters");
         log.info("\tsequence file: " + otherArgs[0]);
         log.info("\tgene db file : " + otherArgs[1]);
 
