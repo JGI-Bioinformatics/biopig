@@ -68,20 +68,20 @@ class blastCommand implements command {
       String metaHome = System.getProperty("meta.home").replaceFirst("~", System.getenv("HOME"));
       String pbsJobId = System.getenv("PBS_JOBID");
                                                    
-      StringBuilder command = new StringBuilder("hadoop jar ");
+      StringBuilder command = new StringBuilder("hadoop ");
 
       /*
       add special config directory when used at nersc through PBS
        */
       if (pbsJobId != null) {
-        println("using hadoop config dir: " + hadoopConfigHome);
-        command.append("--config ~/.hadoop-"+pbsJobId);
+        println("using hadoop config dir: " + pbsJobId);
+        command.append("--config ~/.hadoop-"+pbsJobId + " jar");
       }
 
       /*
       find the jar file to execute
        */
-      String jar = new File(metaHome + "/blast/target").listFiles(
+      String jar = new File(metaHome + "/hadoop").listFiles(
               {dir, file-> file ==~ /blastHadoopApp-.*-job.jar/ } as FilenameFilter
       ).sort {it.lastModified() }.reverse()[0];
 
