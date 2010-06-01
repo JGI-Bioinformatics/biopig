@@ -63,7 +63,7 @@ class blastCommand implements command {
         return "blast <readfastafile> <genefastafile> <outputdir>";
     }
 
-    int execute(List<String> args, Map options) {
+    int execute(List args, Map options) {
 
       String metaHome = System.getProperty("meta.home").replaceFirst("~", System.getenv("HOME"));
       String pbsJobId = System.getenv("PBS_JOBID");
@@ -75,7 +75,7 @@ class blastCommand implements command {
        */
       if (pbsJobId != null) {
         println("using hadoop config dir: " + pbsJobId);
-        command.append("--config ~/.hadoop-"+pbsJobId + " jar");
+        command.append("--config " + System.getenv("HOME") + "/.hadoop-"+pbsJobId + " jar");
       }
 
       /*

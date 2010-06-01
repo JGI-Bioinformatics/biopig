@@ -36,10 +36,6 @@ import org.apache.log4j.Logger
 import org.apache.log4j.PropertyConfigurator;
 
 
-/**
- * properties file that contains the various configuration parameters for this script
- */
-
 Logger log = Logger.getLogger("meta")
 
 
@@ -47,7 +43,17 @@ Logger log = Logger.getLogger("meta")
  * the set of commands that are configured
  */
 
-commandList = [ new loadCommand(), new scanCommand(), new loadHashCommand(), new blastCommand() ];
+commandList = [
+        new loadCommand(),
+        new scanCommand(),
+        new loadHashCommand(),
+        new blastCommand(),
+        new blatCommand(),
+        new assemblerCommand()
+];
+
+HashMap<String, command> commandMap = new HashMap();
+commandList.each { it -> commandMap[it.name()] = it }
 
 
 /* ==================================== */
@@ -65,7 +71,7 @@ commandList = [ new loadCommand(), new scanCommand(), new loadHashCommand(), new
  * @return map file of the form ['-d': true, '-x': 'value']
  */
 Map processArgs(Set flags, Set params, List args) {
-  boolean error = 0
+  boolean error = false;
   Map options = [:]
 
   //
@@ -132,8 +138,8 @@ void printUsage() {
 
 List largs = (List) args
 
-Set flags = ['-d', '--help', '-?'];
-Set params = [];
+Set flags = ['-d', '--help', '-?'] as Set;
+Set params = [] as Set;
 
 commandList.each { c ->
     List t = c.options()
@@ -143,12 +149,17 @@ commandList.each { c ->
     }
 }
 
-println("flags = " + flags);
-println("params = " + params);
+log.debug("flags = " + flags);
+log.debug("params = " + params);
 
 def options = processArgs(flags, params, largs)
 
-// now load the prefs from the ~/.meta-prefs file
+/*
+
+ now load the prefs from the ~/.meta-prefs file
+
+*/
+
 props = new Properties()
 try {
   java.io.FileInputStream fis = new java.io.FileInputStream(new java.io.File(System.env['HOME'] + "/.meta-prefs"))
@@ -157,16 +168,22 @@ try {
       if (options['-d']) {
           println("added property: " + it.key + "/" + it.value);
       }
-      System.setProperty(it.key, it.value)
+      System.setProperty( (String) it.key, (String) it.value)
 
    }
+  log.debug("loaded config file from ~/.meta-prefs")
+  log.debug("example: meta.defaultKeyspace = " + System.getProperty("meta.defaultKeyspace"))
   if (options['-d']) {
     println("loaded config file from ~/.meta-prefs")
     println("example: meta.defaultKeyspace = " + System.getProperty("meta.defaultKeyspace"))
   }
-  //configure the log4j logging system
+
+  /*
+  configure the log4j logging system while we are at it
+   */
   PropertyConfigurator.configure(System.env['HOME'] + "/.meta-prefs")
 } catch (IOException e) {
+  log.debug("Config file ~/.meta-prefs not found or loaded")
   if (options['-d']) {
     println("Config file ~/.meta-prefs not found or loaded")
   }
@@ -174,7 +191,9 @@ try {
 
 
 /*
+
         now figure out what to do
+
 */
 
 if (options['--libversion']) {
@@ -200,8 +219,9 @@ if (options['--help'] || options['-?']) {
         determine major command
 */
 command = options.args[0]
-if (options['-d']) println("command = " + command)
 
+log.debug("command = " + command)
+if (options['-d']) println("command = " + command)
 
 def longAsByteArray(Long s) {
   bos = new java.io.ByteArrayOutputStream();
@@ -211,77 +231,8 @@ def longAsByteArray(Long s) {
   return bos.toByteArray();
 }
 
-
-switch (command) {
-
-    //------------------------------------------------------------------------------------------
-    //                                     SCAN Command
-    //------------------------------------------------------------------------------------------
-  case "scan":
-
-      commandList[1].execute(options.args, options);
-
-  break;
-
-//------------------------------------------------------------------------------------------
-//                                     LOAD Command
-//------------------------------------------------------------------------------------------
-
-  case("load"):
-
-      commandList[0].execute(options.args, options);
-
-  break;
-
-  case("hash"):
-
-    commandList[2].execute(options.args, options);
-
-    break;
-
-//------------------------------------------------------------------------------------------
-//                                     blast Command
-//------------------------------------------------------------------------------------------
-
-  case ('blast'):
-
-    commandList[3].execute(options.args, options);
-
-  break;
-
-
-
-//------------------------------------------------------------------------------------------
-//                                     delete Command
-//------------------------------------------------------------------------------------------
-
-  case ('delete'):
-
-  /*
-   want to delete set of keys
-   */
-
-
-  break;
-
-//------------------------------------------------------------------------------------------
-//                                     QUERY Command
-//------------------------------------------------------------------------------------------
-
-
-
-//------------------------------------------------------------------------------------------
-//                                     delete Command
-//------------------------------------------------------------------------------------------
-
-
-
-
-//------------------------------------------------------------------------------------------
-//                                     delete Command
-//------------------------------------------------------------------------------------------
-
-
-
-}
+/*
+       execute command
+ */
+commandMap[command]?.execute(options.args, options);
 
