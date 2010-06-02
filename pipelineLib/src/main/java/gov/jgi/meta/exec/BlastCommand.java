@@ -116,6 +116,8 @@ public class BlastCommand {
      */
     long effectiveSize = 0;
 
+    long databasesize = 0;
+
     /**
      * new blast command based on default parameters
      */
@@ -242,6 +244,8 @@ public class BlastCommand {
          */
         out.close();
 
+        databasesize = new File(tmpDirFile.getPath() + "/seqfile").length();
+
         log.debug("blastcmd: done writing sequence file");
 
         /*
@@ -330,8 +334,10 @@ public class BlastCommand {
         List<String> commands = new ArrayList<String>();
         commands.add("/bin/sh");
         commands.add("-c");
-        commands.add(commandPath + " " + commandLine + " -z " + effectiveSize + " -d " + seqDir + " -i " + localCazyEC);
 
+        double ecutoff = (10.0 * databasesize/effectiveSize);
+        effectiveSize = 0;  // don't do this for now
+        commands.add(commandPath + " " + commandLine + " -z " + effectiveSize + " -e " + ecutoff + " -d " + seqDir + " -i " + localCazyEC);
 
         // TODO: remove the try statement to throw exception in case of failure
 

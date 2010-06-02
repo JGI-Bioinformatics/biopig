@@ -363,9 +363,10 @@ public class ReadBlaster {
             System.exit(2);
         }
 
-        long sequenceFileLength = 0;
+        long sequenceFileLength = 0;                             // the number of basepairs
+        long databaseFileSize = new File(otherArgs[0]).length(); // the overall file size
 
-        try {
+    /*    try {
             FileInputStream file = new FileInputStream(otherArgs[0]);
             BufferedReader d
                     = new BufferedReader(new InputStreamReader(file));
@@ -380,9 +381,9 @@ public class ReadBlaster {
         } catch (Exception e) {
             System.err.println(e);
             System.exit(2);
-        }
+        }*/
 
-        conf.setLong("effectivedatabasesize", sequenceFileLength);
+        conf.setLong("effectivedatabasesize", databaseFileSize);
         conf.set("genedbfilepath", otherArgs[1]);
 
         /*
@@ -409,7 +410,6 @@ public class ReadBlaster {
                 log.info("\toption " + option + ":\t" + conf.get(option));
             }
         }
-
 
         /*
         setup blast configuration parameters

@@ -65,9 +65,16 @@ class blastCommand implements command {
 
     int execute(List args, Map options) {
 
+      if (options["-d"]) {
+        println("executing blast wrapper");
+      }
       String metaHome = System.getProperty("meta.home").replaceFirst("~", System.getenv("HOME"));
+      if (metaHome == null) {
+        println("unable to find meta.home environment.  add to your ~/.meta-prefs file");
+        return 1;
+      }
+
       String pbsJobId = System.getenv("PBS_JOBID");
-                                                   
       StringBuilder command = new StringBuilder("hadoop ");
 
       /*
@@ -92,6 +99,9 @@ class blastCommand implements command {
       execute command and pipe stdout/stderr to local stdout/stderr
        */
       String commandStr = command.toString();
+      if (options['-d']) {
+        println("command = " + commandStr);
+      }
 
       Process proc = commandStr.execute()
       proc.consumeProcessErrorStream(System.err);
