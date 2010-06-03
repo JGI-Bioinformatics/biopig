@@ -1,0 +1,98 @@
+
+Installation
+------------
+
+This directory contains the binaries for commandline tools to manage the cloud-based rumen
+metagenomics pipeline.  This file describes the installation of the software.
+
+DEPENDENCIES
+------------
+
+You need java and groovy, I'm assuming you have that setup up the path variables such
+that % java  and % groovysh work.  It also assumes that you have a hadoop cluster and
+the hadoop executable should be setup in the path as well.  You can still use this without
+a cluster, by default the hadoop commandline will run in single-node mode.
+
+
+To INSTALL
+----------
+
+Step 0: make sure java and groovy are working
+   % java -version
+   java version "1.6.0_17"
+
+   % groovysh -version
+   Groovy Shell 1.6.2
+
+Step 1: untar the tar file in some location where you want to install
+   % tar -zxvf meta-0.1-SNAPSHOT-bin.tar.gz -C /usr/local/
+
+   this installs the directory that includes this INSTALL file
+
+
+Step 2: configure the groovy loadpath
+
+   In your .profile (or .bash_profile etc) add the following:
+   export GROOVY_CONF=~/.groovy/groovy-starter.conf
+
+   now, create the above file with the following contents:
+
+# load required libraries
+load !{groovy.home}/lib/*.jar
+# load user specific libraries
+load !{user.home}/.groovy/lib/*.jar
+# tools.jar for ant tasks
+load ${tools.jar}
+load /usr/local/meta/lib/*.jar
+
+change the last line to reflect the path where you installed it.
+
+Step 3: set your path
+
+   add the following to your .profile or type
+
+   # meta
+   export META_HOME=${HOME}/local/meta
+   export PATH=${PATH}:${META_HOME}/bin
+
+That should be it.  to test it out try
+   % meta -help
+
+see below for more details on running...
+
+
+BUILD from Source
+-----------------
+
+to build from source, you need additional dependencies.  You need to java JDK (not the
+JRE), and you need maven2.  Once that is all working, just type
+
+% mvn clean
+
+to clean the project, and
+
+% mvn package
+
+to build all the apps and create the binary package.  At the end of the process, maven
+should say it was successfull in building a number of targets. The binary tgz file will
+be in
+
+   ./meta/target/meta-<version>-bin.tar.gz
+
+once you have the binary package, follow the instructions above to install.
+
+DEFAULTS
+--------
+
+The commandline tool reads a properties file from your home directory, ~/.meta-prefs and
+can use those values as defaults to decrease the number of parameters that are needed.
+
+see ./meta/etc/dot.meta-prefs for the list of properties and template that you can use.
+copy this file to ~/.meta-prefs
+
+
+USAGE
+------
+
+% meta --help
+
