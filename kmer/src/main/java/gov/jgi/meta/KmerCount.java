@@ -28,47 +28,29 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package gov.jgi.meta.kmer;
+package gov.jgi.meta;
 
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.*;
 
 import gov.jgi.meta.hadoop.input.FastaInputFormat;
-import org.apache.cassandra.thrift.*;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.util.GenericOptionsParser;
-import org.apache.thrift.protocol.TBinaryProtocol;
-import org.apache.thrift.protocol.TProtocol;
-import org.apache.thrift.transport.TSocket;
-import org.apache.thrift.transport.TTransport;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 
-
-/**
- * custom counters
- *
- * MALFORMED is the number of ignored reads due to some simple syntax checking
- * WELLFORMED is the number of reads that were read
- * KMERCOUNT is the number of kmers that were generated
- * BYTESSENTOVERNETWORK is the data that is sent to the cassandra data store
- *
- */
-enum ReadCounters {
-   MALFORMED,
-   WELLFORMEND,
-   KMERCOUNT,
-   BYTESSENTOVERNETWORK
-}
 
 /**
  * hadoop application to read sequence reads from file, generate the unique kmers
@@ -82,28 +64,12 @@ public class KmerCount {
      *
      */
     public static class FastaTokenizerMapper
-            extends Mapper<Object, Text, Text, IntWritable> {
+            extends Mapper<Object, Text, Text, Text> {
 
         private final static IntWritable one = new IntWritable(1);
         private Text word = new Text();
 
         Logger log = Logger.getLogger(FastaTokenizerMapper.class);
-
-        /*
-        cassandra configuration parameters
-         */
-        TTransport tr = null;
-        TProtocol proto = null;
-        Cassandra.Client client = null;
-        String cassandraTable = null;
-        String cassandraHost = null;
-        int cassandraPort = 0;
-
-        /*
-        batched operations
-         */
-        Map mutation_map = null;
-
 
         /**
          * initialization of mapper retrieves connection parameters from context and opens socket
@@ -120,24 +86,6 @@ public class KmerCount {
             log.info("initializing mapper class for job: " + context.getJobName());
             log.info("\tcontext = " + context.toString());
             log.info("\tinitializing mapper on host: " + InetAddress.getLocalHost().getHostName());
-
-            log.info("\tconnecting to cassandra host: " + context.getConfiguration().get("cassandrahost"));
-
-            if (tr == null) {
-                cassandraHost = context.getConfiguration().get("cassandrahost");
-                cassandraPort = context.getConfiguration().getInt("cassandraport", 9160);
-                cassandraTable = context.getConfiguration().get("cassandratable");
-
-                try {
-                    tr = new TSocket(cassandraHost, cassandraPort);
-                    proto = new TBinaryProtocol(tr);
-                    client = new Cassandra.Client(proto);
-                    tr.open();
-                } catch (Exception e) {
-                    log.fatal("ERROR: " + e);
-                    throw new IOException("unable to connect to cassandrahost at " + cassandraHost + "/" + cassandraPort);
-                }
-            }
         }
 
         /**
@@ -146,9 +94,7 @@ public class KmerCount {
          * @param context
          */
         protected void cleanup(Context context) {
-            if (tr != null) {
-                tr.close();
-            }
+
         }
 
 
@@ -165,7 +111,7 @@ public class KmerCount {
         public void map(Object key, Text value, Context context
         ) throws IOException, InterruptedException {
 
-           
+
             log.debug("map function called with value = " + value.toString());
             log.debug("\tcontext = " + context.toString());
             log.debug("\tkey = " + key.toString());
@@ -175,106 +121,82 @@ public class KmerCount {
             if (!sequence.matches("[ATGCN]*")) {
                 log.error("sequence " + key + " is not well formed: " + value);
                 
-                context.getCounter(ReadCounters.MALFORMED).increment(1);
+                context.getCounter(KmerCounters.MALFORMED).increment(1);
                 return;
             }
 
-            context.getCounter(ReadCounters.WELLFORMEND).increment(1);
+            context.getCounter(KmerCounters.WELLFORMEND).increment(1);
 
             int seqsize = sequence.length();
             int kmersize = context.getConfiguration().getInt("kmersize", 20);
 
-            clear();
             int i;
-            for (i = 0; i < seqsize - kmersize - 1; i++) {
+            for (i = 0; i < seqsize - kmersize; i++) {
                 String kmer = sequence.substring(i, i + kmersize);
 
-                insert(kmer, key.toString(), i);
+                context.write(new Text(kmer), new Text(key.toString()));
 
             }
-            int numbytessent = commit();
-
-            context.getCounter(ReadCounters.KMERCOUNT).increment(i);
-            context.getCounter(ReadCounters.BYTESSENTOVERNETWORK).increment(numbytessent);
+            context.getCounter(KmerCounters.KMERCOUNT).increment(i);
 
         }
-
-        /**
-         * clear current batched operations.
-         *
-         */
-        private void clear() {
-            mutation_map = new HashMap();
-        }
-
-        /**
-         * insert new data operation.  inserts key[column] = value
-         *
-         * @param key
-         * @param column
-         * @param value
-         * @throws IOException
-         */
-        private void insert(String key, String column, int value) throws IOException {
-
-            if (mutation_map == null) {
-                clear();
-            }
-
-            long timestamp = System.currentTimeMillis();
-
-            if (mutation_map.get(key) == null) {
-                mutation_map.put(key, new HashMap());
-                ((HashMap) mutation_map.get(key)).put(cassandraTable, new LinkedList());
-            }
-
-            Mutation kmerinsert = new Mutation();
-
-            byte[] b = intToByteArray(value);
-
-            ColumnOrSuperColumn c = new ColumnOrSuperColumn();
-            c.setColumn(new Column(column.getBytes(), b, timestamp));
-            kmerinsert.setColumn_or_supercolumn(c);
-
-            ((List) ((HashMap) mutation_map.get(key)).get(cassandraTable)).add(kmerinsert);
-
-        }
-
-        /**
-         * flush data store operations to cassandra server, return (roughly) the number of bytes
-         * sent.
-         *
-         * @return the number of bytes sent (roughly)
-         * @throws IOException
-         */
-        private int commit() throws IOException {
-
-            try {
-                client.batch_mutate("jgi", mutation_map, ConsistencyLevel.ONE);
-            } catch (Exception e) {
-                throw new IOException(e);
-            }
-            return mutation_map.toString().length();
-
-        }
-
-        /**
-         * convet int to byte array assuming 8 bytes per integer
-         * @param value to convert
-         * @return a fresh byte array
-         */
-        public static byte[] intToByteArray(int value) {
-                byte[] b = new byte[8];
-                for (int i = 0; i < 8; i++) {
-                    int offset = (b.length - 1 - i) * 8;
-                    b[i] = (byte) ((value >>> offset) & 0xFF);
-                }
-                return b;
-            }
-
     }
 
+       /**
+     * simple reducer that just outputs the matches grouped by gene
+     */
+    public static class IntSumReducer extends Reducer<Text, Text, Text, IntWritable> {
 
+        Logger log = Logger.getLogger(IntSumReducer.class);
+
+        /**
+         * initialization of mapper retrieves connection parameters from context and opens socket
+         * to cassandra data server
+         *
+         * @param context is the hadoop reducer context
+         */
+        protected void setup(Reducer.Context context) throws UnknownHostException {
+
+            log.debug("initializing reducer class for job: " + context.getJobName());
+            log.debug("\tinitializing reducer on host: " + InetAddress.getLocalHost().getHostName());
+
+            context.getCounter(KmerCounters.NUMBER_OF_REDUCE_TASKS).increment(1);
+
+        }
+
+        /**
+         * free resource after mapper has finished, ie close socket to cassandra server
+         *
+         * @param context the reducer context
+         */
+        protected void cleanup(Reducer.Context context) {
+
+            /* void */
+
+        }
+
+        /**
+         * main reduce step, simply string concatenates all values of a particular key with tab as seperator
+         */
+        public void reduce(Text key, Iterable<Text> values, Context context)
+                throws InterruptedException, IOException {
+
+            StringBuilder sb = new StringBuilder();
+
+            log.debug("running reducer class for job: " + context.getJobName());
+            log.debug("\trunning reducer on host: " + InetAddress.getLocalHost().getHostName());
+
+            int i = 0;
+            for (Text t : values) {
+                if (i++ > 0) sb.append("\t");
+                sb.append(t.toString());
+            }
+            context.getCounter(KmerCounters.KMERCOUNT2).increment(i);
+
+            //context.write(key, new Text(sb.toString()));
+              context.write(key, new IntWritable(i));
+        }
+    }
 
     /**
      * starts off the hadoop application
@@ -284,50 +206,117 @@ public class KmerCount {
      */
     public static void main(String[] args) throws Exception {
 
-        Configuration conf = new Configuration();
-        
-        conf.addResource("kmer-conf.xml");  // set kmer application properties
-        String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
+         Logger log = Logger.getLogger(KmerCount.class);
 
-        Logger log = Logger.getLogger(KmerCount.class);
+        /*
+        load the application configuration parameters (from deployment directory)
+         */
+
+        Configuration conf = new Configuration();
+
+        /*
+        first load the configuration from the build properties (typically packaged in the jar)
+         */
+        try {
+            Properties buildProperties = new Properties();
+            buildProperties.load(ClassLoader.getSystemResource("build.properties").openStream());
+            for (Enumeration e = buildProperties.propertyNames(); e.hasMoreElements() ;) {
+                String k = (String) e.nextElement();
+                System.out.println("setting " + k + " to " + buildProperties.getProperty(k));
+                System.setProperty(k, buildProperties.getProperty(k));
+
+                if (k.matches("^meta.*")) {
+                    System.out.println("overriding property: " + k);
+                    conf.set(k, buildProperties.getProperty(k));
+                }
+            }
+
+        } catch (Exception e) {
+
+        }
+
+        /*
+        override properties with the deployment descriptor
+         */
+        conf.addResource("kmer-conf.xml");
+
+        /*
+        override properties from user's preferences defined in ~/.meta-prefs
+         */
+
+        try {
+            java.io.FileInputStream fis = new java.io.FileInputStream(new java.io.File(System.getenv("HOME") + "/.meta-prefs"));
+            Properties props = new Properties();
+            props.load(fis);
+            for (Enumeration e = props.propertyNames(); e.hasMoreElements() ;) {
+                String k = (String) e.nextElement();
+                if (k.matches("^meta.*")) {
+                    System.out.println("overriding property: " + k);
+                    conf.set(k, props.getProperty(k));
+                }
+            }
+        } catch (Exception e) {
+            log.error("unable to find ~/.meta-prefs ... skipping");
+        }
+
+
+        /*
+        finally, allow user to override from commandline
+         */
+        String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
 
         /*
         process arguments
          */
-
-        if (otherArgs.length != 4) {
-            System.err.println("Usage: kmercount <in> <kmer size> <cassandra_table> <outputdir>");
+        if (otherArgs.length != 2) {
+            System.err.println("Usage: kmer <readfile> <outputdir>");
             System.exit(2);
         }
 
-        conf.set("cassandrahost", conf.getStrings("cassandrahost", "localhost")[0]);
-        conf.setInt("cassandraport", Integer.parseInt(conf.getStrings("cassandraport", "9160")[0]));
-        conf.set("cassandratable", otherArgs[2]);
-        conf.setInt("kmersize", Integer.parseInt(otherArgs[1]));
+        /*
+        seems to help in file i/o performance
+         */
+        conf.setInt("io.file.buffer.size", 1024 * 1024);
 
-        log.info("main() [version " + conf.getStrings("version", "unknown!")[0] + "] starting with following parameters");
-        log.info("\tcassandrahost: " + conf.get("cassandrahost"));
-        log.info("\tcassandraport: " + conf.getInt("cassandraport", 9160));
+        log.info(System.getenv("application.name") + "[version " + System.getenv("application.version") + "] starting with following parameters");
         log.info("\tsequence file: " + otherArgs[0]);
-        log.info("\tkmersize     : " + Integer.parseInt(otherArgs[1]));
-        log.info("\ttable name   : " + otherArgs[2]);
+
+        String[] optionalProperties = {
+                "mapred.min.split.size",
+                "mapred.max.split.size",
+                "blast.commandline",
+                "blast.commandpath",
+                "blast.tmpdir",
+                "blast.cleanup",
+                "blast.numreducers"
+        };
+
+        for (String option : optionalProperties) {
+            if (conf.get(option) != null) {
+                log.info("\toption " + option + ":\t" + conf.get(option));
+            }
+        }
 
         /*
-        setup configuration parameters
+        setup blast configuration parameters
          */
+
         Job job = new Job(conf, "kmer");
+
         job.setJarByClass(KmerCount.class);
         job.setInputFormatClass(FastaInputFormat.class);
         job.setMapperClass(FastaTokenizerMapper.class);
+        //job.setCombinerClass(IntSumReducer.class);
+        job.setReducerClass(IntSumReducer.class);
         job.setOutputKeyClass(Text.class);
-        job.setOutputValueClass(IntWritable.class);
-        job.setNumReduceTasks(0);  // no reduce tasks needed
+        job.setOutputValueClass(Text.class);
+        job.setNumReduceTasks(conf.getInt("kmer.numreducers", 1));
 
         FileInputFormat.addInputPath(job, new Path(otherArgs[0]));
-        FileOutputFormat.setOutputPath(job, new Path(otherArgs[3]));
+        FileOutputFormat.setOutputPath(job, new Path(otherArgs[1]));
+
         System.exit(job.waitForCompletion(true) ? 0 : 1);
     }
-
 }
 
 
