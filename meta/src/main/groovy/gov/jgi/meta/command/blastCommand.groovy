@@ -83,6 +83,8 @@ class blastCommand implements command {
       if (pbsJobId != null) {
         println("using hadoop config dir: " + pbsJobId);
         command.append("--config " + System.getenv("HOME") + "/.hadoop-"+pbsJobId + " jar");
+      } else {
+        command.append(" jar");
       }
 
       /*

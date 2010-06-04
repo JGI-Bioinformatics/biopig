@@ -109,7 +109,7 @@ public class BlastCommand {
      * flag to leave working directories along (if false) or to remove
      * them after execution (if true)
      */
-    Boolean cleanup = true;
+    Boolean docleanup = true;
 
     /**
      * the effective blast database size
@@ -161,7 +161,7 @@ public class BlastCommand {
             tmpDir = DEFAULTTMPDIR;
         }
 
-        cleanup = config.getBoolean("blast.cleanup", true);
+        docleanup = config.getBoolean("blast.cleanup", true);
 
         effectiveSize = config.getLong("effectivedatabasesize", 0);
 
@@ -199,13 +199,24 @@ public class BlastCommand {
         /*
         delete the tmp files if they exist
          */
-        if (tmpDirFile != null) {
-            recursiveDelete(tmpDirFile);
-            tmpDirFile = null;
-        }
+        this.cleanup();
+
 
         super.finalize();
     }
+
+    /**
+     * clean up any tmp files
+     */
+    public void cleanup() {
+
+        if (this.docleanup) {
+            if (tmpDirFile != null) {
+                recursiveDelete(tmpDirFile);
+                tmpDirFile = null;
+            }
+        }
+    };
 
     /**
      * given a list of sequences, creates a db for use with blast using
@@ -398,6 +409,9 @@ public class BlastCommand {
         } while (newTempDir.exists());
 
         if (newTempDir.mkdirs()) {
+            newTempDir.setExecutable(true,false);
+            newTempDir.setReadable(true,false);
+            newTempDir.setWritable(true,false);
             return newTempDir;
         } else {
             throw new IOException(

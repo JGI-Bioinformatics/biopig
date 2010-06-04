@@ -18,6 +18,15 @@ g/xsd/assembly-1.1.0.xsd">
     </dependencySets>
     <fileSets>
         <fileSet>
+            <directory>../</directory>
+            <outputDirectory></outputDirectory>
+            <includes>
+                <include>README</include>
+                <include>INSTALL</include>
+                <include>LICENSE</include>
+            </includes>
+        </fileSet>
+        <fileSet>
             <directory>bin</directory>
             <outputDirectory>bin</outputDirectory>
             <fileMode>0755</fileMode>

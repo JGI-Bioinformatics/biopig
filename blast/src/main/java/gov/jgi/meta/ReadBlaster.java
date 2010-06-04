@@ -43,6 +43,7 @@ import gov.jgi.meta.exec.BlastCommand;
 import gov.jgi.meta.hadoop.input.*;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
@@ -52,6 +53,7 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.util.GenericOptionsParser;
 
 import org.apache.log4j.Logger;
+import org.apache.log4j.PropertyConfigurator;
 
 /*
 todo: clean up counters
@@ -135,6 +137,12 @@ public class ReadBlaster {
         protected void setup(Context context)
                 throws IOException, InterruptedException {
 
+            /*
+            first load the log4j.properties in the classpath
+             */
+            log.info("loading log4j.properties");
+            PropertyConfigurator.configure("log4j.properties");
+            log.info("done..., next should be debug statement");
             log.debug("initializing map task for hjob: " + context.getJobName());
             log.debug("initializing maptask on host: " + InetAddress.getLocalHost().getHostName());
 
@@ -151,7 +159,9 @@ public class ReadBlaster {
         protected void cleanup(Context context) throws IOException {
 
             log.debug("deleting map task for job: " + context.getJobName() + " on host: " + InetAddress.getLocalHost().getHostName());
-
+            if (blastCmd != null) {
+                blastCmd.cleanup();
+            }
         }
 
 
@@ -255,6 +265,7 @@ public class ReadBlaster {
 
             /* void */
 
+
         }
 
         /**
@@ -318,7 +329,7 @@ public class ReadBlaster {
             }
 
         } catch (Exception e) {
-            System.out.println("unable to find build.properties: " + e);
+            //System.out.println("unable to find build.properties: " + e);
         }
 
         /*
@@ -363,8 +374,15 @@ public class ReadBlaster {
             System.exit(2);
         }
 
-        long sequenceFileLength = 0;                             // the number of basepairs
-        long databaseFileSize = new File(otherArgs[0]).length(); // the overall file size
+        //long sequenceFileLength = 0;
+
+        /*
+        calculate the full database size, so that parameters can be adjusted
+         */
+        FileSystem fs = FileSystem.get(conf);
+        Path filenamePath = new Path(otherArgs[0]);
+        long databaseFileSize = fs.getFileStatus(filenamePath).getLen();
+        //long databaseFileSize = new File(otherArgs[0]).length(); // the overall file size
 
     /*    try {
             FileInputStream file = new FileInputStream(otherArgs[0]);
