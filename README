@@ -1,4 +1,4 @@
-This directory contains the source code for the various pieces of
+This directory contains the source code/binaries for the various pieces of
 the jgi rumen metagenomics pipeline.  this includes the existing
 perl scripts developed by alex, as well as the various java/hadoop/
 cassandra software.
