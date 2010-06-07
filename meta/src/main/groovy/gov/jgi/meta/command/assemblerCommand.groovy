@@ -28,6 +28,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
+
 package gov.jgi.meta.command
 
 /**
@@ -72,10 +74,12 @@ class assemblerCommand implements command {
       add special config directory when used at nersc through PBS
        */
       if (pbsJobId != null) {
-        println("using hadoop config dir: " + pbsJobId);
-        command.append("--config ~/.hadoop-"+pbsJobId + " jar");
-      }
-
+         println("using hadoop config dir: " + pbsJobId);
+         command.append("--config " + System.getenv("HOME") + "/.hadoop-"+pbsJobId + " jar");
+       } else {
+         command.append(" jar");
+       }
+ 
       /*
       find the jar file to execute
        */
