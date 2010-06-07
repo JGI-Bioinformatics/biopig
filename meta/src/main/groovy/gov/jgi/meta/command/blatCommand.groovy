@@ -73,7 +73,9 @@ class blatCommand implements command {
        */
       if (pbsJobId != null) {
         println("using hadoop config dir: " + pbsJobId);
-        command.append("--config ~/.hadoop-"+pbsJobId + " jar");
+        command.append("--config " + System.getenv("HOME") + "/.hadoop-"+pbsJobId + " jar");
+      } else {
+        command.append(" jar");
       }
 
       /*
@@ -90,6 +92,9 @@ class blatCommand implements command {
       execute command and pipe stdout/stderr to local stdout/stderr
        */
       String commandStr = command.toString();
+      if (options['-d']) {
+        println("command : " + commandStr);
+      }
 
       Process proc = commandStr.execute()
       proc.consumeProcessErrorStream(System.err);

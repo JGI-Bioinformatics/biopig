@@ -47,7 +47,8 @@ commandList = [
         new loadCommand(),
         new scanCommand(),
         new loadHashCommand(),
-        new blastCommand()
+        new blastCommand(),
+        new blatCommand()
 ];
 
 HashMap<String, command> commandMap = new HashMap();

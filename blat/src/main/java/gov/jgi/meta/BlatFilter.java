@@ -143,7 +143,9 @@ public class BlatFilter {
         protected void cleanup(Context context) throws IOException {
 
             log.debug("deleting map task for job: " + context.getJobName() + " on host: " + InetAddress.getLocalHost().getHostName());
-
+            if (blatCmd != null) {
+                blatCmd.cleanup();
+            }
         }
 
 
@@ -257,25 +259,21 @@ public class BlatFilter {
         public void reduce(Text key, Iterable<Text> values, Context context)
                 throws InterruptedException, IOException {
 
-            Text reads = new Text();
-
             context.getCounter(BlatCounters.NUMBER_OF_GROUPS).increment(1);
 
             log.debug("running reducer class for job: " + context.getJobName());
             log.debug("\trunning reducer on host: " + InetAddress.getLocalHost().getHostName());
 
             int i = 0;
-//            context.write(key, new Text(values.toString()));
+            String keyStr = key.toString();
             for (Text t : values) {
-                if (i > 0) {
-                    reads.append(("\t" + t).getBytes(), 0, t.getLength() + 1);
-                } else {
-                    reads.append(t.getBytes(), 0, t.getLength());
-                }
+
+                String[] tarray = t.toString().split("&");
+                String outputKey = ">" + keyStr + "-" + tarray[0]; // group - sequence id
+                String outputValue = "\n" + tarray[1];
+                context.write(new Text(outputKey), new Text(outputValue));
                 i++;
             }
-
-            context.write(key, reads);
 
         }
     }
@@ -347,7 +345,7 @@ public class BlatFilter {
         job.setJarByClass(BlatFilter.class);
         job.setInputFormatClass(FastaBlockInputFormat.class);
         job.setMapperClass(FastaTokenizerMapper.class);
-        job.setCombinerClass(IntSumReducer.class);
+        //job.setCombinerClass(IntSumReducer.class);
         job.setReducerClass(IntSumReducer.class);
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(Text.class);

@@ -104,8 +104,7 @@ public class BlatCommand {
      * flat to determine whether to clean up directories after
      * execution
      */
-    Boolean cleanup = true;
-
+    Boolean doCleanup = true;
     Boolean paired = true;
 
     /**
@@ -150,7 +149,7 @@ public class BlatCommand {
             tmpDir = DEFAULTTMPDIR;
         }
 
-        cleanup = config.getBoolean("blat.cleanup", true);
+        doCleanup = config.getBoolean("blat.cleanup", true);
         paired = config.getBoolean("blat.paired", true);
 
         /*
@@ -168,6 +167,12 @@ public class BlatCommand {
 
     }
 
+    public void cleanup() {
+        if (tmpDirFile != null) {
+            if (doCleanup) recursiveDelete(tmpDirFile);
+            tmpDirFile = null;
+        }
+    }
     /**
      * destructor deletes the tmp space if it was created
      *
@@ -178,11 +183,7 @@ public class BlatCommand {
         delete the tmp files if they exist
          */
         log.info("deleting tmp file: " + tmpDirFile.getPath());
-
-        if (tmpDirFile != null) {
-            if (cleanup) recursiveDelete(tmpDirFile);
-            tmpDirFile = null;
-        }
+        cleanup();
 
         super.finalize();
     }
