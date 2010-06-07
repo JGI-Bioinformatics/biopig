@@ -35,6 +35,7 @@ import gov.jgi.meta.hadoop.input.FastaBlockLineReader;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.util.GenericOptionsParser;
 import org.apache.log4j.Logger;
 
@@ -96,7 +97,7 @@ public class CapCommand implements CommandLineProgram {
      * flat to determine whether to clean up directories after
      * execution
      */
-    Boolean cleanup = true;
+    Boolean doCleanup = true;
 
     /**
      * new blast command based on default parameters
@@ -110,6 +111,17 @@ public class CapCommand implements CommandLineProgram {
         tmpDirFile = createTempDir();
     }
 
+
+    public void cleanup(){
+
+       if (this.doCleanup) {
+            if (tmpDirFile != null) {
+                recursiveDelete(tmpDirFile);
+                tmpDirFile = null;
+            }
+        }
+
+    }
     /**
      * new blast command based on values stored in the configuration.
      * <p/>
@@ -139,7 +151,7 @@ public class CapCommand implements CommandLineProgram {
             tmpDir = DEFAULTTMPDIR;
         }
 
-        cleanup = config.getBoolean("assembly.cleanup", true);
+        doCleanup = config.getBoolean("assembly.cleanup", true);
 
          /*
          do sanity check to make sure all paths exist
@@ -167,10 +179,7 @@ public class CapCommand implements CommandLineProgram {
          */
         log.info("deleting tmp file: " + tmpDirFile.getPath());
 
-        if (tmpDirFile != null) {
-            if (cleanup) recursiveDelete(tmpDirFile);
-            tmpDirFile = null;
-        }
+        cleanup();
 
         super.finalize();
     }
@@ -224,7 +233,7 @@ public class CapCommand implements CommandLineProgram {
      * @param seqDatabase is the key/value map of sequences that act as reference keyed by name
      * @return a list of sequence ids in the reference that match the cazy database
      */
-    public Map<String,String> exec(String groupId, Map<String, String> seqDatabase, Mapper.Context context)  throws IOException, InterruptedException  {
+    public Map<String,String> exec(String groupId, Map<String, String> seqDatabase, Reducer.Context context)  throws IOException, InterruptedException  {
 
         Map<String, String> s = new HashMap<String, String>();
 

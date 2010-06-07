@@ -41,6 +41,7 @@ import gov.jgi.meta.cassandra.DataStore;
 import gov.jgi.meta.exec.CapCommand;
 import gov.jgi.meta.exec.CommandLineProgram;
 import gov.jgi.meta.exec.VelvetCommand;
+import gov.jgi.meta.hadoop.input.FastaInputFormat;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
@@ -53,6 +54,7 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.util.GenericOptionsParser;
 
 import org.apache.log4j.Logger;
+import org.biojava.bio.seq.impl.SimpleSequence;
 
 
 /**
@@ -103,25 +105,11 @@ public class Assembler {
      * map task reads portions of the fasta file provided from the input split and
      * generated the kmers and inserts them directly into the cassandra datastore.
      */
-    public static class LineTokenizerMapper
-            extends Mapper<LongWritable, Text, Text, Text> {
+    public static class FastaTokenizerMapper
+            extends Mapper<Object, SimpleSequence, Text, Text> {
 
-        private final static IntWritable one = new IntWritable(1);
-        private Text word = new Text();
-        private int batchSize = 100;
-        private int currentSize = 0;
+        Logger log = Logger.getLogger(FastaTokenizerMapper.class);
 
-        Logger log = Logger.getLogger(LineTokenizerMapper.class);
-
-        /**
-         * abstracts the details of connections to the cassandra servers
-         */
-        DataStore ds = null;
-
-        /**
-         * blast command wrapper
-         */
-        CommandLineProgram assemblerCmd = null;
 
         /**
          * initialization of mapper retrieves connection parameters from context and
@@ -138,6 +126,73 @@ public class Assembler {
             log.debug("initializing maptask on host: " + InetAddress.getLocalHost().getHostName());
 
 
+
+        }
+
+        /**
+         * free resource after mapper has finished, ie close socket to cassandra server
+         *
+         * @param context is the job context for the map task
+         */
+        protected void cleanup(Context context) throws IOException {
+
+            log.info("deleting map task for job: " + context.getJobName() + " on host: " +  InetAddress.getLocalHost().getHostName());
+
+        }
+
+
+        /**
+         * the map function processes a block of fasta reads through the blast program
+         *
+         */
+        public void map(Object key, SimpleSequence sequence, Context context) throws IOException, InterruptedException {
+
+            log.debug("map task started for job: " + context.getJobName() + " on host: " +  InetAddress.getLocalHost().getHostName());
+
+            String sequenceStr = sequence.seqString();
+
+            if (!sequenceStr.matches("[atgcn]*")) {
+                log.error("sequence " + key + " is not well formed: " + sequenceStr);
+
+                return;
+            }
+
+            String[] group = key.toString().split("-", 2);
+            String groupName = group[0];
+            String readId = "";
+            if (group.length>1) readId = group[1].trim();
+
+            context.write(new Text(groupName), new Text(readId+"-"+sequenceStr));
+
+        }
+    }
+
+    /**
+     * simple reducer that just outputs the matches grouped by gene
+     */
+    public static class IntSumReducer extends Reducer<Text, Text, Text, Text>
+    {
+        private IntWritable result = new IntWritable();
+
+        Logger log = Logger.getLogger(IntSumReducer.class);
+
+        /**
+         * blast command wrapper
+         */
+        CommandLineProgram assemblerCmd = null;
+
+
+        /**
+         * initialization of mapper retrieves connection parameters from context and opens socket
+         * to cassandra data server
+         *
+         * @param context is the hadoop reducer context
+         */
+        protected void setup(Reducer.Context context) throws IOException {
+
+            log.debug("initializing reducer class for job: " + context.getJobName());
+            log.debug("\tinitializing reducer on host: " + InetAddress.getLocalHost().getHostName());
+
             String assembler = context.getConfiguration().get("assembly.command", "velvet");
             if ("cap3".equals(assembler)) {
 
@@ -153,110 +208,6 @@ public class Assembler {
 
             }
 
-        }
-
-        /**
-         * free resource after mapper has finished, ie close socket to cassandra server
-         *
-         * @param context is the job context for the map task
-         */
-        protected void cleanup(Context context) throws IOException {
-
-            log.info("deleting map task for job: " + context.getJobName() + " on host: " +  InetAddress.getLocalHost().getHostName());
-
-            if (ds != null) ds.cleanup();
-
-        }
-
-
-        /**
-         * the map function processes a block of fasta reads through the blast program
-         *
-         */
-        public void map(LongWritable lineNum, Text lineValue, Context context) throws IOException, InterruptedException {
-
-            log.debug("map task started for job: " + context.getJobName() + " on host: " +  InetAddress.getLocalHost().getHostName());
-
-//            String blastOutputFilePath = context.getConfiguration().get("blastoutputfile");
-            Boolean skipExecution = context.getConfiguration().getBoolean("assembly.skipexecution", false);
-            
-//            context.getCounter(AssemblyCounters.NUMBER_OF_READS).increment(value.size());
-
-            if (skipExecution) {
-                /*
-                print some diagnostics instead of executing blat
-                 */
-
-                System.out.println("Running Assembly task");
-                System.out.println("\thost = " + InetAddress.getLocalHost().getHostName() );
-                System.out.println("\treadset size = " + lineValue);
-
-            }
-            /*
-            execute the blast command
-             */
-            Map<String,String> s = null;
-            Map<String,String> map = new HashMap<String,String>();
-
-            String[] a = lineValue.toString().split("\t",2);
-            String groupId = a[0];
-            for (String read : a[1].split("\t")) {
-                String[] b = read.split("&",2);
-                map.put(b[0],b[1]);
-            }
-            try {
-                if (!skipExecution)
-                    s = assemblerCmd.exec(groupId, map, context);
-                else
-                    s = new HashMap<String,String>();
-            } catch (Exception e) {
-                /*
-                something bad happened.  update the counter and throw exception
-                 */
-                log.error(e);
-//                context.getCounter(AssemblyCounters.NUMBER_OF_ERROR_BLATCOMMANDS).increment(1);
-                throw new IOException(e);
-            }
-
-            if (s == null) return;
-
-            /*
-            blast must have been successful
-             */
-            //context.getCounter(AssemblyCounters.NUMBER_OF_SUCCESSFUL_BLATCOMMANDS).increment(1);
-            //context.getCounter(AssemblyCounters.NUMBER_OF_MATCHED_READS).increment(s.size());
-
-            log.debug("assembler retrieved " + s.size() + " results");
-
-            for (String k : s.keySet()) {
-
-                context.write(new Text(groupId), new Text(s.get(k)));
-
-            }
-
-            context.setStatus("Completed");
-        }
-    }
-
-    /**
-     * simple reducer that just outputs the matches grouped by gene
-     */
-    public static class IntSumReducer extends Reducer<Text, Text, Text, Text>
-    {
-        private IntWritable result = new IntWritable();
-
-        Logger log = Logger.getLogger(IntSumReducer.class);
-
-        /**
-         * initialization of mapper retrieves connection parameters from context and opens socket
-         * to cassandra data server
-         *
-         * @param context is the hadoop reducer context
-         */
-        protected void setup(Reducer.Context context) throws UnknownHostException {
-
-            log.debug("initializing reducer class for job: " + context.getJobName());
-            log.debug("\tinitializing reducer on host: " + InetAddress.getLocalHost().getHostName());
 
         }
 
@@ -267,7 +218,7 @@ public class Assembler {
          */
         protected void cleanup(Reducer.Context context) {
 
-            /* void */
+            if (assemblerCmd != null) assemblerCmd.cleanup();
 
         }
 
@@ -284,9 +235,47 @@ public class Assembler {
             log.debug("running reducer class for job: " + context.getJobName());
             log.debug("\trunning reducer on host: " + InetAddress.getLocalHost().getHostName());
 
-            for (Text t : values){
-                context.write(new Text(">" + key.toString()), new Text("\n"+t.toString()));
+            /*
+            execute the blast command
+             */
+            String groupId = key.toString();
+
+            Map<String,String> s = null;
+            Map<String,String> map = new HashMap<String,String>();
+
+            for (Text r : values) {
+                String[] a = r.toString().split("-",2);
+                map.put(a[0],a[1]);
             }
+
+            try {
+                s = assemblerCmd.exec(groupId, map, context);
+            } catch (Exception e) {
+                /*
+                something bad happened.  update the counter and throw exception
+                 */
+                log.error(e);
+//                context.getCounter(AssemblyCounters.NUMBER_OF_ERROR_BLATCOMMANDS).increment(1);
+                throw new IOException(e);
+            }
+
+            if (s == null) return;
+
+            /*
+            assember must have been successful
+             */
+            //context.getCounter(AssemblyCounters.NUMBER_OF_SUCCESSFUL_BLATCOMMANDS).increment(1);
+            //context.getCounter(AssemblyCounters.NUMBER_OF_MATCHED_READS).increment(s.size());
+
+            log.debug("assembler retrieved " + s.size() + " results");
+
+            for (String k : s.keySet()) {
+
+                context.write(new Text(">"+groupId+"-"+k), new Text("\n"+s.get(k)));
+
+            }
+
+            context.setStatus("Completed");
 
         }
     }
@@ -329,9 +318,9 @@ public class Assembler {
 
         Job job = new Job(conf, "assembler");
         job.setJarByClass(Assembler.class);
-        job.setInputFormatClass(TextInputFormat.class);
-        job.setMapperClass(LineTokenizerMapper.class);
-        job.setCombinerClass(IntSumReducer.class);
+        job.setInputFormatClass(FastaInputFormat.class);
+        job.setMapperClass(FastaTokenizerMapper.class);
+        //job.setCombinerClass(IntSumReducer.class);
         job.setReducerClass(IntSumReducer.class);
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(Text.class);

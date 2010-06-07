@@ -168,6 +168,7 @@ public class BlatCommand {
     }
 
     public void cleanup() {
+        
         if (tmpDirFile != null) {
             if (doCleanup) recursiveDelete(tmpDirFile);
             tmpDirFile = null;

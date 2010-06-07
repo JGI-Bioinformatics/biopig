@@ -31,19 +31,17 @@
 package gov.jgi.meta.exec;
 
 import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+
 import java.io.IOException;
 import java.util.Map;
 
 
-/**
- * Created by IntelliJ IDEA.
- * User: kbhatia
- * Date: May 3, 2010
- * Time: 5:27:28 PM
- * To change this template use File | Settings | File Templates.
- */
+
 public interface CommandLineProgram {
 
-        public Map<String,String> exec(String groupId, Map<String, String> seqDatabase, Mapper.Context context)  throws IOException, InterruptedException;
+        public Map<String,String> exec(String groupId, Map<String, String> seqDatabase, Reducer.Context context)  throws IOException, InterruptedException;
+
+        public void cleanup();
 
 }
