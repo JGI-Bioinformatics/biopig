@@ -24,6 +24,7 @@ g/xsd/assembly-1.1.0.xsd">
                 <include>README</include>
                 <include>INSTALL</include>
                 <include>LICENSE</include>
+                <include>CHANGELOG</include>                
             </includes>
         </fileSet>
         <fileSet>
