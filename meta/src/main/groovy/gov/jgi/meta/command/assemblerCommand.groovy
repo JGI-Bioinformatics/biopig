@@ -60,7 +60,7 @@ class assemblerCommand implements command {
     }
 
     String usage() {
-        return "assembler <readfastafile> <genefastafile> <outputdir>";
+        return "assembler <readfastafile> <outputdir>";
     }
 
     int execute(List args, Map options) {
@@ -94,7 +94,9 @@ class assemblerCommand implements command {
       execute command and pipe stdout/stderr to local stdout/stderr
        */
       String commandStr = command.toString();
-
+      if (options['-d']) {
+         println("command: " + commandStr);
+      }
       Process proc = commandStr.execute()
       proc.consumeProcessErrorStream(System.err);
       proc.consumeProcessOutputStream(System.out);
