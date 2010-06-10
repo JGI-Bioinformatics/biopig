@@ -88,7 +88,7 @@ class assemblerCommand implements command {
       ).sort {it.lastModified() }.reverse()[0];
 
       command.append(" " + jar + " gov.jgi.meta.Assembler")
-      command.append(" " + args[1] + " " + args[2] + " " + args[3])
+      command.append(" " + args[1] + " " + args[2])
 
       /*
       execute command and pipe stdout/stderr to local stdout/stderr
