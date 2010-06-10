@@ -31,7 +31,7 @@
 
 package gov.jgi.meta;
 
-import java.io.IOException;
+import java.io.*;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.HashMap;
@@ -43,6 +43,8 @@ import gov.jgi.meta.exec.CommandLineProgram;
 import gov.jgi.meta.exec.VelvetCommand;
 import gov.jgi.meta.hadoop.input.FastaInputFormat;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
@@ -280,6 +282,40 @@ public class Assembler {
         }
     }
 
+    private static int calculateNumReducers(String file) throws IOException {
+
+        Configuration conf = new Configuration();
+        FileSystem fs = FileSystem.get(conf);
+
+        Path filenamePath = new Path(file);
+        if (!fs.exists(filenamePath)) {
+            throw new IOException("file not found: " + file);
+        }
+
+        FSDataInputStream in = fs.open(filenamePath);
+        BufferedReader d
+                  = new BufferedReader(new InputStreamReader(in));
+
+        String line;
+        line = d.readLine();
+
+        HashMap<String, Integer> m = new HashMap<String,Integer>();
+
+        while (line != null) {
+            if (line.matches("^>(.*)-(.*)$")) {
+                String groupName = line.split("-")[0];
+                if (m.containsKey(groupName)) {
+                    m.put(groupName, m.get(groupName) + 1);
+                } else {
+                    m.put(groupName, 1);
+                }
+            }
+            line = d.readLine();
+        }
+        in.close();
+
+        return m.size();
+    }
     /**
      * starts off the hadoop application
      *
@@ -304,13 +340,15 @@ public class Assembler {
             System.exit(2);
         }
 
+        int defaultNumReducers = calculateNumReducers(otherArgs[0]);
+
         conf.setInt("io.file.buffer.size", 1024 * 1024);
 
         log.info("main() [version " + conf.getStrings("version", "unknown!")[0] + "] starting with following parameters");
         log.info("\tblat results file: " + otherArgs[0]);
         log.info("\tassembly.cleanup : " + conf.getBoolean("assembly.cleanup", true));
         log.info("\tassembly.skipexecution: " + conf.getBoolean("assembly.skipexecution", false));
-        log.info("\tblat.numreducers: " + conf.getInt("assembly.numreducers", 1));
+        log.info("\tblat.numreducers: " + conf.getInt("assembly.numreducers", defaultNumReducers));
 
         /*
         setup blast configuration parameters
@@ -324,7 +362,7 @@ public class Assembler {
         job.setReducerClass(IntSumReducer.class);
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(Text.class);
-        job.setNumReduceTasks(conf.getInt("assembly.numreducers", 1));
+        job.setNumReduceTasks(conf.getInt("assembly.numreducers", defaultNumReducers));
         
         FileInputFormat.addInputPath(job, new Path(otherArgs[0]));
         FileOutputFormat.setOutputPath(job, new Path(otherArgs[1]));
