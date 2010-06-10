@@ -106,6 +106,27 @@
     <build>
         <plugins>
             <plugin>
+    <groupId>org.codehaus.mojo</groupId>
+    <artifactId>exec-maven-plugin</artifactId>
+    <version>1.1</version>
+    <executions>
+        <execution>
+            <phase>compile</phase>
+            <goals>
+                <goal>exec</goal>
+            </goals>
+        </execution>
+    </executions>
+    <configuration>
+        <executable>git</executable>
+        <arguments>
+            <argument>log</argument>
+            <argument>--pretty</argument>
+        </arguments>
+        <outputFile>../CHANGELOG</outputFile>
+    </configuration>
+    </plugin>
+            <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
                 <configuration>
                     <descriptors>
