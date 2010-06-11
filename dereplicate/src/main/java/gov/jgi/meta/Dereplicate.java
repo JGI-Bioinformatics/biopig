@@ -37,6 +37,7 @@ import java.net.UnknownHostException;
 import java.util.*;
 
 import gov.jgi.meta.hadoop.input.FastaInputFormat;
+import gov.jgi.meta.hadoop.io.ReadNode;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
@@ -50,12 +51,13 @@ import org.apache.hadoop.util.GenericOptionsParser;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
+import org.biojava.bio.seq.Sequence;
 
 
 public class Dereplicate {
 
     public static class FastaTokenizerMapper
-            extends Mapper<Object, Text, Text, Text> {
+            extends Mapper<Text, Sequence, Text, ReadNode> {
 
         private final static IntWritable one = new IntWritable(1);
         private Text word = new Text();
@@ -90,27 +92,27 @@ public class Dereplicate {
 
 
 
-        public void map(Object key, Text value, Context context) throws IOException, InterruptedException {
+        public void map(Text key, Sequence value, Context context) throws IOException, InterruptedException {
 
             log.debug("map function called with value = " + value.toString());
             log.debug("\tcontext = " + context.toString());
             log.debug("\tkey = " + key.toString());
             log.debug("\thostname = " + InetAddress.getLocalHost().getHostName());
 
-            String sequence = value.toString();
-            if (!sequence.matches("[ATGCN]*")) {
+            String sequence = value.seqString();
+            if (!sequence.matches("[atgcn]*")) {
                 log.error("sequence " + key + " is not well formed: " + value);
                 return;
             }
 
             int windowSize = context.getConfiguration().getInt("windowsize", 20);
-            int editDistance = context.getConfiguration().getInt("editdistance", 2);
+            int editDistance = context.getConfiguration().getInt("editdistance", 1);
 
-            String sequenceValue = sequence.substring(0, windowSize) + StringUtils.reverse(sequence).substring(0,20);
+            String sequenceHashValue = sequence.substring(0, windowSize) + StringUtils.reverse(sequence).substring(0,20);
 
-            context.write(new Text(sequenceValue), new Text(sequenceValue));
-            for (String neighbor : generateAllNeighbors(sequenceValue, editDistance)) {
-                context.write(new Text(neighbor), new Text(sequenceValue));
+            context.write(new Text(sequenceHashValue), new ReadNode(key.toString(), sequenceHashValue, sequence));
+            for (String neighbor : generateAllNeighbors(sequenceHashValue, editDistance)) {
+                context.write(new Text(neighbor), new ReadNode(key.toString(), sequenceHashValue, sequence));
             }
         }
 
@@ -150,7 +152,7 @@ public class Dereplicate {
        /**
      * simple reducer that just outputs the matches grouped by gene
      */
-    public static class IntSumReducer extends Reducer<Text, Text, Text, Text> {
+    public static class IntSumReducer extends Reducer<Text, ReadNode, Text, Text> {
 
         Logger log = Logger.getLogger(IntSumReducer.class);
 
@@ -180,25 +182,39 @@ public class Dereplicate {
 
         }
 
-        public void reduce(Text key, Iterable<Text> values, Context context)
+        private Text textJoin(Iterable<ReadNode> l, String s) {
+            StringBuilder sb = new StringBuilder();
+
+            Iterator<ReadNode> i = l.iterator();
+            if (!i.hasNext()) return new Text(sb.toString());
+            else sb = sb.append(i.next().toString());
+
+            while ( i.hasNext() ){
+                sb = sb.append(s).append(i.next().toString());
+            }
+            return new Text(sb.toString());
+        }
+
+        public void reduce(Text key, Iterable<ReadNode> values, Context context)
                 throws InterruptedException, IOException {
+            String keyStr = key.toString();
 
             log.debug("running reducer class for job: " + context.getJobName());
             log.debug("\trunning reducer on host: " + InetAddress.getLocalHost().getHostName());
 
             boolean found = false;
 
-            for (Text t : values) {
-                if (key.equals(t)) {
+            for (ReadNode t : values) {
+                if (keyStr.equals(t.hash)) {
                     found = true;
                     break;
                 }
             }
 
             if (found) {
-                for (Text t : values) {
-                    context.write(key, t);
-                }
+                
+                context.write(key, textJoin(values, ","));
+
             }
         }
     }
@@ -314,7 +330,7 @@ public class Dereplicate {
         //job.setCombinerClass(IntSumReducer.class);
         job.setReducerClass(IntSumReducer.class);
         job.setOutputKeyClass(Text.class);
-        job.setOutputValueClass(Text.class);
+        job.setOutputValueClass(ReadNode.class);
         job.setNumReduceTasks(conf.getInt("dereplicate.numreducers", 1));
 
         FileInputFormat.addInputPath(job, new Path(otherArgs[0]));
