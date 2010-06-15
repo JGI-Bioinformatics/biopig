@@ -38,6 +38,7 @@ import java.util.*;
 
 import gov.jgi.meta.hadoop.input.FastaInputFormat;
 import gov.jgi.meta.hadoop.io.ReadNode;
+import gov.jgi.meta.hadoop.io.ReadNodeSet;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
@@ -56,13 +57,13 @@ import org.biojava.bio.seq.Sequence;
 
 public class Dereplicate {
 
-    public static class FastaTokenizerMapper
+    public static class GraphEdgeMapper
             extends Mapper<Text, Sequence, Text, ReadNode> {
 
         private final static IntWritable one = new IntWritable(1);
         private Text word = new Text();
 
-        Logger log = Logger.getLogger(FastaTokenizerMapper.class);
+        Logger log = Logger.getLogger(GraphEdgeMapper.class);
 
         /**
          * initialization of mapper retrieves connection parameters from context and opens socket
@@ -149,12 +150,14 @@ public class Dereplicate {
     }
 
 
+
+
        /**
      * simple reducer that just outputs the matches grouped by gene
      */
-    public static class IntSumReducer extends Reducer<Text, ReadNode, Text, Text> {
+    public static class GraphEdgeReducer extends Reducer<Text, ReadNode, Text, ReadNodeSet> {
 
-        Logger log = Logger.getLogger(IntSumReducer.class);
+        Logger log = Logger.getLogger(GraphEdgeReducer.class);
 
         /**
          * initialization of mapper retrieves connection parameters from context and opens socket
@@ -197,27 +200,37 @@ public class Dereplicate {
 
         public void reduce(Text key, Iterable<ReadNode> values, Context context)
                 throws InterruptedException, IOException {
-            String keyStr = key.toString();
 
-            log.debug("running reducer class for job: " + context.getJobName());
-            log.debug("\trunning reducer on host: " + InetAddress.getLocalHost().getHostName());
+            HashSet<ReadNode> hs = new HashSet<ReadNode>();
+
+            for (ReadNode r : values) {
+                hs.add(new ReadNode(r));
+            }
+
+            String keyStr = key.toString();
 
             boolean found = false;
 
-            for (ReadNode t : values) {
-                if (keyStr.equals(t.hash)) {
+            for (ReadNode r : hs) {
+
+                if (keyStr.equals(r.hash)) {
                     found = true;
-                    break;
                 }
+
             }
 
             if (found) {
-                
-                context.write(key, textJoin(values, ","));
+
+                context.write(key, new ReadNodeSet(hs));
 
             }
         }
-    }
+
+
+       }
+
+
+
 
     /**
      * starts off the hadoop application
@@ -319,16 +332,16 @@ public class Dereplicate {
         }
 
         /*
-        setup blast configuration parameters
+        setup first job configuration parameters
          */
 
         Job job = new Job(conf, "dereplicate-step1");
 
         job.setJarByClass(Dereplicate.class);
         job.setInputFormatClass(FastaInputFormat.class);
-        job.setMapperClass(FastaTokenizerMapper.class);
+        job.setMapperClass(GraphEdgeMapper.class);
         //job.setCombinerClass(IntSumReducer.class);
-        job.setReducerClass(IntSumReducer.class);
+        job.setReducerClass(GraphEdgeReducer.class);
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(ReadNode.class);
         job.setNumReduceTasks(conf.getInt("dereplicate.numreducers", 1));
@@ -336,7 +349,16 @@ public class Dereplicate {
         FileInputFormat.addInputPath(job, new Path(otherArgs[0]));
         FileOutputFormat.setOutputPath(job, new Path(otherArgs[1]));
 
-        System.exit(job.waitForCompletion(true) ? 0 : 1);
+        job.waitForCompletion(true);
+
+        /*
+        now setup groups
+         */
+
+
+
+        job.waitForCompletion(true);
+
     }
 }
 

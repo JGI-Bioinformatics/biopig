@@ -18,6 +18,13 @@ public class ReadNode implements Writable {
     this.sequence = sequence;
   }
 
+  public ReadNode(ReadNode n) {
+      if (n != null) {
+      this.id = n.id;
+      this.hash = n.hash;
+      this.sequence = n.sequence;
+      }
+  }
   public ReadNode() {
     this("", "", "");
   }
@@ -39,5 +46,18 @@ public class ReadNode implements Writable {
   public String toString() {
       return id + "&" + hash + "&" + sequence;
   }
+
+
+    public boolean equals(Object o) {
+      if (!(o instanceof ReadNode)) {
+        return false;
+      }
+      ReadNode other = (ReadNode) o;
+      return (other.id.equals(this.id));
+    }
+
+    public int hashCode() {
+        return this.id.hashCode();
+    }
 
 }
