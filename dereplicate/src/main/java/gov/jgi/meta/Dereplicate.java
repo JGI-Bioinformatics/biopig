@@ -233,7 +233,7 @@ public class Dereplicate {
 
 
 public static class AggregateMapper
-            extends Mapper<LongWritable, Text, Text, IntWritable> {
+            extends Mapper<LongWritable, Text, Text, Text> {
 
         Logger log = Logger.getLogger(AggregateMapper.class);
 
@@ -244,25 +244,32 @@ public static class AggregateMapper
             ReadNodeSet rs = new ReadNodeSet(lineArray[1]);
 
             for (ReadNode r : rs.s) {
-                context.write(new Text(r.id), new IntWritable(1));
+                context.write(new Text(r.id), new Text(rs.canonicalName()));
             }
         }
 }
 
 
-    public static class AggregateReducer extends Reducer<Text, IntWritable, Text, IntWritable> {
+    public static class AggregateReducer extends Reducer<Text, Text, Text, Text> {
 
         Logger log = Logger.getLogger(AggregateReducer.class);
 
-        public void reduce(Text key, Iterable<IntWritable> values, Context context)
+        private Text textJoin(Iterable<Text> l, String s) {
+            StringBuilder sb = new StringBuilder();
+
+            Iterator<Text> i = l.iterator();
+            if (!i.hasNext()) return new Text(sb.toString());
+            else sb = sb.append(i.next().toString());
+
+            while ( i.hasNext() ){
+                sb = sb.append(s).append(i.next().toString());
+            }
+            return new Text(sb.toString());
+        }
+        public void reduce(Text key, Iterable<Text> values, Context context)
                 throws InterruptedException, IOException {
 
-            int i = 0;
-            for (IntWritable x : values) {
-                i++;
-            }
-
-            context.write(key, new IntWritable(i));
+            context.write(key, new Text(textJoin(values,"&")));
             
        }
     }
@@ -398,7 +405,7 @@ public static class AggregateMapper
         //job.setCombinerClass(IntSumReducer.class);
         job2.setReducerClass(AggregateReducer.class);
         job2.setOutputKeyClass(Text.class);
-        job2.setOutputValueClass(IntWritable.class);
+        job2.setOutputValueClass(Text.class);
         job2.setNumReduceTasks(conf.getInt("dereplicate.numreducers", 1));
 
         FileInputFormat.addInputPath(job2, new Path(otherArgs[1]));

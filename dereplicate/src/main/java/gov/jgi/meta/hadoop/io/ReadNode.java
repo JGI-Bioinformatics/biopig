@@ -7,7 +7,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-public class ReadNode implements Writable {
+public class ReadNode implements Writable, Comparable {
     public String id;
     public String hash;
     public String sequence;
@@ -50,12 +50,9 @@ public class ReadNode implements Writable {
 
   }
 
-
-
   public String toString() {
       return id + "&" + hash + "&" + sequence;
   }
-
 
     public boolean equals(Object o) {
       if (!(o instanceof ReadNode)) {
@@ -67,6 +64,15 @@ public class ReadNode implements Writable {
 
     public int hashCode() {
         return this.id.hashCode();
+    }
+
+    public int compareTo(Object r) {
+        if (!(r instanceof ReadNode)) {
+            throw new ClassCastException("object can't be compared, wrong class");
+        } else {
+            ReadNode rn = (ReadNode) r;
+            return this.id.compareTo(rn.id);
+        }
     }
 
 }

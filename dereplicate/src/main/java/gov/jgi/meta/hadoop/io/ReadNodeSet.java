@@ -18,7 +18,7 @@ public class ReadNodeSet implements Writable {
   }
 
   public ReadNodeSet(Iterable<ReadNode> v) {
-      this.s = new HashSet<ReadNode>();
+      this.s = new TreeSet<ReadNode>();
       Iterator<ReadNode> i;
 
       i = v.iterator();
@@ -33,11 +33,11 @@ public class ReadNodeSet implements Writable {
 
 
   public ReadNodeSet() {
-    this(new HashSet<ReadNode>());
+    this(new TreeSet<ReadNode>());
   }
 
     public ReadNodeSet(String serialized) {
-        this.s = new HashSet<ReadNode>();
+        this.s = new TreeSet<ReadNode>();
 
         String[] a = serialized.split(",");
         for (int i = 1; i < a.length; i++) {
@@ -60,7 +60,7 @@ public class ReadNodeSet implements Writable {
   public void readFields(DataInput in) throws IOException {
 
       this.length = in.readInt();
-      this.s = new HashSet<ReadNode>();
+      this.s = new TreeSet<ReadNode>();
       for (int i = 0; i < length; i++) {
          ReadNode r = new ReadNode();
          r.readFields(in);
@@ -77,4 +77,19 @@ public class ReadNodeSet implements Writable {
       return sb.toString();
   }
 
+
+  public String canonicalName() {
+      StringBuilder sb = new StringBuilder();
+      boolean first = true;
+      for (ReadNode r : this.s) {
+          if (first) {
+              sb.append(r.id);
+              first = false;
+          }
+          else {
+              sb.append(",").append(r.id);
+          }
+      }
+      return sb.toString();
+  }
 }
