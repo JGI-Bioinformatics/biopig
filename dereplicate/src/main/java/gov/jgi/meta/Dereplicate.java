@@ -42,11 +42,13 @@ import gov.jgi.meta.hadoop.io.ReadNodeSet;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.util.GenericOptionsParser;
 
@@ -230,6 +232,40 @@ public class Dereplicate {
        }
 
 
+public static class AggregateMapper
+            extends Mapper<LongWritable, Text, Text, IntWritable> {
+
+        Logger log = Logger.getLogger(AggregateMapper.class);
+
+        public void map(LongWritable count, Text line, Context context) throws IOException, InterruptedException {
+
+            String[] lineArray = line.toString().split("\t");
+            String hash = lineArray[0];
+            ReadNodeSet rs = new ReadNodeSet(lineArray[1]);
+
+            for (ReadNode r : rs.s) {
+                context.write(new Text(r.id), new IntWritable(1));
+            }
+        }
+}
+
+
+    public static class AggregateReducer extends Reducer<Text, IntWritable, Text, IntWritable> {
+
+        Logger log = Logger.getLogger(AggregateReducer.class);
+
+        public void reduce(Text key, Iterable<IntWritable> values, Context context)
+                throws InterruptedException, IOException {
+
+            int i = 0;
+            for (IntWritable x : values) {
+                i++;
+            }
+
+            context.write(key, new IntWritable(i));
+            
+       }
+    }
 
 
     /**
@@ -302,7 +338,7 @@ public class Dereplicate {
         /*
         process arguments
          */
-        if (otherArgs.length != 2) {
+        if (otherArgs.length != 3) {
             System.err.println("Usage: dereplicate <readfile> <outputdir>");
             System.exit(2);
         }
@@ -354,10 +390,22 @@ public class Dereplicate {
         /*
         now setup groups
          */
+        Job job2 = new Job(conf, "dereplicate-step2");
+
+        job2.setJarByClass(Dereplicate.class);
+        job2.setInputFormatClass(TextInputFormat.class);
+        job2.setMapperClass(AggregateMapper.class);
+        //job.setCombinerClass(IntSumReducer.class);
+        job2.setReducerClass(AggregateReducer.class);
+        job2.setOutputKeyClass(Text.class);
+        job2.setOutputValueClass(IntWritable.class);
+        job2.setNumReduceTasks(conf.getInt("dereplicate.numreducers", 1));
+
+        FileInputFormat.addInputPath(job2, new Path(otherArgs[1]));
+        FileOutputFormat.setOutputPath(job2, new Path(otherArgs[2]));
 
 
-
-        job.waitForCompletion(true);
+        job2.waitForCompletion(true);
 
     }
 }

@@ -29,6 +29,13 @@ public class ReadNode implements Writable {
     this("", "", "");
   }
 
+    public ReadNode(String serialized) {
+        String[] a = serialized.split("&");
+        this.id = a[0];
+        this.hash = a[1];
+        this.sequence = a[2];
+    }
+
   public void write(DataOutput out) throws IOException {
       WritableUtils.writeString(out, id);
       WritableUtils.writeString(out, hash);
@@ -42,6 +49,8 @@ public class ReadNode implements Writable {
       sequence = WritableUtils.readString(in);
 
   }
+
+
 
   public String toString() {
       return id + "&" + hash + "&" + sequence;

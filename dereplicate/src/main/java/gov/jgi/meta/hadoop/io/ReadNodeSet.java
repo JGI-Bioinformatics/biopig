@@ -9,8 +9,8 @@ import java.io.IOException;
 import java.util.*;
 
 public class ReadNodeSet implements Writable {
-    int length;
-    Set<ReadNode> s;
+    public int length;
+    public Set<ReadNode> s;
 
   public ReadNodeSet(Set<ReadNode> s) {
     this.s = s;
@@ -35,6 +35,19 @@ public class ReadNodeSet implements Writable {
   public ReadNodeSet() {
     this(new HashSet<ReadNode>());
   }
+
+    public ReadNodeSet(String serialized) {
+        this.s = new HashSet<ReadNode>();
+
+        String[] a = serialized.split(",");
+        for (int i = 1; i < a.length; i++) {
+            ReadNode r = new ReadNode(a[i]);
+            s.add(r);
+        }
+
+        this.length = s.size();
+
+    }
 
   public void write(DataOutput out) throws IOException {
 
