@@ -109,7 +109,7 @@ public class Dereplicate {
             }
 
             int windowSize = context.getConfiguration().getInt("windowsize", 16);
-            int editDistance = context.getConfiguration().getInt("editdistance", 2);
+            int editDistance = context.getConfiguration().getInt("editdistance", 1);
 
             String sequenceHashValue = sequence.substring(0, windowSize) + StringUtils.reverse(sequence).substring(0,20);
 
@@ -233,7 +233,7 @@ public class Dereplicate {
 
 
 public static class AggregateMapper
-            extends Mapper<LongWritable, Text, Text, Text> {
+            extends Mapper<LongWritable, Text, ReadNode, Text> {
 
         Logger log = Logger.getLogger(AggregateMapper.class);
 
@@ -244,13 +244,13 @@ public static class AggregateMapper
             ReadNodeSet rs = new ReadNodeSet(lineArray[1]);
 
             for (ReadNode r : rs.s) {
-                context.write(new Text(r.id), new Text(rs.canonicalName()));
+                context.write(r, new Text(rs.canonicalName()));
             }
         }
 }
 
 
-    public static class AggregateReducer extends Reducer<Text, Text, Text, Text> {
+    public static class AggregateReducer extends Reducer<ReadNode, Text, ReadNode, Text> {
 
         Logger log = Logger.getLogger(AggregateReducer.class);
 
@@ -266,48 +266,43 @@ public static class AggregateMapper
             }
             return new Text(sb.toString());
         }
-        public void reduce(Text key, Iterable<Text> values, Context context)
+        public void reduce(ReadNode key, Iterable<Text> values, Context context)
                 throws InterruptedException, IOException {
 
-            context.write(key, new Text(textJoin(values,"&")));
-            
+            int max = 0;
+            Text rsMax = null;
+            for (Text rs : values) {
+                String[] rsComponents = rs.toString().split(",");
+                if (rsComponents.length > max) {
+                    max = rsComponents.length;
+                    rsMax = rs;
+                }
+            }
+
+            context.write(key, rsMax);
+
        }
     }
 
 
 public static class ChooseMapper
-            extends Mapper<LongWritable, Text, Text, Text> {
+            extends Mapper<LongWritable, Text, Text, ReadNode> {
 
         Logger log = Logger.getLogger(AggregateMapper.class);
 
         public void map(LongWritable count, Text line, Context context) throws IOException, InterruptedException {
 
             String[] lineArray = line.toString().split("\t");
-            String nodeId = lineArray[0];
-            String[] groups = lineArray[1].split("&");
+            ReadNode r = new ReadNode(lineArray[0]);
+            Text rsName = new Text(lineArray[1]);
 
-            int groupMaxSize = 0;
-            String groupMax = null;
-
-            for (String group : groups) {
-
-                String[] groupMembers = group.split(",");
-                if (groupMembers.length > groupMaxSize) {
-                    groupMaxSize = groupMembers.length;
-                    groupMax = group;
-                }
-
-            }
-
-            if (groupMax != null) {
-                context.write(new Text(groupMax), new Text(nodeId));
-            }
+            context.write(rsName, r);
 
         }
 }
 
 
-    public static class ChooseReducer extends Reducer<Text, Text, Text, Text> {
+    public static class ChooseReducer extends Reducer<Text, ReadNode, Text, Text> {
 
         Logger log = Logger.getLogger(AggregateReducer.class);
 
@@ -324,10 +319,16 @@ public static class ChooseMapper
             return new Text(sb.toString());
         }
 
-        public void reduce(Text key, Iterable<Text> values, Context context)
+        public void reduce(Text key, Iterable<ReadNode> values, Context context)
                 throws InterruptedException, IOException {
 
-            context.write(key, new Text(textJoin(values,",")));
+            // determine consensus sequence and output fasta formatted file
+            // key is the group canonical name
+            // values are the set of read nodes
+
+            ReadNodeSet rs = new ReadNodeSet(values);
+
+            context.write(new Text(rs.fastaHeader()), new Text(rs.fastaConsensusSequence()));
 
        }
     }
@@ -462,7 +463,7 @@ public static class ChooseMapper
         job2.setMapperClass(AggregateMapper.class);
         //job.setCombinerClass(IntSumReducer.class);
         job2.setReducerClass(AggregateReducer.class);
-        job2.setOutputKeyClass(Text.class);
+        job2.setOutputKeyClass(ReadNode.class);
         job2.setOutputValueClass(Text.class);
         job2.setNumReduceTasks(conf.getInt("dereplicate.numreducers", 1));
 
@@ -483,7 +484,7 @@ public static class ChooseMapper
         //job.setCombinerClass(IntSumReducer.class);
         job3.setReducerClass(ChooseReducer.class);
         job3.setOutputKeyClass(Text.class);
-        job3.setOutputValueClass(Text.class);
+        job3.setOutputValueClass(ReadNode.class);
         job3.setNumReduceTasks(conf.getInt("dereplicate.numreducers", 1));
 
         FileInputFormat.addInputPath(job3, new Path(otherArgs[1]+"/step2"));

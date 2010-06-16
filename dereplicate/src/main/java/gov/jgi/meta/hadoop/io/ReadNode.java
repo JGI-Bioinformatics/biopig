@@ -1,13 +1,14 @@
 package gov.jgi.meta.hadoop.io;
 
 import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.io.WritableUtils;
 
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-public class ReadNode implements Writable, Comparable {
+public class ReadNode implements WritableComparable {
     public String id;
     public String hash;
     public String sequence;
@@ -73,6 +74,16 @@ public class ReadNode implements Writable, Comparable {
             ReadNode rn = (ReadNode) r;
             return this.id.compareTo(rn.id);
         }
+    }
+
+    public int[] getCounts(int i) {
+        int[] totals = {0, 0, 0, 0}; // a t g c
+        if (sequence.charAt(i) == 'a') totals[0]++;
+        else if (sequence.charAt(i) == 't') totals[1]++;
+        else if (sequence.charAt(i) == 'g') totals[2]++;
+        else if (sequence.charAt(i) == 'c') totals[3]++;
+
+        return totals;
     }
 
 }
