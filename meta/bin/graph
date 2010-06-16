@@ -38,9 +38,10 @@ System.in.eachLine() { line ->
 
 //   println("processing line " + line);
 
-   String[] nodes = line.split("\t")[1].split(",");
+   if (line.charAt(0) == '>') {
+       String[] nodes = line.substring(1).split(",");
 
- //  println("num nodes = " + nodes.length);
+ // println("num nodes = " + nodes.length);
 
    for (int i=0; i < nodes.length; i++) {
       println("\"" + nodes[i] + "\"" + ";");
@@ -48,7 +49,7 @@ System.in.eachLine() { line ->
          println("\"" + nodes[i] + "\"" + " -- " + "\"" + nodes[j] + "\"" + ";");
       }
    }
-
+}
 }  
 
 println("}");
