@@ -108,8 +108,8 @@ public class Dereplicate {
                 return;
             }
 
-            int windowSize = context.getConfiguration().getInt("windowsize", 20);
-            int editDistance = context.getConfiguration().getInt("editdistance", 1);
+            int windowSize = context.getConfiguration().getInt("windowsize", 16);
+            int editDistance = context.getConfiguration().getInt("editdistance", 2);
 
             String sequenceHashValue = sequence.substring(0, windowSize) + StringUtils.reverse(sequence).substring(0,20);
 
@@ -275,6 +275,64 @@ public static class AggregateMapper
     }
 
 
+public static class ChooseMapper
+            extends Mapper<LongWritable, Text, Text, Text> {
+
+        Logger log = Logger.getLogger(AggregateMapper.class);
+
+        public void map(LongWritable count, Text line, Context context) throws IOException, InterruptedException {
+
+            String[] lineArray = line.toString().split("\t");
+            String nodeId = lineArray[0];
+            String[] groups = lineArray[1].split("&");
+
+            int groupMaxSize = 0;
+            String groupMax = null;
+
+            for (String group : groups) {
+
+                String[] groupMembers = group.split(",");
+                if (groupMembers.length > groupMaxSize) {
+                    groupMaxSize = groupMembers.length;
+                    groupMax = group;
+                }
+
+            }
+
+            if (groupMax != null) {
+                context.write(new Text(groupMax), new Text(nodeId));
+            }
+
+        }
+}
+
+
+    public static class ChooseReducer extends Reducer<Text, Text, Text, Text> {
+
+        Logger log = Logger.getLogger(AggregateReducer.class);
+
+        private Text textJoin(Iterable<Text> l, String s) {
+            StringBuilder sb = new StringBuilder();
+
+            Iterator<Text> i = l.iterator();
+            if (!i.hasNext()) return new Text(sb.toString());
+            else sb = sb.append(i.next().toString());
+
+            while ( i.hasNext() ){
+                sb = sb.append(s).append(i.next().toString());
+            }
+            return new Text(sb.toString());
+        }
+
+        public void reduce(Text key, Iterable<Text> values, Context context)
+                throws InterruptedException, IOException {
+
+            context.write(key, new Text(textJoin(values,",")));
+
+       }
+    }
+
+
     /**
      * starts off the hadoop application
      *
@@ -345,7 +403,7 @@ public static class AggregateMapper
         /*
         process arguments
          */
-        if (otherArgs.length != 3) {
+        if (otherArgs.length != 2) {
             System.err.println("Usage: dereplicate <readfile> <outputdir>");
             System.exit(2);
         }
@@ -390,7 +448,7 @@ public static class AggregateMapper
         job.setNumReduceTasks(conf.getInt("dereplicate.numreducers", 1));
 
         FileInputFormat.addInputPath(job, new Path(otherArgs[0]));
-        FileOutputFormat.setOutputPath(job, new Path(otherArgs[1]));
+        FileOutputFormat.setOutputPath(job, new Path(otherArgs[1]+"/step1"));
 
         job.waitForCompletion(true);
 
@@ -408,11 +466,30 @@ public static class AggregateMapper
         job2.setOutputValueClass(Text.class);
         job2.setNumReduceTasks(conf.getInt("dereplicate.numreducers", 1));
 
-        FileInputFormat.addInputPath(job2, new Path(otherArgs[1]));
-        FileOutputFormat.setOutputPath(job2, new Path(otherArgs[2]));
+        FileInputFormat.addInputPath(job2, new Path(otherArgs[1]+"/step1"));
+        FileOutputFormat.setOutputPath(job2, new Path(otherArgs[1]+"/step2"));
 
 
         job2.waitForCompletion(true);
+
+        /*
+        now setup groups
+         */
+        Job job3 = new Job(conf, "dereplicate-step2");
+
+        job3.setJarByClass(Dereplicate.class);
+        job3.setInputFormatClass(TextInputFormat.class);
+        job3.setMapperClass(ChooseMapper.class);
+        //job.setCombinerClass(IntSumReducer.class);
+        job3.setReducerClass(ChooseReducer.class);
+        job3.setOutputKeyClass(Text.class);
+        job3.setOutputValueClass(Text.class);
+        job3.setNumReduceTasks(conf.getInt("dereplicate.numreducers", 1));
+
+        FileInputFormat.addInputPath(job3, new Path(otherArgs[1]+"/step2"));
+        FileOutputFormat.setOutputPath(job3, new Path(otherArgs[1]+"/step3"));
+
+        job3.waitForCompletion(true);
 
     }
 }
