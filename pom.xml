@@ -15,6 +15,7 @@
         <module>blast</module>
         <module>blat</module>
         <module>assembly</module>
+        <module>dereplicate</module>
         <module>meta</module>
     </modules>
     

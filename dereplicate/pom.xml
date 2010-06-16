@@ -72,7 +72,7 @@
                     <archive>
                         <manifest>
                             <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
-                             <mainClass>gov.jgi.meta.blatFilter</mainClass>
+                             <mainClass>gov.jgi.meta.Dereplicate</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
