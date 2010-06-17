@@ -148,8 +148,8 @@ public class Dereplicate {
                 return;
             }
 
-            int windowSize = context.getConfiguration().getInt("windowsize", 16);
-            int editDistance = context.getConfiguration().getInt("editdistance", 1);
+            int windowSize = context.getConfiguration().getInt("dereplicate.windowsize", 16);
+            int editDistance = context.getConfiguration().getInt("dereplicate.editdistance", 1);
 
 
             try {
@@ -467,11 +467,9 @@ public static class ChooseMapper
         String[] optionalProperties = {
                 "mapred.min.split.size",
                 "mapred.max.split.size",
-                "blast.commandline",
-                "blast.commandpath",
-                "blast.tmpdir",
-                "blast.cleanup",
-                "blast.numreducers"
+                "dereplicate.numreducers",
+                "dereplicate.editdistance",
+                "dereplicate.windowsize"
         };
 
         for (String option : optionalProperties) {
