@@ -59,6 +59,54 @@ import org.biojava.bio.seq.Sequence;
 
 public class Dereplicate {
 
+    public static class PairMapper
+            extends Mapper<Text, Sequence, Text, Text> {
+
+        Logger log = Logger.getLogger(AggregateReducer.class);
+
+        public void map(Text seqid, Sequence s, Context context) throws IOException, InterruptedException {
+            String sequence = s.seqString();
+            if (!sequence.matches("[atgcn]*")) {
+                log.error("sequence " + seqid + " is not well formed: " + sequence);
+                return;
+            }
+            String[] seqNameArray = seqid.toString().split("/");
+            context.write(new Text(seqNameArray[0]), new Text(sequence));
+        }
+    }
+
+
+
+    public static class PairReducer extends Reducer<Text, Text, Text, Text> {
+
+        Logger log = Logger.getLogger(AggregateReducer.class);
+
+        public Text pairJoin(Iterable<Text> l) {
+                   StringBuilder sb = new StringBuilder();
+                   sb.append("\n");
+
+                   Iterator<Text> i = l.iterator();
+                   if (!i.hasNext()) return new Text(sb.toString());
+                   else {
+                       sb = sb.append(i.next().toString());
+                       if (!i.hasNext()) {
+                           log.error("missing pair!");
+                           return new Text("");
+                       }
+                       sb = sb.append(StringUtils.reverse(i.next().toString()));
+                   }
+                   return new Text(sb.toString());
+           }
+
+
+        public void reduce(Text key, Iterable<Text> values, Context context)
+                throws InterruptedException, IOException {
+
+            context.write(new Text(">" + key.toString()), pairJoin(values));
+
+       }
+    }
+
     public static class GraphEdgeMapper
             extends Mapper<Text, Sequence, Text, ReadNode> {
 
@@ -67,14 +115,6 @@ public class Dereplicate {
 
         Logger log = Logger.getLogger(GraphEdgeMapper.class);
 
-        /**
-         * initialization of mapper retrieves connection parameters from context and opens socket
-         * to cassandra data server
-         *
-         * @param context
-         * @throws IOException
-         * @throws InterruptedException
-         */
         protected void setup(Context context)
                 throws IOException, InterruptedException
         {
@@ -96,27 +136,34 @@ public class Dereplicate {
 
 
         public void map(Text key, Sequence value, Context context) throws IOException, InterruptedException {
-
+            String keyStr = key.toString().trim();
             log.debug("map function called with value = " + value.toString());
             log.debug("\tcontext = " + context.toString());
-            log.debug("\tkey = " + key.toString());
+            log.debug("\tkey = " + keyStr);
             log.debug("\thostname = " + InetAddress.getLocalHost().getHostName());
 
             String sequence = value.seqString();
             if (!sequence.matches("[atgcn]*")) {
-                log.error("sequence " + key + " is not well formed: " + value);
+                log.error("sequence " + keyStr + " is not well formed: " + value);
                 return;
             }
 
             int windowSize = context.getConfiguration().getInt("windowsize", 16);
             int editDistance = context.getConfiguration().getInt("editdistance", 1);
 
-            String sequenceHashValue = sequence.substring(0, windowSize) + StringUtils.reverse(sequence).substring(0,20);
 
-            context.write(new Text(sequenceHashValue), new ReadNode(key.toString(), sequenceHashValue, sequence));
-            for (String neighbor : generateAllNeighbors(sequenceHashValue, editDistance)) {
-                context.write(new Text(neighbor), new ReadNode(key.toString(), sequenceHashValue, sequence));
+            try {
+                String sequenceHashValue = sequence.substring(0, windowSize) + StringUtils.reverse(sequence).substring(0,windowSize);
+
+                context.write(new Text(sequenceHashValue), new ReadNode(keyStr, sequenceHashValue, sequence));
+                for (String neighbor : generateAllNeighbors(sequenceHashValue, editDistance)) {
+                context.write(new Text(neighbor), new ReadNode(keyStr, sequenceHashValue, sequence));
+                }
+            }catch (Exception e) {
+                log.error("error sequence not correct: id = " + keyStr + " sequence = " + sequence + " \n original message: " + e);
             }
+
+
         }
 
         private Set<String> generateAllNeighbors(String start, int distance) {
@@ -132,7 +179,7 @@ public class Dereplicate {
             for (int i = 0; i < start.length(); i++) {
 
                 for (String basePair : bases) {
-
+                    if (basePair.equals(start.substring(i, i))) continue;
                     for (String neighbor : generateAllNeighbors(stringReplaceIth(start, i, basePair), distance-1)) {
                         s.add(neighbor);
                     }
@@ -433,6 +480,23 @@ public static class ChooseMapper
             }
         }
 
+
+        Job job0 = new Job(conf, "dereplicate-step0");
+
+        job0.setJarByClass(Dereplicate.class);
+        job0.setInputFormatClass(FastaInputFormat.class);
+        job0.setMapperClass(PairMapper.class);
+        //job.setCombinerClass(IntSumReducer.class);
+        job0.setReducerClass(PairReducer.class);
+        job0.setOutputKeyClass(Text.class);
+        job0.setOutputValueClass(Text.class);
+        job0.setNumReduceTasks(conf.getInt("dereplicate.numreducers", 1));
+
+        FileInputFormat.addInputPath(job0, new Path(otherArgs[0]));
+        FileOutputFormat.setOutputPath(job0, new Path(otherArgs[1]+"/step0"));
+
+        job0.waitForCompletion(true);
+
         /*
         setup first job configuration parameters
          */
@@ -448,7 +512,7 @@ public static class ChooseMapper
         job.setOutputValueClass(ReadNode.class);
         job.setNumReduceTasks(conf.getInt("dereplicate.numreducers", 1));
 
-        FileInputFormat.addInputPath(job, new Path(otherArgs[0]));
+        FileInputFormat.addInputPath(job, new Path(otherArgs[1]+"/step0"));
         FileOutputFormat.setOutputPath(job, new Path(otherArgs[1]+"/step1"));
 
         job.waitForCompletion(true);
