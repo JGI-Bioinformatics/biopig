@@ -204,7 +204,7 @@ public class Dereplicate {
        /**
      * simple reducer that just outputs the matches grouped by gene
      */
-    public static class GraphEdgeReducer extends Reducer<Text, ReadNode, Text, ReadNodeSet> {
+    public static class GraphEdgeReducer extends Reducer<Text, ReadNode, Text, LongWritable> {
 
         Logger log = Logger.getLogger(GraphEdgeReducer.class);
 
@@ -250,16 +250,14 @@ public class Dereplicate {
         public void reduce(Text key, Iterable<ReadNode> values, Context context)
                 throws InterruptedException, IOException {
 
-            HashSet<ReadNode> hs = new HashSet<ReadNode>();
-
-            for (ReadNode r : values) {
-                hs.add(new ReadNode(r));
-            }
-
+            ReadNodeSet rns = new ReadNodeSet(values);
             String keyStr = key.toString();
 
-            boolean found = false;
+            if (rns.s.contains(keyStr));
 
+
+
+            // can be improved! don't loop, use the hashSet equality.
             for (ReadNode r : hs) {
 
                 if (keyStr.equals(r.hash)) {
@@ -269,8 +267,8 @@ public class Dereplicate {
             }
 
             if (found) {
-
-                context.write(key, new ReadNodeSet(hs));
+                // don't write the readnodeset in total.. use hashcodes of the string...
+                context.write(key, new LongWritable(new ReadNodeSet(hs).canonicalName()));
 
             }
         }
@@ -288,7 +286,7 @@ public static class AggregateMapper
 
             String[] lineArray = line.toString().split("\t");
             String hash = lineArray[0];
-            ReadNodeSet rs = new ReadNodeSet(lineArray[1]);
+            Integer groupid = Integer.parseInt(lineArray[1]);
 
             for (ReadNode r : rs.s) {
                 context.write(r, new Text(rs.canonicalName()));
@@ -296,23 +294,10 @@ public static class AggregateMapper
         }
 }
 
-
     public static class AggregateReducer extends Reducer<ReadNode, Text, ReadNode, Text> {
 
         Logger log = Logger.getLogger(AggregateReducer.class);
 
-        private Text textJoin(Iterable<Text> l, String s) {
-            StringBuilder sb = new StringBuilder();
-
-            Iterator<Text> i = l.iterator();
-            if (!i.hasNext()) return new Text(sb.toString());
-            else sb = sb.append(i.next().toString());
-
-            while ( i.hasNext() ){
-                sb = sb.append(s).append(i.next().toString());
-            }
-            return new Text(sb.toString());
-        }
         public void reduce(ReadNode key, Iterable<Text> values, Context context)
                 throws InterruptedException, IOException {
 

@@ -79,7 +79,7 @@ public class ReadNodeSet implements WritableComparable {
   }
 
 
-  public String canonicalName() {
+  public Integer canonicalName() {
       StringBuilder sb = new StringBuilder();
       boolean first = true;
       for (ReadNode r : this.s) {
@@ -91,7 +91,7 @@ public class ReadNodeSet implements WritableComparable {
               sb.append(",").append(r.id);
           }
       }
-      return sb.toString();
+      return sb.toString().hashCode();
   }
 
     public int compareTo(Object r) {
