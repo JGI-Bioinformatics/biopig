@@ -78,8 +78,16 @@ public class ReadNodeSet implements WritableComparable {
       return sb.toString();
   }
 
+    public boolean findHash(String hash) {
+        for (ReadNode r : this.s ) {
+            if (hash.equals(r.hash)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
-  public Integer canonicalName() {
+  public String canonicalName() {
       StringBuilder sb = new StringBuilder();
       boolean first = true;
       for (ReadNode r : this.s) {
@@ -91,7 +99,7 @@ public class ReadNodeSet implements WritableComparable {
               sb.append(",").append(r.id);
           }
       }
-      return sb.toString().hashCode();
+      return length + "." + sb.toString().hashCode();
   }
 
     public int compareTo(Object r) {

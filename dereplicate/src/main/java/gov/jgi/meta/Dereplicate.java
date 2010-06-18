@@ -110,37 +110,10 @@ public class Dereplicate {
     public static class GraphEdgeMapper
             extends Mapper<Text, Sequence, Text, ReadNode> {
 
-        private final static IntWritable one = new IntWritable(1);
-        private Text word = new Text();
-
         Logger log = Logger.getLogger(GraphEdgeMapper.class);
-
-        protected void setup(Context context)
-                throws IOException, InterruptedException
-        {
-
-            log.info("initializing mapper class for job: " + context.getJobName());
-            log.info("\tcontext = " + context.toString());
-            log.info("\tinitializing mapper on host: " + InetAddress.getLocalHost().getHostName());
-        }
-
-        /**
-         * free resource after mapper has finished, ie close socket to cassandra server
-         *
-         * @param context
-         */
-        protected void cleanup(Context context) {
-
-        }
-
-
 
         public void map(Text key, Sequence value, Context context) throws IOException, InterruptedException {
             String keyStr = key.toString().trim();
-            log.debug("map function called with value = " + value.toString());
-            log.debug("\tcontext = " + context.toString());
-            log.debug("\tkey = " + keyStr);
-            log.debug("\thostname = " + InetAddress.getLocalHost().getHostName());
 
             String sequence = value.seqString();
             if (!sequence.matches("[atgcn]*")) {
@@ -154,10 +127,11 @@ public class Dereplicate {
 
             try {
                 String sequenceHashValue = sequence.substring(0, windowSize) + StringUtils.reverse(sequence).substring(0,windowSize);
+                ReadNode rn = new ReadNode(keyStr, sequenceHashValue, sequence);
 
-                context.write(new Text(sequenceHashValue), new ReadNode(keyStr, sequenceHashValue, sequence));
-                for (String neighbor : generateAllNeighbors(sequenceHashValue, editDistance)) {
-                context.write(new Text(neighbor), new ReadNode(keyStr, sequenceHashValue, sequence));
+                context.write(new Text(sequenceHashValue), rn);
+                for (String neighborHashValue : generateAllNeighbors(sequenceHashValue, editDistance)) {
+                    context.write(new Text(neighborHashValue), rn);
                 }
             }catch (Exception e) {
                 log.error("error sequence not correct: id = " + keyStr + " sequence = " + sequence + " \n original message: " + e);
@@ -198,54 +172,12 @@ public class Dereplicate {
         }
     }
 
-
-
-
-       /**
+    /**
      * simple reducer that just outputs the matches grouped by gene
      */
-    public static class GraphEdgeReducer extends Reducer<Text, ReadNode, Text, LongWritable> {
+    public static class GraphEdgeReducer extends Reducer<Text, ReadNode, ReadNode, Text> {
 
         Logger log = Logger.getLogger(GraphEdgeReducer.class);
-
-        /**
-         * initialization of mapper retrieves connection parameters from context and opens socket
-         * to cassandra data server
-         *
-         * @param context is the hadoop reducer context
-         */
-        protected void setup(Reducer.Context context) throws UnknownHostException {
-
-            log.debug("initializing reducer class for job: " + context.getJobName());
-            log.debug("\tinitializing reducer on host: " + InetAddress.getLocalHost().getHostName());
-
-            context.getCounter(KmerCounters.NUMBER_OF_REDUCE_TASKS).increment(1);
-
-        }
-
-        /**
-         * free resource after mapper has finished, ie close socket to cassandra server
-         *
-         * @param context the reducer context
-         */
-        protected void cleanup(Reducer.Context context) {
-
-            /* void */
-
-        }
-
-        private Text textJoin(Iterable<ReadNode> l, String s) {
-            StringBuilder sb = new StringBuilder();
-
-            Iterator<ReadNode> i = l.iterator();
-            if (!i.hasNext()) return new Text(sb.toString());
-            else sb = sb.append(i.next().toString());
-
-            while ( i.hasNext() ){
-                sb = sb.append(s).append(i.next().toString());
-            }
-            return new Text(sb.toString());
-        }
 
         public void reduce(Text key, Iterable<ReadNode> values, Context context)
                 throws InterruptedException, IOException {
@@ -253,31 +185,16 @@ public class Dereplicate {
             ReadNodeSet rns = new ReadNodeSet(values);
             String keyStr = key.toString();
 
-            if (rns.s.contains(keyStr));
-
-
-
-            // can be improved! don't loop, use the hashSet equality.
-            for (ReadNode r : hs) {
-
-                if (keyStr.equals(r.hash)) {
-                    found = true;
+            if (rns.findHash(keyStr)) {
+                for (ReadNode r : rns.s) {
+                    context.write(r, new Text(rns.canonicalName()));
                 }
-
-            }
-
-            if (found) {
-                // don't write the readnodeset in total.. use hashcodes of the string...
-                context.write(key, new LongWritable(new ReadNodeSet(hs).canonicalName()));
-
             }
         }
+    }
 
 
-       }
-
-
-public static class AggregateMapper
+    public static class AggregateMapper
             extends Mapper<LongWritable, Text, ReadNode, Text> {
 
         Logger log = Logger.getLogger(AggregateMapper.class);
@@ -285,12 +202,10 @@ public static class AggregateMapper
         public void map(LongWritable count, Text line, Context context) throws IOException, InterruptedException {
 
             String[] lineArray = line.toString().split("\t");
-            String hash = lineArray[0];
-            Integer groupid = Integer.parseInt(lineArray[1]);
+            ReadNode r = new ReadNode(lineArray[0]);
+            String groupid = lineArray[1];
 
-            for (ReadNode r : rs.s) {
-                context.write(r, new Text(rs.canonicalName()));
-            }
+            context.write(r, new Text(groupid));
         }
 }
 
@@ -304,9 +219,10 @@ public static class AggregateMapper
             int max = 0;
             Text rsMax = null;
             for (Text rs : values) {
-                String[] rsComponents = rs.toString().split(",");
-                if (rsComponents.length > max) {
-                    max = rsComponents.length;
+                String[] groupidComponents= rs.toString().split("\\.");
+                int groupSize = Integer.parseInt(groupidComponents[0]);
+                if (groupSize > max) {
+                    max = groupSize;
                     rsMax = rs;
                 }
             }
@@ -315,7 +231,6 @@ public static class AggregateMapper
 
        }
     }
-
 
 public static class ChooseMapper
             extends Mapper<LongWritable, Text, Text, ReadNode> {
@@ -337,19 +252,6 @@ public static class ChooseMapper
     public static class ChooseReducer extends Reducer<Text, ReadNode, Text, Text> {
 
         Logger log = Logger.getLogger(AggregateReducer.class);
-
-        private Text textJoin(Iterable<Text> l, String s) {
-            StringBuilder sb = new StringBuilder();
-
-            Iterator<Text> i = l.iterator();
-            if (!i.hasNext()) return new Text(sb.toString());
-            else sb = sb.append(i.next().toString());
-
-            while ( i.hasNext() ){
-                sb = sb.append(s).append(i.next().toString());
-            }
-            return new Text(sb.toString());
-        }
 
         public void reduce(Text key, Iterable<ReadNode> values, Context context)
                 throws InterruptedException, IOException {
