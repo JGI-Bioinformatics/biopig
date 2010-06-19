@@ -14,12 +14,12 @@ public class ReadNodeSet implements WritableComparable {
     public Set<ReadNode> s;
 
   public ReadNodeSet(Set<ReadNode> s) {
-    this.s = s;
+    this.s = new HashSet<ReadNode>(s);
     length = s.size();
   }
 
   public ReadNodeSet(Iterable<ReadNode> v) {
-      this.s = new TreeSet<ReadNode>();
+      this.s = new HashSet<ReadNode>();
       Iterator<ReadNode> i;
 
       i = v.iterator();
@@ -34,11 +34,11 @@ public class ReadNodeSet implements WritableComparable {
 
 
   public ReadNodeSet() {
-    this(new TreeSet<ReadNode>());
+    this(new HashSet<ReadNode>());
   }
 
     public ReadNodeSet(String serialized) {
-        this.s = new TreeSet<ReadNode>();
+        this.s = new HashSet<ReadNode>();
 
         String[] a = serialized.split(",");
         for (int i = 1; i < a.length; i++) {
@@ -56,12 +56,13 @@ public class ReadNodeSet implements WritableComparable {
       for (ReadNode r : s) {
           r.write(out);
       }
+
   }
 
   public void readFields(DataInput in) throws IOException {
 
       this.length = in.readInt();
-      this.s = new TreeSet<ReadNode>();
+      this.s = new HashSet<ReadNode>();
       for (int i = 0; i < length; i++) {
          ReadNode r = new ReadNode();
          r.readFields(in);
@@ -88,18 +89,22 @@ public class ReadNodeSet implements WritableComparable {
     }
 
   public String canonicalName() {
-      StringBuilder sb = new StringBuilder();
+      int totalhashcode = 0;
+      //StringBuilder sb = new StringBuilder();
       boolean first = true;
       for (ReadNode r : this.s) {
           if (first) {
-              sb.append(r.id);
+        //      sb.append(r.id);
+              totalhashcode += r.id.hashCode();
               first = false;
           }
           else {
-              sb.append(",").append(r.id);
+              //sb.append(",").append(r.id);
+              totalhashcode += r.id.hashCode();
           }
       }
-      return length + "." + sb.toString().hashCode();
+      //return length + "." + sb.toString().hashCode();
+      return length + "." + totalhashcode;
   }
 
     public int compareTo(Object r) {
@@ -151,4 +156,29 @@ public class ReadNodeSet implements WritableComparable {
         return sb.toString();
     }
 
+   public static void main(String[] args) throws Exception {
+
+       // test main
+
+
+       Set<ReadNode> s = new HashSet<ReadNode>();
+
+       int max = Integer.parseInt(args[0]);
+       for (int i = 0; i < max; i++) {
+            s.add(new ReadNode("node-" + i, "abcabcabaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "abcaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"));
+       }
+       ReadNodeSet rns = new ReadNodeSet(s);
+       final long startTime = System.nanoTime();
+       final long endTime;
+       try {
+           System.out.println("cannonicalname = " + rns.canonicalName());
+       } finally {
+           endTime = System.nanoTime();
+       }
+       final long duration = endTime - startTime;
+       System.out.println("Time = " + duration);
+
+   }
 }
+
+

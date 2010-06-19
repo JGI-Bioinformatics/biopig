@@ -117,87 +117,145 @@ public class FastaLineReader {
    */
   public int readLine(Text key, Text str, int maxLineLength,
                       int maxBytesToConsume) throws IOException {
-    /* We're reading data from in, but the head of the stream may be
-     * already buffered in buffer, so we have several cases:
-     * 1. No newline characters are in the buffer, so we need to copy
-     *    everything and read another buffer from the stream.
-     * 2. An unambiguously terminated line is in buffer, so we just
-     *    copy to str.
-     * 3. Ambiguously terminated line is in buffer, i.e. buffer ends
-     *    in CR.  In this case we copy everything up to CR to str, but
-     *    we also need to see what follows CR: if it's LF, then we
-     *    need consume LF as well, so next call to readLine will read
-     *    from after that.
-     * We use a flag prevCharCR to signal if previous character was CR
-     * and, if it happens to be at the end of the buffer, delay
-     * consuming it until we have a chance to look at the char that
-     * follows.
-     */
-    str.clear();
-    key.clear();
-    int txtLength = 0; //tracks str.getLength(), as an optimization
-    int recordEnd = 0;
-    int seenData = 0;
-    int newline = 0;
-    int keySeen = 0;
-    //int newlineLength = 0; //length of terminating newline
-    //boolean prevCharCR = false; //true of prev char was CR
-    long bytesConsumed = 0;
-    do {
-      int startPosn = bufferPosn; //starting from where we left off the last time
-      if (bufferPosn >= bufferLength) {
-        startPosn = bufferPosn = 0;
-//        if (prevCharCR)
-//          ++bytesConsumed; //account for CR from previous read
-        bufferLength = in.read(buffer);
-        if (bufferLength <= 0)
-          break; // EOF
-      }
-      for (; bufferPosn < bufferLength; ++bufferPosn) { //search for record end
+        int totalBytesRead = 0;
+        int numRecordsRead = 0;
+        Boolean eof = false;
+        int startPosn;
+        Text recordBlock = new Text();
 
-        if (buffer[bufferPosn] == CR || buffer[bufferPosn] == LF) {
-            // CR and LF should be ignored
-            newline = 1;
-            ++bufferPosn;
-            break;
-        } else if (buffer[bufferPosn] == seperator) {
-           // found seperator, now determine if we have seen any data.
-            if (seenData == 1) {
-                // means we read a record
-                recordEnd = 1;
-                break;
-            } else {
-                //++bufferPosn;
-                startPosn = bufferPosn+1; // skip till next byte
+        /*
+        first thing to do is to move forward till you see a start character
+         */
+        do {
+            if (bufferPosn >= bufferLength) {
+                bufferPosn = 0;
+                bufferLength = in.read(buffer);
+                if (bufferLength <= 0) {
+                    eof = true;
+                    break; // EOF
+                }
             }
-        } else {
-            seenData = 1;  // means we saw some data
-        }
-      }
-      int readLength = bufferPosn - startPosn;
-//      if (prevCharCR && newlineLength == 0)
-//        --readLength; //CR at the end of the buffer
-      bytesConsumed += readLength;
-      int appendLength = readLength - newline;
-      if (appendLength > maxLineLength - txtLength) {
-        appendLength = maxLineLength - txtLength;
-      }
-      if (appendLength > 0) {
-        if (keySeen == 0) {
-            // set the key first
-            key.append(buffer, startPosn, appendLength);
-            if (newline == 1)
-                keySeen = 1;
-        } else {
-            str.append(buffer, startPosn, appendLength);
-            txtLength += appendLength;
-        }
-      }
-    } while (bytesConsumed < maxBytesToConsume && recordEnd == 0);
+        } while (buffer[bufferPosn++] != '>');
 
-    if (bytesConsumed > (long)Integer.MAX_VALUE)
-      throw new IOException("Too many bytes before newline: " + bytesConsumed);
-    return (int)bytesConsumed;
+        /*
+        if we hit the end of file already, then just return 0 bytes processed
+         */
+        if (eof)
+            return totalBytesRead;  // which is 0
+
+        /*
+        now bufferPosn should be at the start of a fasta record
+         */
+
+        startPosn = bufferPosn-1;  // startPosn guaranteed to be at a ">"
+
+        /*
+        find the next record start
+         */
+        eof = false;
+        do {
+            if (bufferPosn >= bufferLength) {
+
+                /*
+                copy the current buffer before refreshing the buffer
+                 */
+                int appendLength = bufferPosn - startPosn;
+                recordBlock.append(buffer, startPosn, appendLength);
+                totalBytesRead += appendLength;
+
+                startPosn = bufferPosn = 0;
+                bufferLength = in.read(buffer);
+                if (bufferLength <= 0) {
+                    eof = true;
+                    break; // EOF
+                }
+            }
+
+        } while (buffer[bufferPosn++] != '>');  // only read one record at a time
+
+        if (!eof) {
+            bufferPosn--;  // make sure we leave bufferPosn pointing to the next record
+            int appendLength = bufferPosn - startPosn;
+            recordBlock.append(buffer, startPosn, appendLength);
+            totalBytesRead += appendLength;
+        }
+
+        /*
+        record block now has the byte array we want to process for reads
+         */
+
+        int i = 1; // skip initial record seperator ">"
+        int j = 1;
+        do {
+            key.clear();
+            str.clear();
+            /*
+            first parse the key
+             */
+            i = j;
+            Boolean junkOnLine = false;
+            while (j < recordBlock.getLength()) {
+                int c = recordBlock.charAt(j++);
+                if (c == CR || c == LF) {
+                    break;
+                } else if (c == ' ' || c == '\t') {
+                    junkOnLine = true;
+                    break;
+                }
+            }
+            key.append(recordBlock.getBytes(), i, j - i - 1);
+
+            /*
+            in case there is additional metadata on the header line, ignore everything after
+            the first word.
+             */
+            if (junkOnLine) {
+                while (j < recordBlock.getLength() && recordBlock.charAt(j) != CR && recordBlock.charAt(j) != LF ) j++;
+            }
+
+            //LOG.info ("key = " + k.toString());
+
+            /*
+           now skip the newlines
+            */
+            while (recordBlock.charAt(j) == CR || recordBlock.charAt(j) == LF) {
+                if (j >= recordBlock.getLength()) {
+                    //LOG.error("underflow! j = " + j + ", length = " + recordBlock.getLength());
+                }
+                j++;
+            }
+
+            /*
+           now read the sequence
+            */
+            do {
+                i = j;
+                while (j < recordBlock.getLength()) {
+                    int c = recordBlock.charAt(j++);
+                    if (c == CR || c == LF) {
+                        break;
+                    }
+                }
+                str.append(recordBlock.getBytes(), i, j - i - 1);
+
+                while (j < recordBlock.getLength() && (recordBlock.charAt(j) == CR || recordBlock.charAt(j) == LF)) j++;
+
+            } while (j < recordBlock.getLength() && recordBlock.charAt(j) != '>');
+
+            numRecordsRead++;
+
+            /*
+           now skip characters (newline or carige return most likely) till record start
+            */
+            while (j < recordBlock.getLength() && recordBlock.charAt(j) != '>') {
+                j++;
+            }
+
+            j++; // skip the ">"
+
+        } while (j < recordBlock.getLength());
+
+        return totalBytesRead;
   }
 
   /**

@@ -31,6 +31,7 @@
 package gov.jgi.meta;
 
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -40,6 +41,7 @@ import gov.jgi.meta.hadoop.input.FastaInputFormat;
 import gov.jgi.meta.hadoop.io.ReadNode;
 import gov.jgi.meta.hadoop.io.ReadNodeSet;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
@@ -63,15 +65,24 @@ public class Dereplicate {
             extends Mapper<Text, Sequence, Text, Text> {
 
         Logger log = Logger.getLogger(AggregateReducer.class);
-
+        int mapcount = 0;
         public void map(Text seqid, Sequence s, Context context) throws IOException, InterruptedException {
             String sequence = s.seqString();
+            mapcount++;
+
             if (!sequence.matches("[atgcn]*")) {
                 log.error("sequence " + seqid + " is not well formed: " + sequence);
                 return;
             }
+
+            if (sequence.length() != 36) {
+                log.error("sequence " + seqid + " is not long enough: " + sequence);
+            }
             String[] seqNameArray = seqid.toString().split("/");
-            context.write(new Text(seqNameArray[0]), new Text(sequence));
+            //if (seqNameArray[0].equals("904:5:1:10000:10570")) {
+            log.info(mapcount + " - seq name = " + seqid + " sequence = " + sequence);
+            //}
+            context.write(new Text(seqNameArray[0]), new Text(sequence+"/"+seqNameArray[1]));
         }
     }
 
@@ -84,18 +95,36 @@ public class Dereplicate {
         public Text pairJoin(Iterable<Text> l) {
                    StringBuilder sb = new StringBuilder();
                    sb.append("\n");
-
+                   HashSet<Text> s = new HashSet<Text>();
                    Iterator<Text> i = l.iterator();
-                   if (!i.hasNext()) return new Text(sb.toString());
-                   else {
-                       sb = sb.append(i.next().toString());
-                       if (!i.hasNext()) {
-                           log.error("missing pair!");
+                   int count = 0;
+                   String front = "";
+                   String back = "";
+
+                   while (i.hasNext()) {
+                       count++;
+                       String[] x = i.next().toString().split("/");
+                       if (x.length != 2) {
+                           log.error("key malformed: " + x);
                            return new Text("");
                        }
-                       sb = sb.append(StringUtils.reverse(i.next().toString()));
+                       if ("1".equals(x[1])) {
+                           front = x[0];
+                       } else if ("2".equals(x[1])) {
+                           back = x[0];
+                       } else {
+                           log.error("key malformed: " + x);
+                           return new Text("");
+                       }
                    }
-                   return new Text(sb.toString());
+
+                   if (count != 2) {
+                       log.error("bad key/pair... size = " + count);
+                       return new Text("");
+                   }
+
+            sb = sb.append(front).append(StringUtils.reverse(back));
+            return new Text(sb.toString());
            }
 
 
@@ -126,10 +155,13 @@ public class Dereplicate {
 
 
             try {
+                context.setStatus("generating hash");
                 String sequenceHashValue = sequence.substring(0, windowSize) + StringUtils.reverse(sequence).substring(0,windowSize);
                 ReadNode rn = new ReadNode(keyStr, sequenceHashValue, sequence);
 
                 context.write(new Text(sequenceHashValue), rn);
+                //context.write(new Text(sequenceHashValue), new ReadNode("", sequenceHashValue, ""));  // cache
+                context.setStatus("generating neighbors and writing output");
                 for (String neighborHashValue : generateAllNeighbors(sequenceHashValue, editDistance)) {
                     context.write(new Text(neighborHashValue), rn);
                 }
@@ -182,12 +214,21 @@ public class Dereplicate {
         public void reduce(Text key, Iterable<ReadNode> values, Context context)
                 throws InterruptedException, IOException {
 
+
+            context.setStatus("parsing readnodes");
             ReadNodeSet rns = new ReadNodeSet(values);
             String keyStr = key.toString();
 
+            context.setStatus("looking for hash in readnodeset with size " + rns.length);
+
             if (rns.findHash(keyStr)) {
+                context.setStatus("writing output with size " + rns.length);
+                int i = 0;
                 for (ReadNode r : rns.s) {
-                    context.write(r, new Text(rns.canonicalName()));
+                    i++;
+                    String cname = rns.canonicalName();
+                    context.setStatus("ReadNode " + i + " in " + cname);
+                    context.write(r, new Text(cname));
                 }
             }
         }
@@ -366,81 +407,108 @@ public static class ChooseMapper
         }
 
 
-        Job job0 = new Job(conf, "dereplicate-step0");
+        FileSystem fs = FileSystem.get(conf);
+        boolean recalculate = false;
 
-        job0.setJarByClass(Dereplicate.class);
-        job0.setInputFormatClass(FastaInputFormat.class);
-        job0.setMapperClass(PairMapper.class);
-        //job.setCombinerClass(IntSumReducer.class);
-        job0.setReducerClass(PairReducer.class);
-        job0.setOutputKeyClass(Text.class);
-        job0.setOutputValueClass(Text.class);
-        job0.setNumReduceTasks(conf.getInt("dereplicate.numreducers", 1));
+        if (!fs.exists(new Path(otherArgs[1]+"/step0"))) {
+            recalculate = true;
 
-        FileInputFormat.addInputPath(job0, new Path(otherArgs[0]));
-        FileOutputFormat.setOutputPath(job0, new Path(otherArgs[1]+"/step0"));
+            Job job0 = new Job(conf, "dereplicate-step0");
 
-        job0.waitForCompletion(true);
+            job0.setJarByClass(Dereplicate.class);
+            job0.setInputFormatClass(FastaInputFormat.class);
+            job0.setMapperClass(PairMapper.class);
+            //job.setCombinerClass(IntSumReducer.class);
+            job0.setReducerClass(PairReducer.class);
+            job0.setOutputKeyClass(Text.class);
+            job0.setOutputValueClass(Text.class);
+            job0.setNumReduceTasks(conf.getInt("dereplicate.numreducers", 1));
+
+            FileInputFormat.addInputPath(job0, new Path(otherArgs[0]));
+            FileOutputFormat.setOutputPath(job0, new Path(otherArgs[1]+"/step0"));
+
+            job0.waitForCompletion(true);
+        }
 
         /*
         setup first job configuration parameters
          */
+        if (recalculate) {
+            fs.delete(new Path(otherArgs[1]+"/step1"), true);
+        }
+        if (!fs.exists(new Path(otherArgs[1]+"/step1"))) {
+            recalculate = true;
 
-        Job job = new Job(conf, "dereplicate-step1");
+            Job job = new Job(conf, "dereplicate-step1");
 
-        job.setJarByClass(Dereplicate.class);
-        job.setInputFormatClass(FastaInputFormat.class);
-        job.setMapperClass(GraphEdgeMapper.class);
-        //job.setCombinerClass(IntSumReducer.class);
-        job.setReducerClass(GraphEdgeReducer.class);
-        job.setOutputKeyClass(Text.class);
-        job.setOutputValueClass(ReadNode.class);
-        job.setNumReduceTasks(conf.getInt("dereplicate.numreducers", 1));
+            job.setJarByClass(Dereplicate.class);
+            job.setInputFormatClass(FastaInputFormat.class);
+            job.setMapperClass(GraphEdgeMapper.class);
+            //job.setCombinerClass(IntSumReducer.class);
+            job.setReducerClass(GraphEdgeReducer.class);
+            job.setOutputKeyClass(Text.class);
+            job.setOutputValueClass(ReadNode.class);
+            job.setNumReduceTasks(conf.getInt("dereplicate.numreducers", 1));
 
-        FileInputFormat.addInputPath(job, new Path(otherArgs[1]+"/step0"));
-        FileOutputFormat.setOutputPath(job, new Path(otherArgs[1]+"/step1"));
+            FileInputFormat.addInputPath(job, new Path(otherArgs[1]+"/step0"));
+            FileOutputFormat.setOutputPath(job, new Path(otherArgs[1]+"/step1"));
 
-        job.waitForCompletion(true);
-
-        /*
-        now setup groups
-         */
-        Job job2 = new Job(conf, "dereplicate-step2");
-
-        job2.setJarByClass(Dereplicate.class);
-        job2.setInputFormatClass(TextInputFormat.class);
-        job2.setMapperClass(AggregateMapper.class);
-        //job.setCombinerClass(IntSumReducer.class);
-        job2.setReducerClass(AggregateReducer.class);
-        job2.setOutputKeyClass(ReadNode.class);
-        job2.setOutputValueClass(Text.class);
-        job2.setNumReduceTasks(conf.getInt("dereplicate.numreducers", 1));
-
-        FileInputFormat.addInputPath(job2, new Path(otherArgs[1]+"/step1"));
-        FileOutputFormat.setOutputPath(job2, new Path(otherArgs[1]+"/step2"));
-
-
-        job2.waitForCompletion(true);
+            job.waitForCompletion(true);
+        }
 
         /*
         now setup groups
          */
-        Job job3 = new Job(conf, "dereplicate-step2");
 
-        job3.setJarByClass(Dereplicate.class);
-        job3.setInputFormatClass(TextInputFormat.class);
-        job3.setMapperClass(ChooseMapper.class);
-        //job.setCombinerClass(IntSumReducer.class);
-        job3.setReducerClass(ChooseReducer.class);
-        job3.setOutputKeyClass(Text.class);
-        job3.setOutputValueClass(ReadNode.class);
-        job3.setNumReduceTasks(conf.getInt("dereplicate.numreducers", 1));
+        if (recalculate) {
+            fs.delete(new Path(otherArgs[1]+"/step2"), true);
+        }
+        if (!fs.exists(new Path(otherArgs[1]+"/step2"))) {
+            recalculate = true;
 
-        FileInputFormat.addInputPath(job3, new Path(otherArgs[1]+"/step2"));
-        FileOutputFormat.setOutputPath(job3, new Path(otherArgs[1]+"/step3"));
+            Job job2 = new Job(conf, "dereplicate-step2");
 
-        job3.waitForCompletion(true);
+            job2.setJarByClass(Dereplicate.class);
+            job2.setInputFormatClass(TextInputFormat.class);
+            job2.setMapperClass(AggregateMapper.class);
+            //job.setCombinerClass(IntSumReducer.class);
+            job2.setReducerClass(AggregateReducer.class);
+            job2.setOutputKeyClass(ReadNode.class);
+            job2.setOutputValueClass(Text.class);
+            job2.setNumReduceTasks(conf.getInt("dereplicate.numreducers", 1));
 
+            FileInputFormat.addInputPath(job2, new Path(otherArgs[1]+"/step1"));
+            FileOutputFormat.setOutputPath(job2, new Path(otherArgs[1]+"/step2"));
+
+
+            job2.waitForCompletion(true);
+        }
+
+        /*
+        now setup groups
+         */
+
+        if (recalculate) {
+            fs.delete(new Path(otherArgs[1]+"/step3"), true);
+        }
+     if (!fs.exists(new Path(otherArgs[1]+"/step3"))) {
+         recalculate = true;
+
+         Job job3 = new Job(conf, "dereplicate-step2");
+         job3.setJarByClass(Dereplicate.class);
+         job3.setInputFormatClass(TextInputFormat.class);
+         job3.setMapperClass(ChooseMapper.class);
+         //job.setCombinerClass(IntSumReducer.class);
+         job3.setReducerClass(ChooseReducer.class);
+         job3.setOutputKeyClass(Text.class);
+         job3.setOutputValueClass(ReadNode.class);
+         job3.setNumReduceTasks(conf.getInt("dereplicate.numreducers", 1));
+
+         FileInputFormat.addInputPath(job3, new Path(otherArgs[1]+"/step2"));
+         FileOutputFormat.setOutputPath(job3, new Path(otherArgs[1]+"/step3"));
+
+         job3.waitForCompletion(true);
+     }
     }
 }
 

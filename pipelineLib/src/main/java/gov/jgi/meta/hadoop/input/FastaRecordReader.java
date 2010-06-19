@@ -110,10 +110,15 @@ public class FastaRecordReader extends RecordReader<Text, Sequence> {
       txtvalue = new Text();
     }
     int newSize = 0;
+//    LOG.info("pos = " + pos + "/" + end);
+    
     while (pos < end) {
+        
       newSize = in.readLine(key, txtvalue, maxLineLength,
                             Math.max((int)Math.min(Integer.MAX_VALUE, end-pos),
                                      maxLineLength));
+//        LOG.info("newsize = " + newSize);
+
       try {
           value = DNATools.createDNASequence(txtvalue.toString(), key.toString());
       } catch (IllegalSymbolException e) {
