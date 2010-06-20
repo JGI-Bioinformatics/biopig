@@ -87,7 +87,7 @@ public class FastaRecordReader extends RecordReader<Text, Sequence> {
       end = Long.MAX_VALUE;
     } else {
       if (start != 0) {
-        skipFirstLine = true;
+        skipFirstLine = false;       // don't do this!
         --start;
         fileIn.seek(start);
       }
@@ -114,7 +114,7 @@ public class FastaRecordReader extends RecordReader<Text, Sequence> {
     
     while (pos < end) {
         
-      newSize = in.readLine(key, txtvalue, maxLineLength,
+        newSize = in.readLine(key, txtvalue, maxLineLength,
                             Math.max((int)Math.min(Integer.MAX_VALUE, end-pos),
                                      maxLineLength));
 //        LOG.info("newsize = " + newSize);

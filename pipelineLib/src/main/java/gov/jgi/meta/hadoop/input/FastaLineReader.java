@@ -30,6 +30,8 @@
 
 package gov.jgi.meta.hadoop.input;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
 
@@ -40,6 +42,7 @@ import java.io.InputStream;
  * A class that provides a line reader from an input stream.
  */
 public class FastaLineReader {
+    private static final Log LOG = LogFactory.getLog(FastaLineReader.class);
   private static final int DEFAULT_BUFFER_SIZE = 64 * 1024;
   private int bufferSize = DEFAULT_BUFFER_SIZE;
   private InputStream in;
@@ -126,8 +129,10 @@ public class FastaLineReader {
         /*
         first thing to do is to move forward till you see a start character
          */
+        startPosn = bufferPosn;
         do {
             if (bufferPosn >= bufferLength) {
+                totalBytesRead += bufferPosn - startPosn;
                 bufferPosn = 0;
                 bufferLength = in.read(buffer);
                 if (bufferLength <= 0) {
@@ -141,12 +146,12 @@ public class FastaLineReader {
         if we hit the end of file already, then just return 0 bytes processed
          */
         if (eof)
-            return totalBytesRead;  // which is 0
+            return totalBytesRead;  
 
         /*
         now bufferPosn should be at the start of a fasta record
          */
-
+        totalBytesRead = (bufferPosn - 1) - startPosn;
         startPosn = bufferPosn-1;  // startPosn guaranteed to be at a ">"
 
         /*
@@ -204,7 +209,10 @@ public class FastaLineReader {
                 }
             }
             key.append(recordBlock.getBytes(), i, j - i - 1);
-
+            if (key.toString().equals("904:5:2:2373:3666")) {
+                LOG.error("here I am");
+            }
+           
             /*
             in case there is additional metadata on the header line, ignore everything after
             the first word.
@@ -218,12 +226,7 @@ public class FastaLineReader {
             /*
            now skip the newlines
             */
-            while (recordBlock.charAt(j) == CR || recordBlock.charAt(j) == LF) {
-                if (j >= recordBlock.getLength()) {
-                    //LOG.error("underflow! j = " + j + ", length = " + recordBlock.getLength());
-                }
-                j++;
-            }
+            while (j < recordBlock.getLength() && (recordBlock.charAt(j) == CR || recordBlock.charAt(j) == LF)) j++;
 
             /*
            now read the sequence
