@@ -80,7 +80,7 @@ public class Dereplicate {
             }
             String[] seqNameArray = seqid.toString().split("/");
             //if (seqNameArray[0].equals("904:5:1:10000:10570")) {
-            log.info(mapcount + " - seq name = " + seqid + " sequence = " + sequence);
+            //log.info(mapcount + " - seq name = " + seqid + " sequence = " + sequence);
             //}
             context.write(new Text(seqNameArray[0]), new Text(sequence+"/"+seqNameArray[1]));
         }
@@ -120,7 +120,9 @@ public class Dereplicate {
 
                    if (count != 2) {
                        log.error("bad key/pair... size = " + count);
-                       return new Text("");
+                       log.error("front = " + front);
+                       log.error("back = " + back);
+                       return new Text("\nERROR");
                    }
 
             sb = sb.append(front).append(StringUtils.reverse(back));
@@ -224,9 +226,9 @@ public class Dereplicate {
             if (rns.findHash(keyStr)) {
                 context.setStatus("writing output with size " + rns.length);
                 int i = 0;
+                String cname = rns.canonicalName();
                 for (ReadNode r : rns.s) {
                     i++;
-                    String cname = rns.canonicalName();
                     context.setStatus("ReadNode " + i + " in " + cname);
                     context.write(r, new Text(cname));
                 }
