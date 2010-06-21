@@ -153,7 +153,7 @@ public class Dereplicate {
             }
 
             int windowSize = context.getConfiguration().getInt("dereplicate.windowsize", 16);
-            int editDistance = context.getConfiguration().getInt("dereplicate.editdistance", 1);
+            int editDistance = context.getConfiguration().getInt("dereplicate.editdistance", 0);
 
 
             try {
@@ -163,8 +163,10 @@ public class Dereplicate {
 
                 context.write(new Text(sequenceHashValue), rn);
                 //context.write(new Text(sequenceHashValue), new ReadNode("", sequenceHashValue, ""));  // cache
-                context.setStatus("generating neighbors and writing output");
-                for (String neighborHashValue : generateAllNeighbors(sequenceHashValue, editDistance)) {
+                context.setStatus("generating neighbors");
+                Set<String> allNeighbors =  generateAllNeighbors(sequenceHashValue, editDistance, new HashSet());
+                context.setStatus("writing output");
+                for (String neighborHashValue : allNeighbors) {
                     context.write(new Text(neighborHashValue), rn);
                 }
             }catch (Exception e) {
@@ -174,24 +176,23 @@ public class Dereplicate {
 
         }
 
-        private Set<String> generateAllNeighbors(String start, int distance) {
+        private Set<String> generateAllNeighbors(String start, int distance, Set x) {
 
-            String[] bases = {"a", "t", "g", "c"};
+            char[] bases = {'a', 't', 'g', 'c'};
             Set<String> s = new HashSet<String>();
 
+            s.add(start);
             if (distance == 0) {
-                s.add(start);
                 return s;
             }
 
             for (int i = 0; i < start.length(); i++) {
 
-                for (String basePair : bases) {
-                    if (basePair.equals(start.substring(i, i))) continue;
-                    for (String neighbor : generateAllNeighbors(stringReplaceIth(start, i, basePair), distance-1)) {
-                        s.add(neighbor);
-                    }
-
+                for (char basePair : bases) {
+                    if (start.charAt(i) == basePair) continue;
+                    String n = stringReplaceIth(start, i, basePair);
+                    if (x.contains(n)) continue;
+                    s.addAll(generateAllNeighbors(n, distance-1, s));
                 }
 
             }
@@ -199,7 +200,7 @@ public class Dereplicate {
             return s;
         }
 
-        private String stringReplaceIth(String s, int i, String c) {
+        private String stringReplaceIth(String s, int i, char c) {
             
             return s.substring(0,i) + c + s.substring(i+1);
 
