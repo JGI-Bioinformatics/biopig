@@ -151,7 +151,7 @@ public class FastaLineReader {
         /*
         now bufferPosn should be at the start of a fasta record
          */
-        totalBytesRead = (bufferPosn - 1) - startPosn;
+        totalBytesRead += (bufferPosn - 1) - startPosn;
         startPosn = bufferPosn-1;  // startPosn guaranteed to be at a ">"
 
         /*
@@ -209,9 +209,6 @@ public class FastaLineReader {
                 }
             }
             key.append(recordBlock.getBytes(), i, j - i - 1);
-            if (key.toString().equals("904:5:2:2373:3666")) {
-                LOG.error("here I am");
-            }
            
             /*
             in case there is additional metadata on the header line, ignore everything after

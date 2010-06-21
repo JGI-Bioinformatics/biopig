@@ -88,7 +88,7 @@ public class FastaRecordReader extends RecordReader<Text, Sequence> {
     } else {
       if (start != 0) {
         skipFirstLine = false;       // don't do this!
-        --start;
+        //--start;                      or this
         fileIn.seek(start);
       }
       in = new FastaLineReader(fileIn, job);
@@ -122,7 +122,7 @@ public class FastaRecordReader extends RecordReader<Text, Sequence> {
       try {
           value = DNATools.createDNASequence(txtvalue.toString(), key.toString());
       } catch (IllegalSymbolException e) {
-          throw new IOException(e);
+          throw new IOException("parse error on key: " + key + "/" + txtvalue + ": " + e);
       }
         
       if (newSize == 0) {
