@@ -75,9 +75,9 @@ public class Dereplicate {
                 return;
             }
 
-            if (sequence.length() != 36) {
-                log.error("sequence " + seqid + " is not long enough: " + sequence);
-            }
+           // if (sequence.length() != 36) {
+            //log.error("sequence " + seqid + " is not long enough: " + sequence);
+            //}
             String[] seqNameArray = seqid.toString().split("/");
             //if (seqNameArray[0].equals("904:5:1:10000:10570")) {
             //log.info(mapcount + " - seq name = " + seqid + " sequence = " + sequence);
@@ -153,7 +153,7 @@ public class Dereplicate {
             }
 
             int windowSize = context.getConfiguration().getInt("dereplicate.windowsize", 16);
-            int editDistance = context.getConfiguration().getInt("dereplicate.editdistance", 0);
+            int editDistance = context.getConfiguration().getInt("dereplicate.editdistance", 2);
 
 
             try {
