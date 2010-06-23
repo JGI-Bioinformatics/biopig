@@ -17,6 +17,7 @@
         <module>assembly</module>
         <module>dereplicate</module>
         <module>meta</module>
+        <module>contigkmer</module>
     </modules>
     
 </project>

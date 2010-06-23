@@ -196,6 +196,7 @@ public class FastaBlockLineReader {
         Text s = new Text();
         int i = 1; // skip initial record seperator ">"
         int j = 1;
+        int x = 0;
         do {
             k.clear();
             s.clear();
@@ -247,7 +248,7 @@ public class FastaBlockLineReader {
                     }
                 }
                 s.append(recordBlock.getBytes(), i, j - i - 1);
-                set.put(k.toString(), s.toString());
+                set.put(k.toString(), s.toString().toLowerCase());
 
 
                 while (j < recordBlock.getLength() && (recordBlock.charAt(j) == CR || recordBlock.charAt(j) == LF)) j++;
