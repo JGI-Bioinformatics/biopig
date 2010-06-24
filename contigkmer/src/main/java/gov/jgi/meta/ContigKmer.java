@@ -63,7 +63,7 @@ public class ContigKmer {
 
         Logger log = Logger.getLogger(this.getClass());
         Map<String,String> contigs;
-        Map<String,Set<String>> contigKmers;
+        Map<Integer,Set<String>> contigKmers;
         int kmerSize;
         int contigEndLength;
 
@@ -75,6 +75,7 @@ public class ContigKmer {
                 else if (s.charAt(i) == 't') sb.append("a");
                 else if (s.charAt(i) == 'g') sb.append("c");
                 else if (s.charAt(i) == 'c') sb.append("g");
+                else if (s.charAt(i) == 'n') sb.append("n");                
             }
             return sb.reverse().toString();
         }
@@ -98,57 +99,61 @@ public class ContigKmer {
             fblr.readLine(key, contigs, Integer.MAX_VALUE, (int) length);
             int hashTableSizeEstimate = contigs.size() * (contigEndLength - kmerSize) * 4 ;
 
-            contigKmers = new HashMap<String,Set<String>>(hashTableSizeEstimate);
+            contigKmers = new HashMap<Integer,Set<String>>(hashTableSizeEstimate);
             in.close();
 
             int num = 0;
             for (String k : contigs.keySet()) {
-                log.info("processing: " + num++);
+                //log.info("processing: " + num++);
                 String contigSequence = contigs.get(k);
                 String contigSequenceComplement = reverseComplement(contigSequence);
                 int seqLength = contigSequence.length();
                 // tail end of contig
                 for (int i = Math.max(seqLength - contigEndLength, 0); i <= seqLength-kmerSize; i++ ) {
                     String kmer = contigSequence.substring(i, i + kmerSize);
-                    if (contigKmers.containsKey(kmer)) {
-                        contigKmers.get(kmer).add(k);
+                    if (contigKmers.containsKey(kmer.hashCode())) {
+                        contigKmers.get(kmer.hashCode()).add(k);
                     } else {
                         HashSet<String> l = new HashSet<String>();
                         l.add(k);
-                        contigKmers.put(kmer, l);
+                        contigKmers.put(kmer.hashCode(), l);
                     }
                 }
                 // front end of sequence
-                for (int i = 0; i <= Math.min(contigEndLength,seqLength); i++ ) {
+                for (int i = 0; i <= Math.min(contigEndLength,seqLength)-kmerSize; i++ ) {
                     String kmer = contigSequence.substring(i, i + kmerSize);
-                    if (contigKmers.containsKey(kmer)) {
-                        contigKmers.get(kmer).add(k);
+                    if (contigKmers.containsKey(kmer.hashCode())) {
+                        contigKmers.get(kmer.hashCode()).add(k);
                     } else {
                         HashSet<String> l = new HashSet<String>();
                         l.add(k);
-                        contigKmers.put(kmer, l);
+                        contigKmers.put(kmer.hashCode(), l);
                     }
                 }
                 // tail end of reverse complement
+                if  (contigSequenceComplement.length() != contigSequence.length()) {
+                    log.info("error!");
+                }
+
                  for (int i = Math.max(seqLength - contigEndLength, 0); i <= seqLength-kmerSize; i++ ) {
                      String kmer = contigSequenceComplement.substring(i, i + kmerSize);
-                     if (contigKmers.containsKey(kmer)) {
-                         contigKmers.get(kmer).add(k);
+                     if (contigKmers.containsKey(kmer.hashCode())) {
+                         contigKmers.get(kmer.hashCode()).add(k);
                      } else {
                          HashSet<String> l = new HashSet<String>();
                          l.add(k);
-                         contigKmers.put(kmer, l);
+                         contigKmers.put(kmer.hashCode(), l);
                      }
                  }
                  // front end of reverse complement
-                 for (int i = 0; i <= Math.min(contigEndLength,seqLength); i++ ) {
+                 for (int i = 0; i <= Math.min(contigEndLength,seqLength)-kmerSize; i++ ) {
                      String kmer = contigSequenceComplement.substring(i, i + kmerSize);
-                     if (contigKmers.containsKey(kmer)) {
-                         contigKmers.get(kmer).add(k);
+                     if (contigKmers.containsKey(kmer.hashCode())) {
+                         contigKmers.get(kmer.hashCode()).add(k);
                      } else {
                          HashSet<String> l = new HashSet<String>();
                          l.add(k);
-                         contigKmers.put(kmer, l);
+                         contigKmers.put(kmer.hashCode(), l);
                      }
                  }
             }
@@ -180,7 +185,7 @@ public class ContigKmer {
             int i;
             for (i = 0; i < seqsize - kmerSize; i++) {
                 String kmer = sequence.substring(i, i + kmerSize);
-                Set<String> l = contigKmers.get(kmer);
+                Set<String> l = contigKmers.get(kmer.hashCode());
                 if (l != null) {
                     for (String contigMatch : l) {
                         context.write(new Text(contigMatch), seqid);
@@ -213,7 +218,7 @@ public class ContigKmer {
     }
 
 
-    String findNewFiles(String inputDirectory, String outputDirectory) throws IOException {
+    static String findNewFiles(String inputDirectory, String outputDirectory) throws IOException {
         Configuration conf = new Configuration();
         FileSystem fs = FileSystem.get(conf);
         Path inputPath = new Path(inputDirectory);
@@ -225,25 +230,12 @@ public class ContigKmer {
 
         FileStatus[] fsArray = fs.listStatus(inputPath);
         for (FileStatus file : fsArray) {
-            if (!fs.exists(outputPath+"/"+))
+            String output = outputDirectory+"/"+file.getPath().getName();
+            if (!fs.exists(new Path(output))) {
+                return file.getPath().getName();
+            }
         }
-        FSDataInputStream in = fs.open(filenamePath);
-        BufferedReader d
-                  = new BufferedReader(new InputStreamReader(in));
-
-        BufferedWriter out = new BufferedWriter(new FileWriter(localFile.getPath()));
-
-        String line;
-        line = d.readLine();
-
-        while (line != null) {
-            out.write(line+"\n");
-            line = d.readLine();
-        }
-        in.close();
-        out.close();
-
-        return localFile.getPath();
+        return null;
     }
 
     /**
@@ -321,8 +313,8 @@ public class ContigKmer {
             System.exit(2);
         }
 
-        conf.set("contigfilename", otherArgs[1]);
-        
+
+
         /*
         seems to help in file i/o performance
          */
@@ -346,12 +338,13 @@ public class ContigKmer {
         int iteration = 0;
 
         do {
-            String newFileName = findNewFiles(otherArgs[0]);
+            String newFileName = findNewFiles(otherArgs[0], otherArgs[2]);
             if (newFileName != null) {
                 System.out.println(" *******   iteration " + iteration + "   ********");
                 iteration++;
-                Job job0 = new Job(conf, "configkmer: " + "iteration " + i + ", file = " + newFileName);
+                conf.set("contigfilename", otherArgs[0]+"/"+newFileName);
 
+                Job job0 = new Job(conf, "configkmer: " + "iteration " + iteration + ", file = " + newFileName);
                 job0.setJarByClass(ContigKmer.class);
                 job0.setInputFormatClass(FastaInputFormat.class);
                 job0.setMapperClass(ContigKmerMapper.class);
@@ -362,7 +355,7 @@ public class ContigKmer {
                 job0.setNumReduceTasks(conf.getInt("configkmer.numreducers", 1));
 
                 FileInputFormat.addInputPath(job0, new Path(otherArgs[1]));
-                FileOutputFormat.setOutputPath(job0, new Path(otherArgs[2]+"/"+newFileName+".output"));
+                FileOutputFormat.setOutputPath(job0, new Path(otherArgs[2]+"/"+newFileName+".out"));
 
                 job0.waitForCompletion(true);
             } else {
