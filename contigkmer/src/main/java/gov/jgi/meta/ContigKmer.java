@@ -106,7 +106,6 @@ public class ContigKmer {
             for (String k : contigs.keySet()) {
                 //log.info("processing: " + num++);
                 String contigSequence = contigs.get(k);
-                String contigSequenceComplement = reverseComplement(contigSequence);
                 int seqLength = contigSequence.length();
                 // tail end of contig
                 for (int i = Math.max(seqLength - contigEndLength, 0); i <= seqLength-kmerSize; i++ ) {
@@ -130,32 +129,6 @@ public class ContigKmer {
                         contigKmers.put(kmer.hashCode(), l);
                     }
                 }
-                // tail end of reverse complement
-                if  (contigSequenceComplement.length() != contigSequence.length()) {
-                    log.info("error!");
-                }
-
-                 for (int i = Math.max(seqLength - contigEndLength, 0); i <= seqLength-kmerSize; i++ ) {
-                     String kmer = contigSequenceComplement.substring(i, i + kmerSize);
-                     if (contigKmers.containsKey(kmer.hashCode())) {
-                         contigKmers.get(kmer.hashCode()).add(k);
-                     } else {
-                         HashSet<String> l = new HashSet<String>();
-                         l.add(k);
-                         contigKmers.put(kmer.hashCode(), l);
-                     }
-                 }
-                 // front end of reverse complement
-                 for (int i = 0; i <= Math.min(contigEndLength,seqLength)-kmerSize; i++ ) {
-                     String kmer = contigSequenceComplement.substring(i, i + kmerSize);
-                     if (contigKmers.containsKey(kmer.hashCode())) {
-                         contigKmers.get(kmer.hashCode()).add(k);
-                     } else {
-                         HashSet<String> l = new HashSet<String>();
-                         l.add(k);
-                         contigKmers.put(kmer.hashCode(), l);
-                     }
-                 }
             }
         }
 
@@ -172,6 +145,7 @@ public class ContigKmer {
         public void map(Text seqid, Sequence s, Context context) throws IOException, InterruptedException {
 
             String sequence = s.seqString();
+            Text seqText = new Text(seqid.toString() + "-" + sequence);
 
             if (!sequence.matches("[atgcn]*")) {
                 log.error("sequence " + seqid + " is not well formed: " + sequence);
@@ -180,16 +154,23 @@ public class ContigKmer {
 
             // generate kmers
             int seqsize = sequence.length();
-
+            Set<String> l = new HashSet<String>();
 
             int i;
-            for (i = 0; i < seqsize - kmerSize; i++) {
+            for (i = 0; i <= seqsize - kmerSize; i++) {
                 String kmer = sequence.substring(i, i + kmerSize);
-                Set<String> l = contigKmers.get(kmer.hashCode());
-                if (l != null) {
-                    for (String contigMatch : l) {
-                        context.write(new Text(contigMatch), seqid);
-                    }
+                Set<String> ll = contigKmers.get(kmer.hashCode());
+                if (ll != null) l.addAll(ll);
+            }
+            String sequenceComplement = reverseComplement(sequence);
+            for (i = 0; i <= seqsize - kmerSize; i++) {
+                String kmer = sequenceComplement.substring(i, i + kmerSize);
+                Set<String> ll = contigKmers.get(kmer.hashCode());
+                if (ll != null) l.addAll(ll);
+            }
+            if (l.size() != 0) {
+                for (String contigMatch : l) {
+                    context.write(new Text(contigMatch), seqText);
                 }
             }
         }
@@ -204,15 +185,17 @@ public class ContigKmer {
         public void reduce(Text key, Iterable<Text> values, Context context)
                 throws InterruptedException, IOException {
 
+            String keyStr = key.toString();
+
             Set<Text> hs = new HashSet<Text>();
             for (Text v : values) {
                 hs.add(v);
             }
 
             for (Text s : hs) {
-                context.write(key, s);
+                String[] sA = s.toString().split("-");
+                context.write(new Text(">"+keyStr+"-"+sA[0]), new Text("\n" + sA[1]));
             }
-
 
        }
     }
@@ -363,6 +346,6 @@ public class ContigKmer {
                 Thread.sleep(5000);
             }
 
-        } while (false);
+        } while (true);
     }
 }

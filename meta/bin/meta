@@ -50,7 +50,8 @@ commandList = [
         new blastCommand(),
         new blatCommand(),
         new assemblerCommand(),
-        new dereplicateCommand()
+        new dereplicateCommand(),
+        new contigkmerCommand()
 ];
 
 HashMap<String, command> commandMap = new HashMap();

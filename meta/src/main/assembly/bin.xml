@@ -60,6 +60,13 @@ g/xsd/assembly-1.1.0.xsd">
                 <include>*-job.jar</include>
             </includes>
         </fileSet>
+         <fileSet>
+            <directory>../contigkmer/target</directory>
+            <outputDirectory>hadoop</outputDirectory>
+            <includes>
+                <include>*-job.jar</include>
+            </includes>
+        </fileSet>
         <fileSet>
             <directory>../conf</directory>
             <outputDirectory>conf</outputDirectory>
