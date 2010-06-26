@@ -213,7 +213,7 @@ public class ContigKmer {
 
         FileStatus[] fsArray = fs.listStatus(inputPath);
         for (FileStatus file : fsArray) {
-            String output = outputDirectory+"/"+file.getPath().getName();
+            String output = outputDirectory+"/"+file.getPath().getName()+".out";
             if (!fs.exists(new Path(output))) {
                 return file.getPath().getName();
             }
@@ -335,7 +335,7 @@ public class ContigKmer {
                 job0.setReducerClass(ContigKmerReducer.class);
                 job0.setOutputKeyClass(Text.class);
                 job0.setOutputValueClass(Text.class);
-                job0.setNumReduceTasks(conf.getInt("configkmer.numreducers", 1));
+                job0.setNumReduceTasks(conf.getInt("contigkmer.numreducers", 1));
 
                 FileInputFormat.addInputPath(job0, new Path(otherArgs[1]));
                 FileOutputFormat.setOutputPath(job0, new Path(otherArgs[2]+"/"+newFileName+".out"));
