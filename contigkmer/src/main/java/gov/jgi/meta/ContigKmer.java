@@ -63,7 +63,7 @@ public class ContigKmer {
 
         Logger log = Logger.getLogger(this.getClass());
         Map<String,String> contigs;
-        Map<Integer,Set<String>> contigKmers;
+        Map<String,Set<String>> contigKmers;
         int kmerSize;
         int contigEndLength;
 
@@ -99,7 +99,7 @@ public class ContigKmer {
             fblr.readLine(key, contigs, Integer.MAX_VALUE, (int) length);
             int hashTableSizeEstimate = contigs.size() * (contigEndLength - kmerSize) * 4 ;
 
-            contigKmers = new HashMap<Integer,Set<String>>(hashTableSizeEstimate);
+            contigKmers = new HashMap<String,Set<String>>(hashTableSizeEstimate);
             in.close();
 
             int num = 0;
@@ -110,23 +110,23 @@ public class ContigKmer {
                 // tail end of contig
                 for (int i = Math.max(seqLength - contigEndLength, 0); i <= seqLength-kmerSize; i++ ) {
                     String kmer = contigSequence.substring(i, i + kmerSize);
-                    if (contigKmers.containsKey(kmer.hashCode())) {
-                        contigKmers.get(kmer.hashCode()).add(k);
+                    if (contigKmers.containsKey(kmer)) {
+                        contigKmers.get(kmer).add(k);
                     } else {
                         HashSet<String> l = new HashSet<String>();
                         l.add(k);
-                        contigKmers.put(kmer.hashCode(), l);
+                        contigKmers.put(kmer, l);
                     }
                 }
                 // front end of sequence
                 for (int i = 0; i <= Math.min(contigEndLength,seqLength)-kmerSize; i++ ) {
                     String kmer = contigSequence.substring(i, i + kmerSize);
-                    if (contigKmers.containsKey(kmer.hashCode())) {
-                        contigKmers.get(kmer.hashCode()).add(k);
+                    if (contigKmers.containsKey(kmer)) {
+                        contigKmers.get(kmer).add(k);
                     } else {
                         HashSet<String> l = new HashSet<String>();
                         l.add(k);
-                        contigKmers.put(kmer.hashCode(), l);
+                        contigKmers.put(kmer, l);
                     }
                 }
             }
@@ -145,7 +145,7 @@ public class ContigKmer {
         public void map(Text seqid, Sequence s, Context context) throws IOException, InterruptedException {
 
             String sequence = s.seqString();
-            Text seqText = new Text(seqid.toString() + "-" + sequence);
+            Text seqText = new Text(seqid.toString() + "&" + sequence);
 
             if (!sequence.matches("[atgcn]*")) {
                 log.error("sequence " + seqid + " is not well formed: " + sequence);
@@ -159,13 +159,16 @@ public class ContigKmer {
             int i;
             for (i = 0; i <= seqsize - kmerSize; i++) {
                 String kmer = sequence.substring(i, i + kmerSize);
-                Set<String> ll = contigKmers.get(kmer.hashCode());
+                Set<String> ll = contigKmers.get(kmer);
+                if (ll != null && ll.contains("NODE_711717_length_524_cov_6.066794")) {
+                    System.out.println("found it");
+                }
                 if (ll != null) l.addAll(ll);
             }
             String sequenceComplement = reverseComplement(sequence);
             for (i = 0; i <= seqsize - kmerSize; i++) {
                 String kmer = sequenceComplement.substring(i, i + kmerSize);
-                Set<String> ll = contigKmers.get(kmer.hashCode());
+                Set<String> ll = contigKmers.get(kmer);
                 if (ll != null) l.addAll(ll);
             }
             if (l.size() != 0) {
@@ -189,12 +192,12 @@ public class ContigKmer {
 
             Set<Text> hs = new HashSet<Text>();
             for (Text v : values) {
-                hs.add(v);
+                hs.add(new Text(v));
             }
 
             for (Text s : hs) {
-                String[] sA = s.toString().split("-");
-                context.write(new Text(">"+keyStr+"-"+sA[0]), new Text("\n" + sA[1]));
+                String[] sA = s.toString().split("&");
+                context.write(new Text(">"+keyStr+"&"+sA[0]), new Text("\n" + sA[1]));
             }
 
        }
