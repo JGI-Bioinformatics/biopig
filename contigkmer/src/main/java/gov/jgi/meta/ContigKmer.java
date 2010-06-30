@@ -160,9 +160,6 @@ public class ContigKmer {
             for (i = 0; i <= seqsize - kmerSize; i++) {
                 String kmer = sequence.substring(i, i + kmerSize);
                 Set<String> ll = contigKmers.get(kmer);
-                if (ll != null && ll.contains("NODE_711717_length_524_cov_6.066794")) {
-                    System.out.println("found it");
-                }
                 if (ll != null) l.addAll(ll);
             }
             String sequenceComplement = reverseComplement(sequence);
