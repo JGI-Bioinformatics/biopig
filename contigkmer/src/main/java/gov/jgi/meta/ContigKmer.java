@@ -216,8 +216,10 @@ public class ContigKmer {
 
         FileStatus[] fsArray = fs.listStatus(inputPath);
         for (FileStatus file : fsArray) {
+            if (file.getPath().getName().endsWith(".lock")) continue;
             String output = outputDirectory+"/"+file.getPath().getName()+".out";
-            if (!fs.exists(new Path(output))) {
+            String lockfile = file.getPath() + ".lock";
+            if (!fs.exists(new Path(output)) && !fs.exists(new Path(lockfile))) {
                 return file.getPath().getName();
             }
         }
@@ -313,6 +315,7 @@ public class ContigKmer {
                 "mapred.min.split.size",
                 "mapred.max.split.size",
                 "contigkmer.numreducers",
+                "contigkmer.sleep"
         };
 
         for (String option : optionalProperties) {
@@ -320,7 +323,7 @@ public class ContigKmer {
                 log.info("\toption " + option + ":\t" + conf.get(option));
             }
         }
-
+        int sleep = conf.getInt("contigkmer.sleep", 60000);
         int iteration = 0;
 
         do {
@@ -345,8 +348,8 @@ public class ContigKmer {
 
                 job0.waitForCompletion(true);
             } else {
-                System.out.println("sleeping ...");
-                Thread.sleep(5000);
+                System.out.println("sleeping ... for " + sleep/1000 + " seconds");
+                Thread.sleep(sleep);
             }
 
         } while (true);
