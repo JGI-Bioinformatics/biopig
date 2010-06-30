@@ -64,24 +64,16 @@ public class Dereplicate {
     public static class PairMapper
             extends Mapper<Text, Sequence, Text, Text> {
 
-        Logger log = Logger.getLogger(AggregateReducer.class);
+        Logger log = Logger.getLogger(this.getClass());
+
         int mapcount = 0;
+
         public void map(Text seqid, Sequence s, Context context) throws IOException, InterruptedException {
             String sequence = s.seqString();
             mapcount++;
 
-            if (!sequence.matches("[atgcn]*")) {
-                log.error("sequence " + seqid + " is not well formed: " + sequence);
-                return;
-            }
-
-           // if (sequence.length() != 36) {
-            //log.error("sequence " + seqid + " is not long enough: " + sequence);
-            //}
             String[] seqNameArray = seqid.toString().split("/");
-            //if (seqNameArray[0].equals("904:5:1:10000:10570")) {
-            //log.info(mapcount + " - seq name = " + seqid + " sequence = " + sequence);
-            //}
+
             context.write(new Text(seqNameArray[0]), new Text(sequence+"/"+seqNameArray[1]));
         }
     }
@@ -147,14 +139,9 @@ public class Dereplicate {
             String keyStr = key.toString().trim();
 
             String sequence = value.seqString();
-            if (!sequence.matches("[atgcn]*")) {
-                log.error("sequence " + keyStr + " is not well formed: " + value);
-                return;
-            }
 
             int windowSize = context.getConfiguration().getInt("dereplicate.windowsize", 16);
-            int editDistance = context.getConfiguration().getInt("dereplicate.editdistance", 2);
-
+            int editDistance = context.getConfiguration().getInt("dereplicate.editdistance", 1);
 
             try {
                 context.setStatus("generating hash");
@@ -216,7 +203,6 @@ public class Dereplicate {
 
         public void reduce(Text key, Iterable<ReadNode> values, Context context)
                 throws InterruptedException, IOException {
-
 
             context.setStatus("parsing readnodes");
             ReadNodeSet rns = new ReadNodeSet(values);
@@ -306,8 +292,7 @@ public static class ChooseMapper
 
             ReadNodeSet rs = new ReadNodeSet(values);
 
-            context.write(new Text(rs.fastaHeader()), new Text(rs.fastaConsensusSequence()));
-
+            context.write(new Text(rs.fastaHeader() + " numberOfReads=" + rs.s.size()), new Text(rs.fastaConsensusSequence()));
        }
     }
 
