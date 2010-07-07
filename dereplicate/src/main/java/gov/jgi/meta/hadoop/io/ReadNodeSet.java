@@ -107,6 +107,25 @@ public class ReadNodeSet implements WritableComparable {
       return length + "." + totalhashcode;
   }
 
+    public String canonicalName(String hash) {
+      int totalhashcode = 0;
+      //StringBuilder sb = new StringBuilder();
+      boolean first = true;
+      for (ReadNode r : this.s) {
+          if (first) {
+        //      sb.append(r.id);
+              totalhashcode += r.id.hashCode();
+              first = false;
+          }
+          else {
+              //sb.append(",").append(r.id);
+              totalhashcode += r.id.hashCode();
+          }
+      }
+      //return length + "." + sb.toString().hashCode();
+      return length + "." + totalhashcode + "." + hash;
+  }
+
     public int compareTo(Object r) {
         if (!(r instanceof ReadNodeSet)) {
             throw new ClassCastException("object can't be compared, wrong class");
