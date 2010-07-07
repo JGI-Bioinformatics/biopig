@@ -312,7 +312,9 @@ public class ContigKmer {
                 "mapred.min.split.size",
                 "mapred.max.split.size",
                 "contigkmer.numreducers",
-                "contigkmer.sleep"
+                "contigkmer.sleep",
+                "kmersize",
+                "contigendlength"
         };
 
         for (String option : optionalProperties) {
