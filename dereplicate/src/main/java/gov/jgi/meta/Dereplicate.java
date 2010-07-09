@@ -114,7 +114,13 @@ public class Dereplicate {
                        log.error("bad key/pair... size = " + count);
                        log.error("front = " + front);
                        log.error("back = " + back);
-                       return new Text("\nERROR");
+                       return null;
+                   }
+                   if (front.length() != back.length()) {
+                        log.error("bad key/pair sizes... ");
+                       log.error("front = " + front);
+                       log.error("back = " + back);
+                       return null;
                    }
 
             sb = sb.append(front).append(StringUtils.reverse(back));
@@ -125,7 +131,10 @@ public class Dereplicate {
         public void reduce(Text key, Iterable<Text> values, Context context)
                 throws InterruptedException, IOException {
 
-            context.write(new Text(">" + key.toString()), pairJoin(values));
+            Text joined = pairJoin(values);
+            if (joined != null) {
+                context.write(new Text(">" + key.toString()), joined);
+            }
 
        }
     }
@@ -336,8 +345,15 @@ public static class ChooseMapper
             // values are the set of read nodes
 
             ReadNodeSet rs = new ReadNodeSet(values);
-
-            context.write(new Text(rs.fastaHeader() + " numberOfReads=" + rs.s.size()), new Text(rs.fastaConsensusSequence()));
+            String consensus;
+            try {
+                consensus =  rs.fastaConsensusSequence();
+            } catch (Exception e) {
+                log.info("error generating consensus: key = " + key);
+                log.info(e);
+                return;
+            }
+            context.write(new Text(rs.fastaHeader() + " numberOfReads=" + rs.s.size()), new Text(consensus));
        }
     }
 
@@ -441,7 +457,7 @@ public static class ChooseMapper
 
 
         int iterationNum = 0;
-        int editDistance = conf.getInt("dereplicate.editdistance", 2);
+        int editDistance = conf.getInt("dereplicate.editdistance", 1);
 
         FileSystem fs = FileSystem.get(conf);
         boolean recalculate = false;
