@@ -334,7 +334,8 @@ public class BlatCommand {
         }
         bufRead.close();
 
-
+        context.getCounter("blat.input", "NUMBER_OF_INPUT_READS").increment(numReads);
+        context.getCounter("blat.input", "NUMBER_OF_INPUT_GROUPS").increment(numGroups);        
         log.info("read " + numReads + " Reads in " + numGroups + " gene groups");
 
         /*

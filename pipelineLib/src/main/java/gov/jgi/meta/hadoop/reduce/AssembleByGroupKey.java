@@ -93,6 +93,8 @@ import java.util.Map;
                 map.put(a[0], a[1]);
             }
 
+           context.getCounter("reduce.assembly", "NUMBER_OF_READS_IN_GROUP").increment(map.size());
+           context.getCounter("reduce", "NUMBER_OF_UNIQUE_GROUPS").increment(1); 
             try {
                 s = assemblerCmd.exec(groupId, map, context);
             } catch (Exception e) {
@@ -113,9 +115,10 @@ import java.util.Map;
             //context.getCounter(AssemblyCounters.NUMBER_OF_MATCHED_READS).increment(s.size());
 
             log.info("assembler retrieved " + s.size() + " results");
+            context.getCounter("reduce.assembly", "NUMBER_OF_CONTIGS_ASSEMBLED").increment(s.size());
 
             for (String k : s.keySet()) {
-
+                                        
                 context.write(new Text(">" + groupId + "-" + k + " numberOfReadsInput=" + map.size() + " numberOfReadsAssembled=" + s.size()), new Text("\n" + s.get(k)));
 
             }
