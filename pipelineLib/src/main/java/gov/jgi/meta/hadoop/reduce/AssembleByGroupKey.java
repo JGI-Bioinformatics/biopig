@@ -89,7 +89,7 @@ import java.util.Map;
             Map<String, String> map = new HashMap<String, String>();
 
             for (Text r : values) {
-                String[] a = r.toString().split("-", 2);
+                String[] a = r.toString().split("&", 2);
                 map.put(a[0], a[1]);
             }
 
@@ -116,7 +116,7 @@ import java.util.Map;
 
             for (String k : s.keySet()) {
 
-                context.write(new Text(">" + groupId + "-" + k), new Text("\n" + s.get(k)));
+                context.write(new Text(">" + groupId + "-" + k + " numberOfReadsInput=" + map.size() + " numberOfReadsAssembled=" + s.size()), new Text("\n" + s.get(k)));
 
             }
 

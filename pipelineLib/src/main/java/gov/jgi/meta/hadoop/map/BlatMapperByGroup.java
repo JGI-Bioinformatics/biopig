@@ -72,7 +72,7 @@ import java.util.Set;
 
             log.debug("map task started for job: " + context.getJobName() + " on host: " + InetAddress.getLocalHost().getHostName());
 
-            String blastOutputFilePath = context.getConfiguration().get("blastoutputfile");
+            String blastOutputFilePath = context.getConfiguration().get("blat.blastoutputfile");
             Boolean skipExecution = context.getConfiguration().getBoolean("blat.skipexecution", false);
 
             context.getCounter("map", "NUMBER_OF_READS").increment(value.size());

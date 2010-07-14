@@ -211,7 +211,7 @@ public class ReadBlaster {
         boolean recalculate = false;
         boolean abort = false;
 
-        if (!fs.exists(new Path(otherArgs[1]+"/step1"))) {
+        if (!fs.exists(new Path(otherArgs[2]+"/step1"))) {
             recalculate = true;
             Job job = new Job(conf, System.getProperty("application.name")+"-"+System.getProperty("application.version")+"-step1");
 
@@ -237,7 +237,7 @@ public class ReadBlaster {
          */
 
         if (recalculate) {
-            fs.delete(new Path(otherArgs[1]+"/step2"), true);
+            fs.delete(new Path(otherArgs[2]+"/step2"), true);
         }
         if (!abort && !fs.exists(new Path(otherArgs[1]+"/step2"))) {
             conf.set("blat.blastoutputfile", otherArgs[2]+"/step1/part-r-00000");
