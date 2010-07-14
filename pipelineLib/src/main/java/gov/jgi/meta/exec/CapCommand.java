@@ -135,23 +135,23 @@ public class CapCommand implements CommandLineProgram {
 
         String c;
 
-        if ((c = config.get("assembly.commandline")) != null) {
+        if ((c = config.get("cap3.commandline")) != null) {
             commandLine = c;
         } else {
             commandLine = DEFAULTCOMMANDLINE;
         }
-        if ((c = config.get("assembly.commandpath")) != null) {
+        if ((c = config.get("cap3.commandpath")) != null) {
             commandPath = c;
         } else {
             commandPath = DEFAULTCOMMANDPATH;
         }
-        if ((c = config.get("assembly.tmpdir")) != null) {
+        if ((c = config.get("assembler.tmpdir")) != null) {
             tmpDir = c;
         } else {
             tmpDir = DEFAULTTMPDIR;
         }
 
-        doCleanup = config.getBoolean("assembly.cleanup", true);
+        doCleanup = config.getBoolean("assembler.cleanup", true);
 
          /*
          do sanity check to make sure all paths exist

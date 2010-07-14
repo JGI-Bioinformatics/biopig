@@ -96,6 +96,10 @@
     </property>
     -->
 
+    <property>
+        <name>assembler.command</name>
+        <value>cap3</value>
+    </property>
  
 </configuration>
 

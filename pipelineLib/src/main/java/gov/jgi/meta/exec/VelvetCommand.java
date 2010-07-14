@@ -180,13 +180,13 @@ public class VelvetCommand implements CommandLineProgram {
             velvetg_commandPath = DEFAULT_VELVETG_COMMANDPATH;
         }
 
-        if ((c = config.get("assembly.tmpdir")) != null) {
+        if ((c = config.get("assembler.tmpdir")) != null) {
             tmpDir = c;
         } else {
             tmpDir = DEFAULTTMPDIR;
         }
 
-        doCleanup = config.getBoolean("velvet.cleanup", true);
+        doCleanup = config.getBoolean("assembler.cleanup", true);
 
          /*
          do sanity check to make sure all paths exist

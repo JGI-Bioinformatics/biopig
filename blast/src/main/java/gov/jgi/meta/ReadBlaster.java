@@ -189,7 +189,15 @@ public class ReadBlaster {
                 "blat.skipexecution",
                 "blat.paired",
                 "--- assembly ---",
-                "assembler.command"
+                "assembler.command",
+                "assembler.tmpdir",
+                "assembler.cleanup",
+                "cap3.commandline",
+                "cap3.commandpath",
+                "velveth.commandline",
+                "velveth.commandpath",
+                "velvetg.commandline",
+                "velvetg.commandpath"
         };
 
         for (String option : allRelevantProperties) {
