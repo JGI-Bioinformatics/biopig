@@ -64,43 +64,35 @@ public class FastaBlockRecordReader extends RecordReader<Text, Map<String,String
   private Text key = null;
   private Map<String,String> value = null;
 
-  public void initialize(InputSplit genericSplit,
-                         TaskAttemptContext context) throws IOException {
-    FileSplit split = (FileSplit) genericSplit;
-    Configuration job = context.getConfiguration();
-    this.maxLineLength = job.getInt("mapred.linerecordreader.maxlength",
-                                    Integer.MAX_VALUE);
+    public void initialize(InputSplit genericSplit,
+                           TaskAttemptContext context) throws IOException {
+      FileSplit split = (FileSplit) genericSplit;
+      Configuration job = context.getConfiguration();
+      this.maxLineLength = job.getInt("mapred.linerecordreader.maxlength",
+                                      Integer.MAX_VALUE);
+      start = split.getStart();
+      end = start + split.getLength();
+      final Path file = split.getPath();
+      compressionCodecs = new CompressionCodecFactory(job);
+      final CompressionCodec codec = compressionCodecs.getCodec(file);
 
-
-    LOG.info("INITIALIZE SPLIT: start: " + split.getStart() + " end: " + (split.getStart() + split.getLength()));
-
-    start = split.getStart();
-    end = start + split.getLength();
-    final Path file = split.getPath();
-    compressionCodecs = new CompressionCodecFactory(job);
-    final CompressionCodec codec = compressionCodecs.getCodec(file);
-
-    // open the file and seek to the start of the split
-    FileSystem fs = file.getFileSystem(job);
-    FSDataInputStream fileIn = fs.open(split.getPath());
-    boolean skipFirstLine = false;
-    if (codec != null) {
-      in = new FastaBlockLineReader(codec.createInputStream(fileIn), job);
-      end = Long.MAX_VALUE;
-    } else {
-      if (start != 0) {
-        skipFirstLine = true;
-        --start;
-        fileIn.seek(start);
+      // open the file and seek to the start of the split
+      FileSystem fs = file.getFileSystem(job);
+      FSDataInputStream fileIn = fs.open(split.getPath());
+      boolean skipFirstLine = false;
+      if (codec != null) {
+        in = new FastaBlockLineReader(codec.createInputStream(fileIn), job);
+        end = Long.MAX_VALUE;
+      } else {
+        if (start != 0) {
+          skipFirstLine = false;       // don't do this!
+          //--start;                      or this
+          fileIn.seek(start);
+        }
+        in = new FastaBlockLineReader(fileIn, job);
       }
-      in = new FastaBlockLineReader(fileIn, job);
+      this.pos = start;
     }
-//    if (skipFirstLine) {  // skip first line and re-establish "start".
-//      start += in.readLine(new Text(), new HashMap<String,String>(), 0,
-//                           (int)Math.min((long)Integer.MAX_VALUE, end - start));
-//    }
-    this.pos = start;
-  }
 
   public boolean nextKeyValue() throws IOException {
     if (key == null) {

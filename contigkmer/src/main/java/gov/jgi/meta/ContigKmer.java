@@ -56,10 +56,10 @@ import java.net.InetAddress;
 import java.util.*;
 
 
-public class ContigKmer {
+public class  ContigKmer {
 
     public static class ContigKmerMapper
-            extends Mapper<Text, Sequence, Text, Text> {
+            extends Mapper<Text, Sequence, Text, ReadNode> {
 
         Logger log = Logger.getLogger(this.getClass());
         Map<String,String> contigs;
@@ -147,6 +147,8 @@ public class ContigKmer {
             String sequence = s.seqString();
             Text seqText = new Text(seqid.toString() + "&" + sequence);
 
+            ReadNode rn = new ReadNode(seqid.toString(), "", sequence);
+
             if (!sequence.matches("[atgcn]*")) {
                 log.error("sequence " + seqid + " is not well formed: " + sequence);
                 return;
@@ -170,7 +172,7 @@ public class ContigKmer {
             }
             if (l.size() != 0) {
                 for (String contigMatch : l) {
-                    context.write(new Text(contigMatch), seqText);
+                    context.write(new Text(contigMatch), rn);
                 }
             }
         }
@@ -178,23 +180,26 @@ public class ContigKmer {
 
 
 
-    public static class ContigKmerReducer extends Reducer<Text, Text, Text, Text> {
+    public static class ContigKmerReducer extends Reducer<Text, ReadNode, Text, Text> {
 
         Logger log = Logger.getLogger(this.getClass());
 
-        public void reduce(Text key, Iterable<Text> values, Context context)
+        public void reduce(Text key, Iterable<ReadNode> values, Context context)
                 throws InterruptedException, IOException {
 
             String keyStr = key.toString();
 
-            Set<Text> hs = new HashSet<Text>();
-            for (Text v : values) {
-                hs.add(new Text(v));
+            HashMap<String,ReadNode> hs = new HashMap<String,ReadNode>();
+            for (ReadNode v : values) {
+                if (hs.containsKey(v.sequence)) {
+                    hs.get(v.sequence).count++;
+                } else {
+                    hs.put(v.sequence,new ReadNode(v));
+                }
             }
 
-            for (Text s : hs) {
-                String[] sA = s.toString().split("&");
-                context.write(new Text(">"+keyStr+"&"+sA[0]), new Text("\n" + sA[1]));
+            for (ReadNode s : hs.values()) {
+                context.write(new Text(">"+keyStr+"&"+s.id + " count=" + s.count), new Text("\n" + s.sequence));
             }
 
        }
@@ -312,7 +317,9 @@ public class ContigKmer {
                 "mapred.min.split.size",
                 "mapred.max.split.size",
                 "contigkmer.numreducers",
-                "contigkmer.sleep"
+                "contigkmer.sleep",
+                "kmersize",
+                "contigendlength"
         };
 
         for (String option : optionalProperties) {
@@ -337,7 +344,7 @@ public class ContigKmer {
                 //job.setCombinerClass(IntSumReducer.class);
                 job0.setReducerClass(ContigKmerReducer.class);
                 job0.setOutputKeyClass(Text.class);
-                job0.setOutputValueClass(Text.class);
+                job0.setOutputValueClass(ReadNode.class);
                 job0.setNumReduceTasks(conf.getInt("contigkmer.numreducers", 1));
 
                 FileInputFormat.addInputPath(job0, new Path(otherArgs[1]));

@@ -63,7 +63,8 @@ public class BlastCommand {
     String DEFAULTCOMMANDPATH = "/home/asczyrba/src/blast-2.2.20/bin/blastall";
     String DEFAULTTMPDIR = "/tmp/blast";
 
-    // blastall -m 8 -p tblastn -b 1000000 -a 10 -o $workdir/cazy.blastout -d $blast_db -i $cazy
+    String DEFAULTFORMATDBCOMMANDLINE = "-o T -p F";
+    String DEFAULTFORMATDBCOMMANDPATH = "formatdb";   // by default it should be in the path
 
     // -p program name
     // -m 8 alignment view options - tabular
@@ -81,15 +82,19 @@ public class BlastCommand {
     /**
      * the commandline to execute (all options except the input/output)
      */
-    String commandLine = null;
+    String commandLine = DEFAULTCOMMANDLINE;
     /**
      * the location of the executable in the filesystem
      */
-    String commandPath = null;
+    String commandPath = DEFAULTCOMMANDPATH;
+
+    String formatdbCommandLine = DEFAULTFORMATDBCOMMANDLINE;
+    String formatdbCommandPath = DEFAULTFORMATDBCOMMANDPATH;
+
     /**
      * temporary directory to use for intermediate files
      */
-    String tmpDir = null;
+    String tmpDir = DEFAULTTMPDIR;
     File tmpDirFile = null;
 
     /**
@@ -123,9 +128,6 @@ public class BlastCommand {
      */
     public BlastCommand() throws IOException {
         // look in configuration file to determine default values
-        commandLine = DEFAULTCOMMANDLINE;
-        commandPath = DEFAULTCOMMANDPATH;
-        tmpDir = DEFAULTTMPDIR;
         tmpDirFile = createTempDir();
     }
 
@@ -147,23 +149,23 @@ public class BlastCommand {
 
         if ((c = config.get("blast.commandline")) != null) {
             commandLine = c;
-        } else {
-            commandLine = DEFAULTCOMMANDLINE;
         }
         if ((c = config.get("blast.commandpath")) != null) {
             commandPath = c;
-        } else {
-            commandPath = DEFAULTCOMMANDPATH;
         }
+        if ((c = config.get("formatdb.commandline")) != null) {
+            formatdbCommandLine = c;
+        }
+        if ((c = config.get("formatdb.commandpath")) != null) {
+            formatdbCommandPath = c;
+        }
+
         if ((c = config.get("blast.tmpdir")) != null) {
             tmpDir = c;
-        } else {
-            tmpDir = DEFAULTTMPDIR;
         }
 
         docleanup = config.getBoolean("blast.cleanup", true);
-
-        effectiveSize = config.getLong("effectivedatabasesize", 0);
+        effectiveSize = config.getLong("blast.effectivedatabasesize", 0);
 
         /*
         do sanity check to make sure all paths exist
@@ -268,7 +270,7 @@ public class BlastCommand {
         File seqFile = new File(tmpDirFile, "seqfile");
         commands.add("/bin/sh");
         commands.add("-c");
-        commands.add("cd " + tmpDirFile.getPath() + ";" + " formatdb -o T -p F -i " + seqFile.getPath() + " -n " + "seqfile");
+        commands.add("cd " + tmpDirFile.getPath() + ";" + formatdbCommandPath + " " + formatdbCommandLine + " -i " + seqFile.getPath() + " -n " + "seqfile");
 
         log.debug("blastcmd: formatdbcommand = " + commands);
 
@@ -347,7 +349,7 @@ public class BlastCommand {
         commands.add("-c");
 
         double ecutoff = (10.0 * databasesize/effectiveSize);
-        effectiveSize = 0;  // don't do this for now
+        ecutoff = 0;  // don't do this for now
         commands.add(commandPath + " " + commandLine + " -z " + effectiveSize + " -e " + ecutoff + " -d " + seqDir + " -i " + localCazyEC);
 
         // TODO: remove the try statement to throw exception in case of failure

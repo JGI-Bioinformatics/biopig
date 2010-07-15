@@ -114,7 +114,13 @@ public class Dereplicate {
                        log.error("bad key/pair... size = " + count);
                        log.error("front = " + front);
                        log.error("back = " + back);
-                       return new Text("\nERROR");
+                       return null;
+                   }
+                   if (front.length() != back.length()) {
+                        log.error("bad key/pair sizes... ");
+                       log.error("front = " + front);
+                       log.error("back = " + back);
+                       return null;
                    }
 
             sb = sb.append(front).append(StringUtils.reverse(back));
@@ -125,7 +131,10 @@ public class Dereplicate {
         public void reduce(Text key, Iterable<Text> values, Context context)
                 throws InterruptedException, IOException {
 
-            context.write(new Text(">" + key.toString()), pairJoin(values));
+            Text joined = pairJoin(values);
+            if (joined != null) {
+                context.write(new Text(">" + key.toString()), joined);
+            }
 
        }
     }
@@ -141,21 +150,26 @@ public class Dereplicate {
             String sequence = value.seqString();
 
             int windowSize = context.getConfiguration().getInt("dereplicate.windowsize", 16);
-            int editDistance = context.getConfiguration().getInt("dereplicate.editdistance", 1);
+            int editDistance = 1;
 
             try {
                 context.setStatus("generating hash");
                 String sequenceHashValue = sequence.substring(0, windowSize) + StringUtils.reverse(sequence).substring(0,windowSize);
+                //if (sequenceHashValue.contains("n")) return;
                 ReadNode rn = new ReadNode(keyStr, sequenceHashValue, sequence);
 
+                log.info("real value: " + sequenceHashValue + "/" + rn.toString());
                 context.write(new Text(sequenceHashValue), rn);
                 //context.write(new Text(sequenceHashValue), new ReadNode("", sequenceHashValue, ""));  // cache
                 context.setStatus("generating neighbors");
                 Set<String> allNeighbors =  generateAllNeighbors(sequenceHashValue, editDistance, new HashSet());
-                context.setStatus("writing output");
+                context.setStatus("writing output:");
                 for (String neighborHashValue : allNeighbors) {
+//                    log.info("neighbors of " + sequenceHashValue);
+//                    log.info("k/v = " + neighborHashValue + "/" + rn.toString());
                     context.write(new Text(neighborHashValue), rn);
                 }
+//                log.info("");
             }catch (Exception e) {
                 log.error("error sequence not correct: id = " + keyStr + " sequence = " + sequence + " \n original message: " + e);
             }
@@ -163,12 +177,48 @@ public class Dereplicate {
 
         }
 
-        private Set<String> generateAllNeighbors(String start, int distance, Set x) {
+    }
 
-            char[] bases = {'a', 't', 'g', 'c'};
+    public static class GraphEdgeMapper2
+            extends Mapper<LongWritable, Text, Text, ReadNode> {
+
+        Logger log = Logger.getLogger(GraphEdgeMapper.class);
+
+        public void map(LongWritable linenum, Text line, Context context) throws IOException, InterruptedException {
+
+           String[] lineArray = line.toString().split("\t");
+           ReadNode r = new ReadNode(lineArray[0]);
+           String groupId = lineArray[1];
+           String groupHash = lineArray[1].split("\\.")[2];
+
+            context.write(new Text(groupHash), r);
+
+            String sequence = r.sequence;
+
+            int windowSize = context.getConfiguration().getInt("dereplicate.windowsize", 16);
+            int editDistance = 1;
+
+            try {
+                context.setStatus("generating hash");
+                String sequenceHashValue = sequence.substring(0, windowSize) + StringUtils.reverse(sequence).substring(0,windowSize);
+
+                Set<String> allNeighbors =  generateAllNeighbors(sequenceHashValue, editDistance, new HashSet());
+
+                for (String neighborHashValue : allNeighbors) {
+                    context.write(new Text(groupHash), r);
+                }
+            }catch (Exception e) {
+                log.error("error sequence not correct: id = " + r + " sequence = " + sequence + " \n original message: " + e);
+            }
+        }
+
+    }
+        private static Set<String> generateAllNeighbors(String start, int distance, Set x) {
+
+            char[] bases = {'a', 't', 'g', 'c', 'n'};
             Set<String> s = new HashSet<String>();
 
-            s.add(start);
+            //s.add(start);
             if (distance == 0) {
                 return s;
             }
@@ -179,6 +229,8 @@ public class Dereplicate {
                     if (start.charAt(i) == basePair) continue;
                     String n = stringReplaceIth(start, i, basePair);
                     if (x.contains(n)) continue;
+
+                    s.add(n);
                     s.addAll(generateAllNeighbors(n, distance-1, s));
                 }
 
@@ -187,12 +239,12 @@ public class Dereplicate {
             return s;
         }
 
-        private String stringReplaceIth(String s, int i, char c) {
+        private static String stringReplaceIth(String s, int i, char c) {
             
             return s.substring(0,i) + c + s.substring(i+1);
 
         }
-    }
+
 
     /**
      * simple reducer that just outputs the matches grouped by gene
@@ -209,16 +261,18 @@ public class Dereplicate {
             String keyStr = key.toString();
 
             context.setStatus("looking for hash in readnodeset with size " + rns.length);
-
+//            log.info("examining node: " + keyStr);            
             if (rns.findHash(keyStr)) {
+                log.info("examining node: " + keyStr + " found!");
                 context.setStatus("writing output with size " + rns.length);
                 int i = 0;
-                String cname = rns.canonicalName();
+                String cname = rns.canonicalName(keyStr);
                 for (ReadNode r : rns.s) {
                     i++;
                     context.setStatus("ReadNode " + i + " in " + cname);
                     context.write(r, new Text(cname));
                 }
+                log.info("size = " + i);
             }
         }
     }
@@ -233,9 +287,9 @@ public class Dereplicate {
 
             String[] lineArray = line.toString().split("\t");
             ReadNode r = new ReadNode(lineArray[0]);
-            String groupid = lineArray[1];
+            String[] groupInfo = lineArray[1].split(("\\."));
 
-            context.write(r, new Text(groupid));
+            context.write(r, new Text(groupInfo[0]+"."+groupInfo[1]));
         }
 }
 
@@ -253,7 +307,7 @@ public class Dereplicate {
                 int groupSize = Integer.parseInt(groupidComponents[0]);
                 if (groupSize > max) {
                     max = groupSize;
-                    rsMax = rs;
+                    rsMax = new Text(rs);
                 }
             }
 
@@ -291,8 +345,15 @@ public static class ChooseMapper
             // values are the set of read nodes
 
             ReadNodeSet rs = new ReadNodeSet(values);
-
-            context.write(new Text(rs.fastaHeader() + " numberOfReads=" + rs.s.size()), new Text(rs.fastaConsensusSequence()));
+            String consensus;
+            try {
+                consensus =  rs.fastaConsensusSequence();
+            } catch (Exception e) {
+                log.info("error generating consensus: key = " + key);
+                log.info(e);
+                return;
+            }
+            context.write(new Text(rs.fastaHeader() + " numberOfReads=" + rs.s.size()), new Text(consensus));
        }
     }
 
@@ -395,6 +456,9 @@ public static class ChooseMapper
         }
 
 
+        int iterationNum = 0;
+        int editDistance = conf.getInt("dereplicate.editdistance", 1);
+
         FileSystem fs = FileSystem.get(conf);
         boolean recalculate = false;
 
@@ -418,30 +482,42 @@ public static class ChooseMapper
             job0.waitForCompletion(true);
         }
 
-        /*
-        setup first job configuration parameters
-         */
         if (recalculate) {
             fs.delete(new Path(otherArgs[1]+"/step1"), true);
         }
         if (!fs.exists(new Path(otherArgs[1]+"/step1"))) {
-            recalculate = true;
 
-            Job job = new Job(conf, "dereplicate-step1");
+            do {
+                recalculate = true;
 
-            job.setJarByClass(Dereplicate.class);
-            job.setInputFormatClass(FastaInputFormat.class);
-            job.setMapperClass(GraphEdgeMapper.class);
-            //job.setCombinerClass(IntSumReducer.class);
-            job.setReducerClass(GraphEdgeReducer.class);
-            job.setOutputKeyClass(Text.class);
-            job.setOutputValueClass(ReadNode.class);
-            job.setNumReduceTasks(conf.getInt("dereplicate.numreducers", 1));
+                Job job = new Job(conf, "dereplicate-step1");
 
-            FileInputFormat.addInputPath(job, new Path(otherArgs[1]+"/step0"));
-            FileOutputFormat.setOutputPath(job, new Path(otherArgs[1]+"/step1"));
+                job.setJarByClass(Dereplicate.class);
+                if (iterationNum == 0) {
+                    job.setInputFormatClass(FastaInputFormat.class);
+                    job.setMapperClass(GraphEdgeMapper.class);
+                } else {
+                    job.setInputFormatClass(TextInputFormat.class);
+                    job.setMapperClass(GraphEdgeMapper2.class);
+                }
 
-            job.waitForCompletion(true);
+                job.setReducerClass(GraphEdgeReducer.class);
+                job.setOutputKeyClass(Text.class);
+                job.setOutputValueClass(ReadNode.class);
+                job.setNumReduceTasks(conf.getInt("dereplicate.numreducers", 1));
+
+                if (iterationNum == 0)
+                    FileInputFormat.addInputPath(job, new Path(otherArgs[1]+"/step0"));
+                else
+                    FileInputFormat.addInputPath(job, new Path(otherArgs[1]+"/step1/iteration" + (iterationNum-1)));
+
+                FileOutputFormat.setOutputPath(job, new Path(otherArgs[1]+"/step1/iteration" + iterationNum));
+
+                job.waitForCompletion(true);
+
+                iterationNum++;
+                
+            } while (iterationNum < editDistance);
         }
 
         /*
@@ -465,7 +541,7 @@ public static class ChooseMapper
             job2.setOutputValueClass(Text.class);
             job2.setNumReduceTasks(conf.getInt("dereplicate.numreducers", 1));
 
-            FileInputFormat.addInputPath(job2, new Path(otherArgs[1]+"/step1"));
+            FileInputFormat.addInputPath(job2, new Path(otherArgs[1]+"/step1/iteration" + (iterationNum-1)));
             FileOutputFormat.setOutputPath(job2, new Path(otherArgs[1]+"/step2"));
 
 
