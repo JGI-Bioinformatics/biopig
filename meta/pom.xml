@@ -67,18 +67,6 @@
 
         <dependency>
             <groupId>gov.jgi.gentech</groupId>
-            <artifactId>blatHadoopApp</artifactId>
-            <version>0.1-SNAPSHOT</version>
-        </dependency>
-
-        <dependency>
-            <groupId>gov.jgi.gentech</groupId>
-            <artifactId>assemblyHadoopApp</artifactId>
-            <version>0.1-SNAPSHOT</version>
-        </dependency>
-
-        <dependency>
-            <groupId>gov.jgi.gentech</groupId>
             <artifactId>dereplicateHadoopApp</artifactId>
             <version>0.1-SNAPSHOT</version>
         </dependency>
