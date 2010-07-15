@@ -33,6 +33,7 @@ package gov.jgi.meta;
 
 import gov.jgi.meta.hadoop.input.FastaBlockLineReader;
 import gov.jgi.meta.hadoop.input.FastaInputFormat;
+import gov.jgi.meta.hadoop.reduce.AssembleByGroupKey;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -59,7 +60,7 @@ import java.util.*;
 public class ContigKmer {
 
     public static class ContigKmerMapper
-            extends Mapper<Text, Sequence, Text, ReadNode> {
+            extends Mapper<Text, Sequence, Text, Text> {
 
         Logger log = Logger.getLogger(this.getClass());
         Map<String,String> contigs;
@@ -172,7 +173,7 @@ public class ContigKmer {
             }
             if (l.size() != 0) {
                 for (String contigMatch : l) {
-                    context.write(new Text(contigMatch), rn);
+                    context.write(new Text(contigMatch), new Text(rn.id+"&"+rn.sequence));
                 }
             }
         }
@@ -342,9 +343,9 @@ public class ContigKmer {
                 job0.setInputFormatClass(FastaInputFormat.class);
                 job0.setMapperClass(ContigKmerMapper.class);
                 //job.setCombinerClass(IntSumReducer.class);
-                job0.setReducerClass(ContigKmerReducer.class);
+                job0.setReducerClass(AssembleByGroupKey.class);
                 job0.setOutputKeyClass(Text.class);
-                job0.setOutputValueClass(ReadNode.class);
+                job0.setOutputValueClass(Text.class);
                 job0.setNumReduceTasks(conf.getInt("contigkmer.numreducers", 1));
 
                 FileInputFormat.addInputPath(job0, new Path(otherArgs[1]));
