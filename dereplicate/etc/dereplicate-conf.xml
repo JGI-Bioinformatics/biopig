@@ -1,0 +1,43 @@
+<?xml version="1.0" ?>
+
+<!-- configuration file for kmerHadoopApp
+
+   this file should be in the classpath of hadoop somewhere.
+
+  -->
+
+<configuration>
+    <!-- version number for application.  should match build version in pom.xml
+    -->
+    <property>
+        <name>version</name>
+        <value>0.1.1</value>
+    </property>
+
+  <property>
+    <name>mapred.child.java.opts</name>
+    <value>-Xmx4000m</value>
+  </property> 
+
+  <property>
+    <name>mapred.task.timeout</name>
+    <value>162000000</value>
+   </property>
+
+    <property>
+        <name>dereplicate.numreducers</name>
+        <value>39</value>
+    </property>
+
+   <property>
+        <name>dereplicate.editdistance</name>
+        <value>1</value>
+    </property>
+
+    <!-- mapred.min.split.size -->
+    <property>
+        <name>mapred.min.split.size</name>
+        <value>5000</value>
+    </property>
+</configuration>
+

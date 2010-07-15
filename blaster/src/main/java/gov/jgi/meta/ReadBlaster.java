@@ -163,7 +163,7 @@ public class ReadBlaster {
         log.info("\tsequence file: " + otherArgs[0]);
         log.info("\tgene db file : " + otherArgs[1]);
 
-        String[] allRelevantProperties = {
+        String[] allProperties = {
                 "--- application properties ---",
                 "application.name",
                 "application.version",
@@ -200,17 +200,7 @@ public class ReadBlaster {
                 "velvetg.commandpath"
         };
 
-        for (String option : allRelevantProperties) {
-
-            if (option.startsWith("---")) {
-                log.info(option);
-                continue;
-            }
-            String c = conf.get(option);
-            if (c != null) {
-                log.info("\toption " + option + ":\t" + c);
-            }
-        }
+        MetaUtils.printConfiguration(conf, log, allProperties);
 
         /*
         setup blast configuration parameters
