@@ -56,7 +56,7 @@ import java.net.InetAddress;
 import java.util.*;
 
 
-public class ContigKmer {
+public class  ContigKmer {
 
     public static class ContigKmerMapper
             extends Mapper<Text, Sequence, Text, ReadNode> {
