@@ -299,12 +299,16 @@ public class ContigKmer {
         /*
         process arguments
          */
-        if (otherArgs.length != 3) {
-            System.err.println("Usage: contigkmer <contigdir> <read> <outputdir>");
+        if (otherArgs.length < 3 || otherArgs.length > 4) {
+            System.err.println("Usage: contigkmer <contigdir> <read> <outputdir> <numiterations optional>");
             System.exit(2);
         }
 
 
+        int numberOfIterations = 1;
+
+        if (otherArgs.length == 4)
+            numberOfIterations = Integer.parseInt(otherArgs[3]);
 
         /*
         seems to help in file i/o performance
@@ -313,6 +317,7 @@ public class ContigKmer {
 
         log.info(System.getenv("application.name") + "[version " + System.getenv("application.version") + "] starting with following parameters");
         log.info("\tsequence file: " + otherArgs[1]);
+        log.info("\tcontig dir: " + otherArgs[0]);
 
         String[] optionalProperties = {
                 "mapred.min.split.size",
@@ -357,6 +362,6 @@ public class ContigKmer {
                 Thread.sleep(sleep);
             }
 
-        } while (true);
+        } while (iteration < numberOfIterations);
     }
 }
