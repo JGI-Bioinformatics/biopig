@@ -503,7 +503,7 @@ public static class ChooseMapper
      if (!fs.exists(new Path(otherArgs[1]+"/step3"))) {
          recalculate = true;
 
-         Job job3 = new Job(conf, "dereplicate-step2");
+         Job job3 = new Job(conf, "dereplicate-step3");
          job3.setJarByClass(Dereplicate.class);
          job3.setInputFormatClass(TextInputFormat.class);
          job3.setMapperClass(ChooseMapper.class);
