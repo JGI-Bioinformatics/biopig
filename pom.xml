@@ -12,9 +12,7 @@
 
     <modules>
         <module>pipelineLib</module>
-        <module>blast</module>
-        <module>blat</module>
-        <module>assembly</module>
+        <module>blaster</module>
         <module>dereplicate</module>
         <module>meta</module>
         <module>contigkmer</module>

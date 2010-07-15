@@ -34,9 +34,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
-import org.biojava.bio.seq.DNATools;
-import org.biojava.bio.seq.Sequence;
-import org.biojava.bio.symbol.IllegalSymbolException;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -124,17 +121,15 @@ public class FastaBlockLineReader {
         Boolean eof = false;
         int startPosn;
         Text recordBlock = new Text();
+     
 
-        LOG.info("starting reading file, buffersize = " + bufferSize);
-        LOG.info("max-bytes-to-consume = " + maxBytesToConsume);
-        
         /*
         first thing to do is to move forward till you see a start character
          */
-
-
+        startPosn = bufferPosn;
         do {
             if (bufferPosn >= bufferLength) {
+                totalBytesRead += bufferPosn - startPosn;
                 bufferPosn = 0;
                 bufferLength = in.read(buffer);
                 if (bufferLength <= 0) {
@@ -148,11 +143,12 @@ public class FastaBlockLineReader {
         if we hit the end of file already, then just return 0 bytes processed
          */
         if (eof)
-            return totalBytesRead;  // which is 0
+            return totalBytesRead;
 
         /*
         now bufferPosn should be at the start of a fasta record
          */
+        totalBytesRead += (bufferPosn - 1) - startPosn;
         startPosn = bufferPosn-1;  // startPosn guaranteed to be at a ">"
 
         /*
@@ -162,7 +158,6 @@ public class FastaBlockLineReader {
         do {
             if (bufferPosn >= bufferLength) {
 
-//                LOG.info("copy block and refresh from disk. totalbytes read so far = " + totalBytesRead);
                 /*
                 copy the current buffer before refreshing the buffer
                  */
@@ -180,13 +175,12 @@ public class FastaBlockLineReader {
 
         } while (buffer[bufferPosn++] != '>' || (totalBytesRead + bufferPosn - startPosn) < maxBytesToConsume);
 
-        LOG.info("last copy to buffer. totalbytes so far = " + totalBytesRead);
-
-        int appendLength = bufferPosn - startPosn;
-        recordBlock.append(buffer, startPosn, appendLength);
-        totalBytesRead += appendLength;
-
-        LOG.info("finished reading file, parsing data into Map");
+        if (!eof) {
+            bufferPosn--;  // make sure we leave bufferPosn pointing to the next record
+            int appendLength = bufferPosn - startPosn;
+            recordBlock.append(buffer, startPosn, appendLength);
+            totalBytesRead += appendLength;
+        }
 
         /*
         record block now has the byte array we want to process for reads
@@ -196,7 +190,6 @@ public class FastaBlockLineReader {
         Text s = new Text();
         int i = 1; // skip initial record seperator ">"
         int j = 1;
-        int x = 0;
         do {
             k.clear();
             s.clear();
@@ -229,12 +222,7 @@ public class FastaBlockLineReader {
             /*
            now skip the newlines
             */
-            while (recordBlock.charAt(j) == CR || recordBlock.charAt(j) == LF) {
-                if (j >= recordBlock.getLength()) {
-                    LOG.error("underflow! j = " + j + ", length = " + recordBlock.getLength());
-                }
-                j++;
-            }
+            while (j < recordBlock.getLength() && (recordBlock.charAt(j) == CR || recordBlock.charAt(j) == LF)) j++;
 
             /*
            now read the sequence
@@ -250,9 +238,8 @@ public class FastaBlockLineReader {
                 s.append(recordBlock.getBytes(), i, j - i - 1);
                 set.put(k.toString(), s.toString().toLowerCase());
 
-
                 while (j < recordBlock.getLength() && (recordBlock.charAt(j) == CR || recordBlock.charAt(j) == LF)) j++;
-                           
+
             } while (j < recordBlock.getLength() && recordBlock.charAt(j) != '>');
 
             numRecordsRead++;
@@ -267,8 +254,6 @@ public class FastaBlockLineReader {
             j++; // skip the ">"
 
         } while (j < recordBlock.getLength());
-
-        LOG.info("done parsing input: " + totalBytesRead + " bytes read, " + numRecordsRead + " records read.");
 
         return totalBytesRead;
     }
@@ -299,28 +284,45 @@ public class FastaBlockLineReader {
 
     public static void main(String[] args) {
 
+        int num = 100;
+        int last = -1;
+
+        do {
         try {
-            FileInputStream fstream = new FileInputStream("/scratch/karan/756.1.948.fas");
+            FileInputStream fstream = new FileInputStream("/scratch/karan/30mb.fas");
             FastaBlockLineReader fblr = new FastaBlockLineReader(fstream);
 
             Text key = new Text();
             Map<String, String> setofreads = new HashMap<String, String>();
-            int length = 500;
+            int length = (int) (Math.random() * 10000);
+            System.out.println("lenght = " + length);
+            
+            int total = 0;
 
             fblr.readLine(key, setofreads, Integer.MAX_VALUE, length);
-            System.out.println("setofreads.size = " + setofreads.size());
-            for (String s : setofreads.keySet()) {
-                System.out.println(s);
-            }
+//            System.out.println("setofreads.size = " + setofreads.size());
+            total += setofreads.size();
+            //for (String s : setofreads.keySet()) {
+//                System.out.println(s);
+//            }
             while (setofreads.size() > 0) {
+                setofreads.clear();                
                 fblr.readLine(key, setofreads, Integer.MAX_VALUE, length);
-                for (String s : setofreads.keySet()) {
-                    System.out.println(s);
-                }
+  //              System.out.println("setofreads.size = " + setofreads.size());
+                total += setofreads.size();
             }
+            System.out.println("total = " + total);
+
+            if (last != -1) {
+               if (last != total) {
+                   System.out.println("error!!!, length = " + length + ": last = " + last + " current = " + total);
+               }
+            }
+            last = total;
 
         } catch (Exception e) {
             System.out.println(e);
         }
+        } while (num-- > 0);
     }
 }
