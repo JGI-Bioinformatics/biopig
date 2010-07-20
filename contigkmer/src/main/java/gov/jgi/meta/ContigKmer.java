@@ -57,7 +57,7 @@ import java.net.InetAddress;
 import java.util.*;
 
 
-public class ContigKmer {
+public class  ContigKmer {
 
     public static class ContigKmerMapper
             extends Mapper<Text, Sequence, Text, Text> {
@@ -244,57 +244,7 @@ public class ContigKmer {
          */
 
         Configuration conf = new Configuration();
-
-        /*
-        first load the configuration from the build properties (typically packaged in the jar)
-         */
-        try {
-            Properties buildProperties = new Properties();
-            buildProperties.load(ClassLoader.getSystemResource("build.properties").openStream());
-            for (Enumeration e = buildProperties.propertyNames(); e.hasMoreElements() ;) {
-                String k = (String) e.nextElement();
-                System.out.println("setting " + k + " to " + buildProperties.getProperty(k));
-                System.setProperty(k, buildProperties.getProperty(k));
-
-                if (k.matches("^meta.*")) {
-                    System.out.println("overriding property: " + k);
-                    conf.set(k, buildProperties.getProperty(k));
-                }
-            }
-
-        } catch (Exception e) {
-
-        }
-
-        /*
-        override properties with the deployment descriptor
-         */
-        conf.addResource("contigkmer-conf.xml");
-
-        /*
-        override properties from user's preferences defined in ~/.meta-prefs
-         */
-
-        try {
-            java.io.FileInputStream fis = new java.io.FileInputStream(new File(System.getenv("HOME") + "/.meta-prefs"));
-            Properties props = new Properties();
-            props.load(fis);
-            for (Enumeration e = props.propertyNames(); e.hasMoreElements() ;) {
-                String k = (String) e.nextElement();
-                if (k.matches("^meta.*")) {
-                    System.out.println("overriding property: " + k);
-                    conf.set(k, props.getProperty(k));
-                }
-            }
-        } catch (Exception e) {
-            log.error("unable to find ~/.meta-prefs ... skipping");
-        }
-
-
-        /*
-        finally, allow user to override from commandline
-         */
-        String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
+        String[] otherArgs = MetaUtils.loadConfiguration(conf, "contigkmer-conf.xml", args);
 
         /*
         process arguments
@@ -315,7 +265,7 @@ public class ContigKmer {
          */
         conf.setInt("io.file.buffer.size", 1024 * 1024);
 
-        log.info(System.getenv("application.name") + "[version " + System.getenv("application.version") + "] starting with following parameters");
+        log.info(System.getProperty("application.name") + "[version " + System.getProperty("application.version") + "] starting with following parameters");
         log.info("\tsequence file: " + otherArgs[1]);
         log.info("\tcontig dir: " + otherArgs[0]);
 
@@ -328,11 +278,8 @@ public class ContigKmer {
                 "contigendlength"
         };
 
-        for (String option : optionalProperties) {
-            if (conf.get(option) != null) {
-                log.info("\toption " + option + ":\t" + conf.get(option));
-            }
-        }
+        MetaUtils.printConfiguration(conf, log, optionalProperties);
+
         int sleep = conf.getInt("contigkmer.sleep", 60000);
         int iteration = 0;
 

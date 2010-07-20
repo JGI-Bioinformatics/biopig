@@ -373,57 +373,7 @@ public static class ChooseMapper
          */
 
         Configuration conf = new Configuration();
-
-        /*
-        first load the configuration from the build properties (typically packaged in the jar)
-         */
-        try {
-            Properties buildProperties = new Properties();
-            buildProperties.load(ClassLoader.getSystemResource("build.properties").openStream());
-            for (Enumeration e = buildProperties.propertyNames(); e.hasMoreElements() ;) {
-                String k = (String) e.nextElement();
-                System.out.println("setting " + k + " to " + buildProperties.getProperty(k));
-                System.setProperty(k, buildProperties.getProperty(k));
-
-                if (k.matches("^meta.*")) {
-                    System.out.println("overriding property: " + k);
-                    conf.set(k, buildProperties.getProperty(k));
-                }
-            }
-
-        } catch (Exception e) {
-
-        }
-
-        /*
-        override properties with the deployment descriptor
-         */
-        conf.addResource("dereplicate-conf.xml");
-
-        /*
-        override properties from user's preferences defined in ~/.meta-prefs
-         */
-
-        try {
-            java.io.FileInputStream fis = new java.io.FileInputStream(new java.io.File(System.getenv("HOME") + "/.meta-prefs"));
-            Properties props = new Properties();
-            props.load(fis);
-            for (Enumeration e = props.propertyNames(); e.hasMoreElements() ;) {
-                String k = (String) e.nextElement();
-                if (k.matches("^meta.*")) {
-                    System.out.println("overriding property: " + k);
-                    conf.set(k, props.getProperty(k));
-                }
-            }
-        } catch (Exception e) {
-            log.error("unable to find ~/.meta-prefs ... skipping");
-        }
-
-
-        /*
-        finally, allow user to override from commandline
-         */
-        String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
+        String[] otherArgs = MetaUtils.loadConfiguration(conf, "dereplicate-conf.xml", args);
 
         /*
         process arguments
@@ -438,10 +388,10 @@ public static class ChooseMapper
          */
         conf.setInt("io.file.buffer.size", 1024 * 1024);
 
-        log.info(System.getenv("application.name") + "[version " + System.getenv("application.version") + "] starting with following parameters");
+        log.info(System.getProperty("application.name") + "[version " + System.getProperty("application.version") + "] starting with following parameters");
         log.info("\tsequence file: " + otherArgs[0]);
 
-        String[] optionalProperties = {
+        String[] allProperties = {
                 "mapred.min.split.size",
                 "mapred.max.split.size",
                 "dereplicate.numreducers",
@@ -449,12 +399,7 @@ public static class ChooseMapper
                 "dereplicate.windowsize"
         };
 
-        for (String option : optionalProperties) {
-            if (conf.get(option) != null) {
-                log.info("\toption " + option + ":\t" + conf.get(option));
-            }
-        }
-
+        MetaUtils.printConfiguration(conf, log, allProperties);
 
         int iterationNum = 0;
         int editDistance = conf.getInt("dereplicate.editdistance", 1);
@@ -558,7 +503,7 @@ public static class ChooseMapper
      if (!fs.exists(new Path(otherArgs[1]+"/step3"))) {
          recalculate = true;
 
-         Job job3 = new Job(conf, "dereplicate-step2");
+         Job job3 = new Job(conf, "dereplicate-step3");
          job3.setJarByClass(Dereplicate.class);
          job3.setInputFormatClass(TextInputFormat.class);
          job3.setMapperClass(ChooseMapper.class);
