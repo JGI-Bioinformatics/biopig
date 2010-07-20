@@ -4,6 +4,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.util.GenericOptionsParser;
 import org.apache.log4j.Logger;
 
+import java.net.URL;
 import java.util.Enumeration;
 import java.util.Properties;
 
@@ -31,7 +32,7 @@ public class MetaUtils {
         System.out.println("loading build.properties ...");
         try {
             Properties buildProperties = new Properties();
-            buildProperties.load(ClassLoader.getSystemResource("build.properties").openStream());
+            buildProperties.load(MetaUtils.class.getResourceAsStream("/build.properties"));
             for (Enumeration e = buildProperties.propertyNames(); e.hasMoreElements() ;) {
                 String k = (String) e.nextElement();
                 System.out.println("setting " + k + " to " + buildProperties.getProperty(k));
@@ -48,7 +49,14 @@ public class MetaUtils {
          */
 
         System.out.println("loading application configuration from " + configurationFileName);
-        conf.addResource(configurationFileName);
+        try {
+
+            URL u = ClassLoader.getSystemResource(configurationFileName);
+            System.out.println("url = " + u);
+            conf.addResource(configurationFileName);
+        } catch (Exception e) {
+            System.out.println("unable to find " + configurationFileName + " ... skipping");
+        }
 
         /*
         override properties from user's preferences defined in ~/.meta-prefs
