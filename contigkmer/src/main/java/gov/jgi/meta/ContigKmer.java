@@ -57,47 +57,30 @@ import java.net.InetAddress;
 import java.util.*;
 
 
-public class  ContigKmer {
+public class ContigKmer {
 
     public static class ContigKmerMapper
             extends Mapper<Text, Sequence, Text, Text> {
 
         Logger log = Logger.getLogger(this.getClass());
-        Map<String,String> contigs;
-        Map<String,Set<String>> contigKmers;
+        Map<String, String> contigs;
+        Map<String, Set<String>> contigKmers;
         int kmerSize;
         int contigEndLength;
 
 
-        private String reverseComplement (String s) {
+        private String reverseComplement(String s) {
             StringBuffer sb = new StringBuffer();
             for (int i = 0; i < s.length(); i++) {
                 if (s.charAt(i) == 'a') sb.append("t");
                 else if (s.charAt(i) == 't') sb.append("a");
                 else if (s.charAt(i) == 'g') sb.append("c");
                 else if (s.charAt(i) == 'c') sb.append("g");
-                else if (s.charAt(i) == 'n') sb.append("n");                
+                else if (s.charAt(i) == 'n') sb.append("n");
             }
             return sb.reverse().toString();
         }
 
-        private Set<Path> findAllPaths(Path p) throws IOException {
-            Configuration conf = new Configuration();
-            FileSystem fs = FileSystem.get(conf);
-            HashSet<Path> s = new HashSet<Path>();
-
-            if (fs.getFileStatus(p).isDir()) {
-
-                for (f : fs.)
-
-            } else {
-
-                s.add(p);
-
-            }
-
-            return s;
-        }
 
         private void readContigs(String contigFileName) throws IOException {
 
@@ -108,10 +91,10 @@ public class  ContigKmer {
             if (!fs.exists(filenamePath)) {
                 throw new IOException("file not found: " + contigFileName);
             }
-            contigs = new HashMap<String,String>();
-            contigKmers = new HashMap<String,Set<String>>();
+            contigs = new HashMap<String, String>();
+            contigKmers = new HashMap<String, Set<String>>();
 
-            for (Path f : findAllPaths(filenamePath)) {
+            for (Path f : MetaUtils.findAllPaths(filenamePath)) {
 
                 FSDataInputStream in = fs.open(f);
                 FastaBlockLineReader fblr = new FastaBlockLineReader(in);
@@ -120,17 +103,17 @@ public class  ContigKmer {
                 long length = fs.getFileStatus(f).getLen();
 
                 HashMap<String, String> tmpcontigs = new HashMap<String, String>();
-                contigs.putAll(tmpcontigs);
-
                 fblr.readLine(key, tmpcontigs, Integer.MAX_VALUE, (int) length);
+                contigs.putAll(tmpcontigs);
                 in.close();
+
                 int num = 0;
                 for (String k : tmpcontigs.keySet()) {
                     //log.info("processing: " + num++);
                     String contigSequence = tmpcontigs.get(k);
                     int seqLength = contigSequence.length();
                     // tail end of contig
-                    for (int i = Math.max(seqLength - contigEndLength, 0); i <= seqLength-kmerSize; i++ ) {
+                    for (int i = Math.max(seqLength - contigEndLength, 0); i <= seqLength - kmerSize; i++) {
                         String kmer = contigSequence.substring(i, i + kmerSize);
                         if (contigKmers.containsKey(kmer)) {
                             contigKmers.get(kmer).add(k);
@@ -141,7 +124,7 @@ public class  ContigKmer {
                         }
                     }
                     // front end of sequence
-                    for (int i = 0; i <= Math.min(contigEndLength,seqLength)-kmerSize; i++ ) {
+                    for (int i = 0; i <= Math.min(contigEndLength, seqLength) - kmerSize; i++) {
                         String kmer = contigSequence.substring(i, i + kmerSize);
                         if (contigKmers.containsKey(kmer)) {
                             contigKmers.get(kmer).add(k);
@@ -155,9 +138,9 @@ public class  ContigKmer {
             }
         }
 
-         protected void setup(Context context)
-                throws IOException, InterruptedException
-        {
+
+        protected void setup(Context context)
+                throws IOException, InterruptedException {
             // read contig file and store sequences with kmers
             String contigFileName = context.getConfiguration().get("contigfilename");
             kmerSize = context.getConfiguration().getInt("kmersize", 50);
@@ -195,13 +178,12 @@ public class  ContigKmer {
             }
             if (l.size() != 0) {
                 for (String contigMatch : l) {
-                    context.write(new Text(contigMatch), new Text(rn.id+"&"+rn.sequence));
-                    context.write(new Text(contigMatch), new Text(contigMatch+"&"+contigs.get(contigMatch)));
+                    context.write(new Text(contigMatch), new Text(rn.id + "&" + rn.sequence));
+                    context.write(new Text(contigMatch), new Text(contigMatch + "&" + contigs.get(contigMatch)));
                 }
             }
         }
     }
-
 
 
     public static class ContigKmerReducer extends Reducer<Text, ReadNode, Text, Text> {
@@ -213,20 +195,20 @@ public class  ContigKmer {
 
             String keyStr = key.toString();
 
-            HashMap<String,ReadNode> hs = new HashMap<String,ReadNode>();
+            HashMap<String, ReadNode> hs = new HashMap<String, ReadNode>();
             for (ReadNode v : values) {
                 if (hs.containsKey(v.sequence)) {
                     hs.get(v.sequence).count++;
                 } else {
-                    hs.put(v.sequence,new ReadNode(v));
+                    hs.put(v.sequence, new ReadNode(v));
                 }
             }
 
             for (ReadNode s : hs.values()) {
-                context.write(new Text(">"+keyStr+"&"+s.id + " count=" + s.count), new Text("\n" + s.sequence));
+                context.write(new Text(">" + keyStr + "&" + s.id + " count=" + s.count), new Text("\n" + s.sequence));
             }
 
-       }
+        }
     }
 
 
@@ -243,7 +225,7 @@ public class  ContigKmer {
         FileStatus[] fsArray = fs.listStatus(inputPath);
         for (FileStatus file : fsArray) {
             if (file.getPath().getName().endsWith(".lock")) continue;
-            String output = outputDirectory+"/"+file.getPath().getName()+".out";
+            String output = outputDirectory + "/" + file.getPath().getName() + ".out";
             String lockfile = file.getPath() + ".lock";
             if (!fs.exists(new Path(output)) && !fs.exists(new Path(lockfile))) {
                 return file.getPath().getName();
@@ -260,7 +242,7 @@ public class  ContigKmer {
      */
     public static void main(String[] args) throws Exception {
 
-         Logger log = Logger.getLogger(ContigKmer.class);
+        Logger log = Logger.getLogger(ContigKmer.class);
 
         /*
         load the application configuration parameters (from deployment directory)
@@ -283,9 +265,10 @@ public class  ContigKmer {
         if (otherArgs.length == 4)
             numberOfIterations = Integer.parseInt(otherArgs[3]);
 
+
         /*
-        seems to help in file i/o performance
-         */
+       seems to help in file i/o performance
+        */
         conf.setInt("io.file.buffer.size", 1024 * 1024);
 
         log.info(System.getProperty("application.name") + "[version " + System.getProperty("application.version") + "] starting with following parameters");
@@ -305,35 +288,33 @@ public class  ContigKmer {
 
         int sleep = conf.getInt("contigkmer.sleep", 60000);
         int iteration = 0;
+        int numContigs = 0;
 
         String newFileName = otherArgs[0];
 
         do {
-            if (newFileName != null) {
-                System.out.println(" *******   iteration " + iteration + "   ********");
-                iteration++;
-                conf.set("contigfilename", otherArgs[0]+"/"+newFileName);
+            System.out.println(" *******   iteration " + iteration + "   ********");
+            iteration++;
+            conf.set("contigfilename", newFileName);
 
-                Job job0 = new Job(conf, "configkmer: " + "iteration " + iteration + ", file = " + newFileName);
-                job0.setJarByClass(ContigKmer.class);
-                job0.setInputFormatClass(FastaInputFormat.class);
-                job0.setMapperClass(ContigKmerMapper.class);
-                //job.setCombinerClass(IntSumReducer.class);
-                job0.setReducerClass(AssembleByGroupKey.class);
-                job0.setOutputKeyClass(Text.class);
-                job0.setOutputValueClass(Text.class);
-                job0.setNumReduceTasks(conf.getInt("contigkmer.numreducers", 1));
+            Job job0 = new Job(conf, "configkmer: " + "iteration " + iteration + ", file = " + newFileName);
+            job0.setJarByClass(ContigKmer.class);
+            job0.setInputFormatClass(FastaInputFormat.class);
+            job0.setMapperClass(ContigKmerMapper.class);
+            //job.setCombinerClass(IntSumReducer.class);
+            job0.setReducerClass(AssembleByGroupKey.class);
+            job0.setOutputKeyClass(Text.class);
+            job0.setOutputValueClass(Text.class);
+            job0.setNumReduceTasks(conf.getInt("contigkmer.numreducers", 1));
 
-                FileInputFormat.addInputPath(job0, new Path(otherArgs[1]));
-                FileOutputFormat.setOutputPath(job0, new Path(otherArgs[2]+"/"+"step"+iteration));
+            FileInputFormat.addInputPath(job0, new Path(otherArgs[1]));
+            FileOutputFormat.setOutputPath(job0, new Path(otherArgs[2] + "/" + "step" + iteration));
 
-                job0.waitForCompletion(true);
-            } else {
-                System.out.println("sleeping ... for " + sleep/1000 + " seconds");
-                Thread.sleep(sleep);
-            }
-            newFileName = otherArgs[2]+"/"+"step"+iteration;
+            job0.waitForCompletion(true);
 
-        } while (iteration < numberOfIterations);
+            newFileName = otherArgs[2] + "/" + "step" + iteration;
+            numContigs = MetaUtils.countSequences(newFileName);
+
+        } while (iteration < numberOfIterations && numContigs > 0);
     }
 }

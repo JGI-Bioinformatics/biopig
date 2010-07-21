@@ -30,6 +30,7 @@ public class AssembleByGroupKey extends Reducer<Text, Text, Text, Text> {
 
     Boolean assemblerKeepTopHitOnly = false;
     Boolean assemblerFilterBySizeSpecial = false;
+    Boolean assemblerRemoveIdenticalSequences = false;
 
     /**
      * initialization of mapper retrieves connection parameters from context and opens socket
@@ -44,7 +45,8 @@ public class AssembleByGroupKey extends Reducer<Text, Text, Text, Text> {
 
         String assembler = context.getConfiguration().get("assembler.command", "velvet");
         assemblerKeepTopHitOnly = context.getConfiguration().getBoolean("assembler.keeptophit", false);
-        assemblerFilterBySizeSpecial = context.getConfiguration().getBoolean("assembler.filterbysizespecial", false); 
+        assemblerFilterBySizeSpecial = context.getConfiguration().getBoolean("assembler.filterbysizespecial", false);
+        assemblerRemoveIdenticalSequences = context.getConfiguration().getBoolean("assembler.removeidenticalsequences", false);
 
         if ("cap3".equals(assembler)) {
 
@@ -99,6 +101,11 @@ public class AssembleByGroupKey extends Reducer<Text, Text, Text, Text> {
 
         for (Text r : values) {
             String[] a = r.toString().split("&", 2);
+
+            if (assemblerRemoveIdenticalSequences && map.containsValue(a[1])) {
+                continue;
+            }
+
             map.put(a[0], a[1]);
             if (a[0].equals(groupId)) {
                 // this sequence is special

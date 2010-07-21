@@ -1,12 +1,18 @@
 package gov.jgi.meta;
 
+import gov.jgi.meta.hadoop.input.FastaBlockLineReader;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.util.GenericOptionsParser;
 import org.apache.log4j.Logger;
 
+import java.io.IOException;
 import java.net.URL;
-import java.util.Enumeration;
-import java.util.Properties;
+import java.util.*;
 
 /** utility class for common functionality across various applications
  *
@@ -98,4 +104,56 @@ public class MetaUtils {
             }
         }
     }
+
+    public static Set<Path> findAllPaths(Path p) throws IOException {
+        Configuration conf = new Configuration();
+        FileSystem fs = FileSystem.get(conf);
+        HashSet<Path> s = new HashSet<Path>();
+
+        if (fs.getFileStatus(p).isDir()) {
+
+            for (FileStatus f : fs.listStatus(p)) {
+
+                if (!f.isDir()) {
+                    s.add(f.getPath());
+                }
+
+            }
+
+        } else {
+
+            s.add(p);
+
+        }
+
+        return s;
+    }
+
+    public static int countSequences(String contigFileName) throws IOException {
+
+         Configuration conf = new Configuration();
+         FileSystem fs = FileSystem.get(conf);
+         Path filenamePath = new Path(contigFileName);
+         int count = 0;
+
+         if (!fs.exists(filenamePath)) {
+             throw new IOException("file not found: " + contigFileName);
+         }
+
+         for (Path f : findAllPaths(filenamePath)) {
+
+             FSDataInputStream in = fs.open(f);
+             FastaBlockLineReader fblr = new FastaBlockLineReader(in);
+
+             Text key = new Text();
+             long length = fs.getFileStatus(f).getLen();
+             HashMap<String, String> tmpcontigs = new HashMap<String, String>();
+             fblr.readLine(key, tmpcontigs, Integer.MAX_VALUE, (int) length);
+             count += tmpcontigs.size();
+             in.close();
+         }
+
+         return count;
+     }
+
 }
