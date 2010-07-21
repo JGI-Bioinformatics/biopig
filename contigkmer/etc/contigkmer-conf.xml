@@ -49,6 +49,11 @@
         <name>assembler.filterbysizespecial</name>
         <value>true</value>
     </property>
+
+    <property>
+        <name>assembler.removeidenticalsequences</name>
+        <value>true</value>
+    </property>
     
 </configuration>
 
