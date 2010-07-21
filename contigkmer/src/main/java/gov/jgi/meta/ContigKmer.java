@@ -81,6 +81,24 @@ public class  ContigKmer {
             return sb.reverse().toString();
         }
 
+        private Set<Path> findAllPaths(Path p) throws IOException {
+            Configuration conf = new Configuration();
+            FileSystem fs = FileSystem.get(conf);
+            HashSet<Path> s = new HashSet<Path>();
+
+            if (fs.getFileStatus(p).isDir()) {
+
+                for (f : fs.)
+
+            } else {
+
+                s.add(p);
+
+            }
+
+            return s;
+        }
+
         private void readContigs(String contigFileName) throws IOException {
 
             Configuration conf = new Configuration();
@@ -90,44 +108,48 @@ public class  ContigKmer {
             if (!fs.exists(filenamePath)) {
                 throw new IOException("file not found: " + contigFileName);
             }
-
-            FSDataInputStream in = fs.open(filenamePath);
-            FastaBlockLineReader fblr = new FastaBlockLineReader(in);
-
-            Text key = new Text();
-            long length = fs.getFileStatus(filenamePath).getLen();
             contigs = new HashMap<String,String>();
-            fblr.readLine(key, contigs, Integer.MAX_VALUE, (int) length);
-            int hashTableSizeEstimate = contigs.size() * (contigEndLength - kmerSize) * 4 ;
+            contigKmers = new HashMap<String,Set<String>>();
 
-            contigKmers = new HashMap<String,Set<String>>(hashTableSizeEstimate);
-            in.close();
+            for (Path f : findAllPaths(filenamePath)) {
 
-            int num = 0;
-            for (String k : contigs.keySet()) {
-                //log.info("processing: " + num++);
-                String contigSequence = contigs.get(k);
-                int seqLength = contigSequence.length();
-                // tail end of contig
-                for (int i = Math.max(seqLength - contigEndLength, 0); i <= seqLength-kmerSize; i++ ) {
-                    String kmer = contigSequence.substring(i, i + kmerSize);
-                    if (contigKmers.containsKey(kmer)) {
-                        contigKmers.get(kmer).add(k);
-                    } else {
-                        HashSet<String> l = new HashSet<String>();
-                        l.add(k);
-                        contigKmers.put(kmer, l);
+                FSDataInputStream in = fs.open(f);
+                FastaBlockLineReader fblr = new FastaBlockLineReader(in);
+
+                Text key = new Text();
+                long length = fs.getFileStatus(f).getLen();
+
+                HashMap<String, String> tmpcontigs = new HashMap<String, String>();
+                contigs.putAll(tmpcontigs);
+
+                fblr.readLine(key, tmpcontigs, Integer.MAX_VALUE, (int) length);
+                in.close();
+                int num = 0;
+                for (String k : tmpcontigs.keySet()) {
+                    //log.info("processing: " + num++);
+                    String contigSequence = tmpcontigs.get(k);
+                    int seqLength = contigSequence.length();
+                    // tail end of contig
+                    for (int i = Math.max(seqLength - contigEndLength, 0); i <= seqLength-kmerSize; i++ ) {
+                        String kmer = contigSequence.substring(i, i + kmerSize);
+                        if (contigKmers.containsKey(kmer)) {
+                            contigKmers.get(kmer).add(k);
+                        } else {
+                            HashSet<String> l = new HashSet<String>();
+                            l.add(k);
+                            contigKmers.put(kmer, l);
+                        }
                     }
-                }
-                // front end of sequence
-                for (int i = 0; i <= Math.min(contigEndLength,seqLength)-kmerSize; i++ ) {
-                    String kmer = contigSequence.substring(i, i + kmerSize);
-                    if (contigKmers.containsKey(kmer)) {
-                        contigKmers.get(kmer).add(k);
-                    } else {
-                        HashSet<String> l = new HashSet<String>();
-                        l.add(k);
-                        contigKmers.put(kmer, l);
+                    // front end of sequence
+                    for (int i = 0; i <= Math.min(contigEndLength,seqLength)-kmerSize; i++ ) {
+                        String kmer = contigSequence.substring(i, i + kmerSize);
+                        if (contigKmers.containsKey(kmer)) {
+                            contigKmers.get(kmer).add(k);
+                        } else {
+                            HashSet<String> l = new HashSet<String>();
+                            l.add(k);
+                            contigKmers.put(kmer, l);
+                        }
                     }
                 }
             }
@@ -174,6 +196,7 @@ public class  ContigKmer {
             if (l.size() != 0) {
                 for (String contigMatch : l) {
                     context.write(new Text(contigMatch), new Text(rn.id+"&"+rn.sequence));
+                    context.write(new Text(contigMatch), new Text(contigMatch+"&"+contigs.get(contigMatch)));
                 }
             }
         }
@@ -250,7 +273,7 @@ public class  ContigKmer {
         process arguments
          */
         if (otherArgs.length < 3 || otherArgs.length > 4) {
-            System.err.println("Usage: contigkmer <contigdir> <read> <outputdir> <numiterations optional>");
+            System.err.println("Usage: contigkmer <contigfile> <readfile> <outputdir> <numiterations optional>");
             System.exit(2);
         }
 
@@ -283,8 +306,9 @@ public class  ContigKmer {
         int sleep = conf.getInt("contigkmer.sleep", 60000);
         int iteration = 0;
 
+        String newFileName = otherArgs[0];
+
         do {
-            String newFileName = findNewFiles(otherArgs[0], otherArgs[2]);
             if (newFileName != null) {
                 System.out.println(" *******   iteration " + iteration + "   ********");
                 iteration++;
@@ -301,13 +325,14 @@ public class  ContigKmer {
                 job0.setNumReduceTasks(conf.getInt("contigkmer.numreducers", 1));
 
                 FileInputFormat.addInputPath(job0, new Path(otherArgs[1]));
-                FileOutputFormat.setOutputPath(job0, new Path(otherArgs[2]+"/"+newFileName+".out"));
+                FileOutputFormat.setOutputPath(job0, new Path(otherArgs[2]+"/"+"step"+iteration));
 
                 job0.waitForCompletion(true);
             } else {
                 System.out.println("sleeping ... for " + sleep/1000 + " seconds");
                 Thread.sleep(sleep);
             }
+            newFileName = otherArgs[2]+"/"+"step"+iteration;
 
         } while (iteration < numberOfIterations);
     }

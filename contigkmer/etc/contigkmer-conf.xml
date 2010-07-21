@@ -40,6 +40,15 @@
         <value>100</value>
     </property>
 
+    <property>
+        <name>assembler.command</name>
+        <value>cap3</value>
+    </property>
 
+    <property>
+        <name>assembler.filterbysizespecial</name>
+        <value>true</value>
+    </property>
+    
 </configuration>
 
