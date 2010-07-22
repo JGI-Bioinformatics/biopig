@@ -331,6 +331,9 @@ public class CapCommand implements CommandLineProgram {
         } while (newTempDir.exists());
 
         if (newTempDir.mkdirs()) {
+            newTempDir.setExecutable(true,false);
+            newTempDir.setReadable(true,false);
+            newTempDir.setWritable(true,false);
             return newTempDir;
         } else {
             throw new IOException(

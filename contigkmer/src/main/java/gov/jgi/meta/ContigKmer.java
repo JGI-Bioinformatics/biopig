@@ -291,6 +291,8 @@ public class ContigKmer {
         int numContigs = 0;
 
         String newFileName = otherArgs[0];
+        Map<String, String> results = new TreeMap<String, String>();
+        results.putAll(MetaUtils.readSequences(otherArgs[0]));
 
         do {
             System.out.println(" *******   iteration " + iteration + "   ********");
@@ -313,8 +315,19 @@ public class ContigKmer {
             job0.waitForCompletion(true);
 
             newFileName = otherArgs[2] + "/" + "step" + iteration;
-            numContigs = MetaUtils.countSequences(newFileName);
 
+            numContigs = MetaUtils.countSequences(newFileName);
+            Map<String, String> tmpresults = MetaUtils.readSequences(newFileName);
+            for (String k : tmpresults.keySet()) {
+                String[] a = k.split("-", 2);
+                results.put(a[0], tmpresults.get(k));
+            }
+
+            MetaUtils.sequenceToFile(results, otherArgs[2]+"/contigs"+"-"+iteration+".fas");
+            
         } while (iteration < numberOfIterations && numContigs > 0);
+
+
+
     }
 }
