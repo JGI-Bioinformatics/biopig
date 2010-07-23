@@ -6,7 +6,7 @@
     <groupId>gov.jgi.gentech</groupId>
     <artifactId>dereplicateHadoopApp</artifactId>
     <packaging>jar</packaging>
-    <version>0.1-SNAPSHOT</version>
+    <version>1.0-beta1</version>
     <name>dereplicateHadoopApp</name>
     <description>Hadoop application that eliminates redundant reads</description>
     <url></url>
@@ -17,13 +17,13 @@
     <parent>
         <groupId>gov.jgi.gentech</groupId>
         <artifactId>pipeline</artifactId>
-        <version>0.1</version>
+        <version>1.0-beta1</version>
     </parent>
     <dependencies>
         <dependency>
             <groupId>gov.jgi.gentech</groupId>
             <artifactId>pipelinelibrary</artifactId>
-            <version>0.1</version>
+            <version>1.0-beta1</version>
         </dependency>
         <dependency>
             <groupId>log4j</groupId>
