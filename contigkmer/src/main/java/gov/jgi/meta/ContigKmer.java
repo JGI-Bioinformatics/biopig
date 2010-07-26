@@ -234,6 +234,19 @@ public class ContigKmer {
         return null;
     }
 
+    static boolean iterationAlreadyComplete(String outputDirectoryName, int iterationNumber) throws IOException
+    {
+        // if outputDirectoryName exists and ../contigs-step1.fas file exists
+
+        Configuration conf = new Configuration();
+        FileSystem fs = FileSystem.get(conf);
+        Path outputDirectoryPath = new Path(outputDirectoryName+"/step"+iterationNumber);
+        Path resultFilePath = new Path(outputDirectoryPath+"/contigs-"+iterationNumber+".fas");
+
+        return (fs.exists(outputDirectoryPath) && fs.exists(resultFilePath));
+
+    }
+
     /**
      * starts off the hadoop application
      *
@@ -290,40 +303,55 @@ public class ContigKmer {
         int iteration = 0;
         int numContigs = 0;
 
-        String newFileName = otherArgs[0];
+        String inputContigsFileOrDir = otherArgs[0];
         Map<String, String> results = new TreeMap<String, String>();
         results.putAll(MetaUtils.readSequences(otherArgs[0]));
+
+
 
         do {
             System.out.println(" *******   iteration " + iteration + "   ********");
             iteration++;
-            conf.set("contigfilename", newFileName);
 
-            Job job0 = new Job(conf, "configkmer: " + "iteration " + iteration + ", file = " + newFileName);
-            job0.setJarByClass(ContigKmer.class);
-            job0.setInputFormatClass(FastaInputFormat.class);
-            job0.setMapperClass(ContigKmerMapper.class);
-            //job.setCombinerClass(IntSumReducer.class);
-            job0.setReducerClass(AssembleByGroupKey.class);
-            job0.setOutputKeyClass(Text.class);
-            job0.setOutputValueClass(Text.class);
-            job0.setNumReduceTasks(conf.getInt("contigkmer.numreducers", 1));
+            // check to see if output already exists.
 
-            FileInputFormat.addInputPath(job0, new Path(otherArgs[1]));
-            FileOutputFormat.setOutputPath(job0, new Path(otherArgs[2] + "/" + "step" + iteration));
+            String outputContigFileName = otherArgs[2] + "/" + "step" + iteration;
+            String outputContigDirName = otherArgs[2]+ "/" + "step" + iteration;
 
-            job0.waitForCompletion(true);
+            Boolean calculationDonePreviously = iterationAlreadyComplete(otherArgs[2], iteration);
 
-            newFileName = otherArgs[2] + "/" + "step" + iteration;
+            if ( !calculationDonePreviously ) {
 
-            numContigs = MetaUtils.countSequences(newFileName);
-            Map<String, String> tmpresults = MetaUtils.readSequences(newFileName);
+                conf.set("contigfilename", inputContigsFileOrDir);
+
+                Job job0 = new Job(conf, "configkmer: " + "iteration " + iteration + ", file = " + inputContigsFileOrDir);
+                job0.setJarByClass(ContigKmer.class);
+                job0.setInputFormatClass(FastaInputFormat.class);
+                job0.setMapperClass(ContigKmerMapper.class);
+                //job.setCombinerClass(IntSumReducer.class);
+                job0.setReducerClass(AssembleByGroupKey.class);
+                job0.setOutputKeyClass(Text.class);
+                job0.setOutputValueClass(Text.class);
+                job0.setNumReduceTasks(conf.getInt("contigkmer.numreducers", 1));
+
+                FileInputFormat.addInputPath(job0, new Path(otherArgs[1]));  // this is the reads file
+                FileOutputFormat.setOutputPath(job0, new Path(outputContigDirName));
+
+                job0.waitForCompletion(true);
+            }
+
+            numContigs = MetaUtils.countSequences(outputContigDirName);
+            Map<String, String> tmpresults = MetaUtils.readSequences(outputContigDirName);
             for (String k : tmpresults.keySet()) {
                 String[] a = k.split("-", 2);
                 results.put(a[0], tmpresults.get(k));
             }
 
-            MetaUtils.sequenceToFile(results, otherArgs[2]+"/contigs"+"-"+iteration+".fas");
+            if ( !calculationDonePreviously ) {
+                MetaUtils.sequenceToFile(results, outputContigFileName);
+            }
+
+            inputContigsFileOrDir = outputContigDirName;
             
         } while (iteration < numberOfIterations && numContigs > 0);
 
