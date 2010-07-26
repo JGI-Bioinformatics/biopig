@@ -43,86 +43,72 @@ import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
-import org.biojava.bio.seq.DNATools;
-import org.biojava.bio.seq.Sequence;
-import org.biojava.bio.symbol.IllegalSymbolException;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 
 /**
  * Treats keys as offset in file and value as line.
  */
-public class FastqRecordReader extends RecordReader<Text, Sequence> {
-  private static final Log LOG = LogFactory.getLog(FastqRecordReader.class);
+public class FastqBlockRecordReader extends RecordReader<Text, Map<String,String>> {
+  private static final Log LOG = LogFactory.getLog(FastqBlockRecordReader.class);
 
   private CompressionCodecFactory compressionCodecs = null;
   private long start;
   private long pos;
   private long end;
-  private FastqLineReader in;
+  private FastqBlockLineReader in;
   private int maxLineLength;
   private Text key = null;
-  private Sequence value = null;
+  private Map<String,String> value = null;
 
-  public void initialize(InputSplit genericSplit,
-                         TaskAttemptContext context) throws IOException {
-    FileSplit split = (FileSplit) genericSplit;
-    Configuration job = context.getConfiguration();
-    this.maxLineLength = job.getInt("mapred.linerecordreader.maxlength",
-                                    Integer.MAX_VALUE);
-    start = split.getStart();
-    end = start + split.getLength();
-    final Path file = split.getPath();
-    compressionCodecs = new CompressionCodecFactory(job);
-    final CompressionCodec codec = compressionCodecs.getCodec(file);
+    public void initialize(InputSplit genericSplit,
+                           TaskAttemptContext context) throws IOException {
+      FileSplit split = (FileSplit) genericSplit;
+      Configuration job = context.getConfiguration();
+      this.maxLineLength = job.getInt("mapred.linerecordreader.maxlength",
+                                      Integer.MAX_VALUE);
+      start = split.getStart();
+      end = start + split.getLength();
+      final Path file = split.getPath();
+      compressionCodecs = new CompressionCodecFactory(job);
+      final CompressionCodec codec = compressionCodecs.getCodec(file);
 
-    // open the file and seek to the start of the split
-    FileSystem fs = file.getFileSystem(job);
-    FSDataInputStream fileIn = fs.open(split.getPath());
-    boolean skipFirstLine = false;
-    if (codec != null) {
-      in = new FastqLineReader(codec.createInputStream(fileIn), job);
-      end = Long.MAX_VALUE;
-    } else {
-      if (start != 0) {
-        skipFirstLine = false;       // don't do this!
-        //--start;                      or this
-        fileIn.seek(start);
+      // open the file and seek to the start of the split
+      FileSystem fs = file.getFileSystem(job);
+      FSDataInputStream fileIn = fs.open(split.getPath());
+      boolean skipFirstLine = false;
+      if (codec != null) {
+        in = new FastqBlockLineReader(codec.createInputStream(fileIn), job);
+        end = Long.MAX_VALUE;
+      } else {
+        if (start != 0) {
+          skipFirstLine = false;       // don't do this!
+          //--start;                      or this
+          fileIn.seek(start);
+        }
+        in = new FastqBlockLineReader(fileIn, job);
       }
-      in = new FastqLineReader(fileIn, job);
+      this.pos = start;
     }
-    if (skipFirstLine) {  // skip first line and re-establish "start".
-      start += in.readLine(new Text(), new Text(), 0,
-                           (int)Math.min((long)Integer.MAX_VALUE, end - start));
-    }
-    this.pos = start;
-  }
 
   public boolean nextKeyValue() throws IOException {
-    Text txtvalue = null;
-
     if (key == null) {
       key = new Text();
     }
-    if (txtvalue == null) {
-      txtvalue = new Text();
+    if (value == null) {
+      value = new HashMap<String,String>();
+
     }
     int newSize = 0;
-//    LOG.info("pos = " + pos + "/" + end);
-
     while (pos < end) {
-
-        newSize = in.readLine(key, txtvalue, maxLineLength,
-                            Math.max((int)Math.min(Integer.MAX_VALUE, end-pos),
+      newSize = in.readLine(key, value, maxLineLength,
+                            Math.min((int)Math.min(Integer.MAX_VALUE, end-pos),
                                      maxLineLength));
-//        LOG.info("newsize = " + newSize);
 
-      try {
-          value = DNATools.createDNASequence(txtvalue.toString(), key.toString());
-      } catch (IllegalSymbolException e) {
-          throw new IOException("parse error on key: " + key + "/" + txtvalue + ": " + e);
-      }
+      LOG.info("split value is size " + value.size());
 
       if (newSize == 0) {
         break;
@@ -151,7 +137,7 @@ public class FastqRecordReader extends RecordReader<Text, Sequence> {
   }
 
   @Override
-  public Sequence getCurrentValue() {
+  public Map<String,String> getCurrentValue() {
     return value;
   }
 

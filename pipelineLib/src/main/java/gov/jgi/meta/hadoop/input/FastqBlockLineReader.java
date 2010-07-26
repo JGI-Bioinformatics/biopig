@@ -44,10 +44,13 @@ import java.util.Map;
 /**
  * A class that provides a line reader from an input stream.
  */
-public class FastqLineReader {
-    private static final Log LOG = LogFactory.getLog(FastqLineReader.class);
-    private static final int DEFAULT_BUFFER_SIZE = 64 * 1024;
+public class FastqBlockLineReader {
+    private static final Log LOG = LogFactory.getLog(FastqBlockLineReader.class);
+
+    private static final int DEFAULT_BUFFER_SIZE = 1024 * 1024;
     private int bufferSize = DEFAULT_BUFFER_SIZE;
+    private int readBlockSize = 100000;  // default number of reads in each block
+
     private InputStream in;
     private byte[] buffer;
     // the number of bytes of real data in the buffer
@@ -57,7 +60,7 @@ public class FastqLineReader {
 
     private static final byte CR = '\r';
     private static final byte LF = '\n';
-    private static final byte seperator = '>';
+    private static final byte seperator = '@';
 
     /**
      * Create a line reader that reads from the given stream using the
@@ -66,7 +69,7 @@ public class FastqLineReader {
      * @param in The input stream
      * @throws java.io.IOException
      */
-    public FastqLineReader(InputStream in) {
+    public FastqBlockLineReader(InputStream in) {
         this(in, DEFAULT_BUFFER_SIZE);
     }
 
@@ -78,10 +81,12 @@ public class FastqLineReader {
      * @param bufferSize Size of the read buffer
      * @throws java.io.IOException
      */
-    public FastqLineReader(InputStream in, int bufferSize) {
+    public FastqBlockLineReader(InputStream in, int bufferSize) {
         this.in = in;
         this.bufferSize = bufferSize;
+        //     this.bufferSize = DEFAULT_BUFFER_SIZE;
         this.buffer = new byte[this.bufferSize];
+
     }
 
     /**
@@ -93,7 +98,7 @@ public class FastqLineReader {
      * @param conf configuration
      * @throws java.io.IOException
      */
-    public FastqLineReader(InputStream in, Configuration conf) throws IOException {
+    public FastqBlockLineReader(InputStream in, Configuration conf) throws IOException {
         this(in, conf.getInt("io.file.buffer.size", DEFAULT_BUFFER_SIZE));
     }
 
@@ -106,30 +111,16 @@ public class FastqLineReader {
         in.close();
     }
 
-    /**
-     * Read one line from the InputStream into the given Text.  A line
-     * can be terminated by one of the following: '\n' (LF) , '\r' (CR),
-     * or '\r\n' (CR+LF).  EOF also terminates an otherwise unterminated
-     * line.
-     *
-     * @param str               the object to store the given line (without newline)
-     * @param maxLineLength     the maximum number of bytes to store into str;
-     *                          the rest of the line is silently discarded.
-     * @param maxBytesToConsume the maximum number of bytes to consume
-     *                          in this call.  This is only a hint, because if the line cross
-     *                          this threshold, we allow it to happen.  It can overshoot
-     *                          potentially by as much as one buffer length.
-     * @return the number of bytes read including the (longest) newline
-     *         found.
-     * @throws java.io.IOException if the underlying stream throws
-     */
-    public int readLine(Text key, Text str, int maxLineLength,
+
+    public int readLine(Text key, Map<String, String> set, int maxLineLength,
                         int maxBytesToConsume) throws IOException {
+
         int totalBytesRead = 0;
         int numRecordsRead = 0;
         Boolean eof = false;
         int startPosn;
         Text recordBlock = new Text();
+
 
         /*
         first thing to do is to move forward till you see a start character
@@ -181,7 +172,7 @@ public class FastqLineReader {
                 }
             }
 
-        } while (buffer[bufferPosn++] != '@');  // only read one record at a time
+        } while (buffer[bufferPosn++] != '@' || (totalBytesRead + bufferPosn - startPosn) < maxBytesToConsume);
 
         if (!eof) {
             bufferPosn--;  // make sure we leave bufferPosn pointing to the next record
@@ -194,11 +185,13 @@ public class FastqLineReader {
         record block now has the byte array we want to process for reads
          */
 
-        int i = 1; // skip initial record seperator "@"
+        Text k = new Text();
+        Text s = new Text();
+        int i = 1; // skip initial record seperator ">"
         int j = 1;
         do {
-            key.clear();
-            str.clear();
+            k.clear();
+            s.clear();
             /*
             first parse the key
              */
@@ -213,7 +206,7 @@ public class FastqLineReader {
                     break;
                 }
             }
-            key.append(recordBlock.getBytes(), i, j - i - 1);
+            k.append(recordBlock.getBytes(), i, j - i - 1);
 
             /*
             in case there is additional metadata on the header line, ignore everything after
@@ -241,7 +234,8 @@ public class FastqLineReader {
                         break;
                     }
                 }
-                str.append(recordBlock.getBytes(), i, j - i - 1);
+                s.append(recordBlock.getBytes(), i, j - i - 1);
+                set.put(k.toString(), s.toString().toLowerCase());
 
                 while (j < recordBlock.getLength() && (recordBlock.charAt(j) == CR || recordBlock.charAt(j) == LF)) j++;
 
@@ -266,24 +260,24 @@ public class FastqLineReader {
     /**
      * Read from the InputStream into the given Text.
      *
-     * @param str           the object to store the given line
+     * @param l             the object to store the given line
      * @param maxLineLength the maximum number of bytes to store into str.
      * @return the number of bytes read including the newline
      * @throws java.io.IOException if the underlying stream throws
      */
-    public int readLine(Text key, Text str, int maxLineLength) throws IOException {
-        return readLine(key, str, maxLineLength, Integer.MAX_VALUE);
+    public int readLine(Text key, Map<String, String> l, int maxLineLength) throws IOException {
+        return readLine(key, l, maxLineLength, Integer.MAX_VALUE);
     }
 
     /**
      * Read from the InputStream into the given Text.
      *
-     * @param str the object to store the given line
+     * @param l the object to store the given line
      * @return the number of bytes read including the newline
      * @throws java.io.IOException if the underlying stream throws
      */
-    public int readLine(Text key, Text str) throws IOException {
-        return readLine(key, str, Integer.MAX_VALUE, Integer.MAX_VALUE);
+    public int readLine(Text key, Map<String, String> l) throws IOException {
+        return readLine(key, l, Integer.MAX_VALUE, Integer.MAX_VALUE);
     }
 
 
@@ -292,26 +286,46 @@ public class FastqLineReader {
         int num = 100;
         int last = -1;
 
-        try {
-            FileInputStream fstream = new FileInputStream("/ifs/scratch/karan/derep-perf/HiSeq-8343080.fq");
-            FastqLineReader fqlr = new FastqLineReader(fstream);
+        do {
+            try {
+                FileInputStream fstream = new FileInputStream("/ifs/scratch/karan/derep-perf/HiSeq-8343080.fq");
+                FastqBlockLineReader fblr = new FastqBlockLineReader(fstream);
 
-            Text key = new Text();
-            Text sequence = new Text();
+                Text key = new Text();
+                Map<String, String> setofreads = new HashMap<String, String>();
+                int length = (int) (Math.random() * 1000000);
+                System.out.println("iteration " + num + " length = " + length);
 
-            int total = 0;
-            int bytes = 0;
+                int total = 0;
 
-            do {
-                //System.out.print("reading: ");
-                if ((bytes = fqlr.readLine(key, sequence)) > 0) {
-                    //System.out.println(key + "/" + sequence);
-                    total++;
+                fblr.readLine(key, setofreads, Integer.MAX_VALUE, length);
+//            System.out.println("setofreads.size = " + setofreads.size());
+                total += setofreads.size();
+                //for (String s : setofreads.keySet()) {
+//                System.out.println(s);
+//            }
+                int m = 0;
+                while (setofreads.size() > 0) {
+                    System.out.print(".");
+                    if ((++m)%80 == 0) System.out.print("\n");
+                    
+                    setofreads.clear();
+                    fblr.readLine(key, setofreads, Integer.MAX_VALUE, length);
+                    //              System.out.println("setofreads.size = " + setofreads.size());
+                    total += setofreads.size();
                 }
-            } while (bytes > 0);
-            System.out.println("total = " + total);
-        } catch (Exception e) {
-            System.out.println(e);
-        }
+                System.out.println("\ntotal = " + total);
+
+                if (last != -1) {
+                    if (last != total) {
+                        System.out.println("error!!!, length = " + length + ": last = " + last + " current = " + total);
+                    }
+                }
+                last = total;
+
+            } catch (Exception e) {
+                System.out.println(e);
+            }
+        } while (num-- > 0);
     }
 }

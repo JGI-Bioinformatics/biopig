@@ -39,10 +39,11 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
-import org.biojava.bio.seq.Sequence;
+
+import java.util.Map;
 
 
-/** An {@link FastqInputFormat} is for fasta text files.  Files are broken
+/** An {@link FastqBlockInputFormat} is for fasta text files.  Files are broken
  * records seperated by ">" eg:
  * >756:1:1:1074:20235/1
  * TGCAGCTCAACANCGTCGGCTACGACNNCACCNNNGAGCGCATCGGCTNCNNNANNNCCTNNNNNNNNCGGGAGGT
@@ -51,14 +52,16 @@ import org.biojava.bio.seq.Sequence;
  *
  * the identifier is from after the ">" till new line, and the sequence is
  * the following line till the next ">"
+ *
+ * This class splits the fasta records into a single large multi-fasta block.
  */
-public class FastqInputFormat extends FileInputFormat<Text, Sequence> {
+public class FastqBlockInputFormat extends FileInputFormat<Text, Map<String,String>> {
 
   @Override
-  public RecordReader<Text, Sequence>
+  public RecordReader<Text, Map<String,String>>
     createRecordReader(InputSplit split,
                        TaskAttemptContext context) {
-    return new FastqRecordReader();
+    return new FastqBlockRecordReader();
   }
 
   @Override
