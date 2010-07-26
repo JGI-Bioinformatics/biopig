@@ -241,9 +241,9 @@ public class ContigKmer {
         Configuration conf = new Configuration();
         FileSystem fs = FileSystem.get(conf);
         Path outputDirectoryPath = new Path(outputDirectoryName+"/step"+iterationNumber);
-        Path resultFilePath = new Path(outputDirectoryPath+"/contigs-"+iterationNumber+".fas");
+        //Path resultFilePath = new Path(outputDirectoryName+"/contigs-"+iterationNumber+".fas");
 
-        return (fs.exists(outputDirectoryPath) && fs.exists(resultFilePath));
+        return (fs.exists(outputDirectoryPath)); // && fs.exists(resultFilePath));
 
     }
 
@@ -315,7 +315,7 @@ public class ContigKmer {
 
             // check to see if output already exists.
 
-            String outputContigFileName = otherArgs[2] + "/" + "step" + iteration;
+            String outputContigFileName = otherArgs[2] + "/" + "contigs-" + iteration + ".fas";
             String outputContigDirName = otherArgs[2]+ "/" + "step" + iteration;
 
             Boolean calculationDonePreviously = iterationAlreadyComplete(otherArgs[2], iteration);
@@ -338,6 +338,8 @@ public class ContigKmer {
                 FileOutputFormat.setOutputPath(job0, new Path(outputContigDirName));
 
                 job0.waitForCompletion(true);
+            }  else {
+                System.out.println("Found previous results ... skipping iteration " + iteration);
             }
 
             numContigs = MetaUtils.countSequences(outputContigDirName);
@@ -347,8 +349,11 @@ public class ContigKmer {
                 results.put(a[0], tmpresults.get(k));
             }
 
-            if ( !calculationDonePreviously ) {
+            try {
                 MetaUtils.sequenceToFile(results, outputContigFileName);
+            } catch (IOException e) {
+                System.out.println(e);
+                System.out.println("continuing");
             }
 
             inputContigsFileOrDir = outputContigDirName;
