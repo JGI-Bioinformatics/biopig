@@ -41,6 +41,11 @@
     </property>
 
     <property>
+        <name>numerrors</name>
+        <value>0</value>
+    </property>
+
+    <property>
         <name>assembler.command</name>
         <value>cap3</value>
     </property>
@@ -53,6 +58,11 @@
     <property>
         <name>assembler.removeidenticalsequences</name>
         <value>true</value>
+    </property>
+
+    <property>
+        <name>assembler.readsizelimit</name>
+        <value>2</value>
     </property>
     
 </configuration>
