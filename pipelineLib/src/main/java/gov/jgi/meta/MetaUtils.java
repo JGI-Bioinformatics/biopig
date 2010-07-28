@@ -330,7 +330,10 @@ public class MetaUtils {
 
     public static Set<String> generateAllNeighbors(String start, int distance) {
 
-        return generateAllNeighbors(start, distance, new HashSet());
+        Set<String> neighbors = generateAllNeighbors(start, distance, new HashSet());
+        neighbors.add(start);
+        return neighbors;
+
 
     }
 

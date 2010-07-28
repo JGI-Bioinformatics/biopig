@@ -37,7 +37,7 @@
 
     <property>
         <name>contigendlength</name>
-        <value>100</value>
+        <value>50</value>
     </property>
 
     <property>

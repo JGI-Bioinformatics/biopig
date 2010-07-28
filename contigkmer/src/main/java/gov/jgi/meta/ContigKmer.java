@@ -34,6 +34,7 @@ package gov.jgi.meta;
 import gov.jgi.meta.hadoop.input.FastaBlockLineReader;
 import gov.jgi.meta.hadoop.input.FastaInputFormat;
 import gov.jgi.meta.hadoop.reduce.AssembleByGroupKey;
+import gov.jgi.meta.hadoop.reduce.IdentityReducerGroupByKey;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -119,9 +120,9 @@ public class ContigKmer {
                 /*
                 now index the contigs in this file
                  */
-                for (String k : tmpcontigs.keySet()) {
+                for (String contigName : tmpcontigs.keySet()) {
 
-                    String contigSequence = tmpcontigs.get(k);
+                    String contigSequence = tmpcontigs.get(contigName);
                     int seqLength = contigSequence.length();
 
                     /*
@@ -129,7 +130,9 @@ public class ContigKmer {
                      */
                     for (int i = Math.max(seqLength - contigEndLength, 0); i <= seqLength - kmerSize; i++) {
 
-                        addContigToKmerIndex(contigKmersRear, contigSequence.substring(i, i + kmerSize), k);
+                        addContigToKmerIndex(contigKmersRear,
+                                             contigSequence.substring(i, i + kmerSize),
+                                             contigName);
 
                     }
 
@@ -138,20 +141,69 @@ public class ContigKmer {
                      */
                     for (int i = 0; i <= Math.min(contigEndLength, seqLength) - kmerSize; i++) {
 
-                        addContigToKmerIndex(contigKmersFront, contigSequence.substring(i, i + kmerSize), k);
+                        addContigToKmerIndex(contigKmersFront,
+                                             contigSequence.substring(i, i + kmerSize),
+                                             contigName);
 
                     }
                 }
             }
+
+            /*
+            now do the neighbor calculation
+             */
+            int n = contigKmersFront.size();
+            String[] contigKmersFrontArray = contigKmersFront.keySet().toArray(new String[n]);
+
+            for (int i = 0; i < n; i++) {
+
+                String kmer1 = contigKmersFrontArray[i];
+
+                for (int j = 0; j < i; j++) {
+
+                    String kmer2 = contigKmersFrontArray[j];
+
+                    if (calculateHammingDistance(kmer1, kmer2) < numErrors) {
+
+                        Set<String> kmer1Set = new HashSet<String>(contigKmersFront.get(kmer1));
+
+                        contigKmersFront.get(kmer1).addAll(contigKmersFront.get(kmer2));
+                        contigKmersFront.get(kmer2).addAll(kmer1Set);
+
+                    }
+
+
+                }
+
+            }
+
+
         }
 
-        private void addContigToKmerIndex(Map<String, Set<String>> index, String k, String kmer) {
+        private static int calculateHammingDistance(String s1, String s2) {
+
+            int sum = 0;
+
+            for (int i = 0; i < s1.length(); i++) {
+                if (s1.charAt(i) != s2.charAt(i)) sum++;
+            }
+
+            return sum;
+        }
+
+
+        private static void addContigToKmerIndex(Map<String, Set<String>> index, Set<String> kmerSet, String contigName) {
+            for (String kmer : kmerSet) {
+                addContigToKmerIndex(index, kmer, contigName);
+            }
+        }
+        private static void addContigToKmerIndex(Map<String, Set<String>> index, String kmer, String contigName) {
 
             if (index.containsKey(kmer)) {
-                index.get(kmer).add(k);
+                index.get(kmer).add(contigName);
             } else {
                 HashSet<String> l = new HashSet<String>();
-                l.add(k);
+                l.add(contigName);
                 index.put(kmer, l);
             }
 
@@ -203,7 +255,7 @@ public class ContigKmer {
             /*
             first do the front
              */
-            for (int i = 0; i <= Math.min(10, seqsize - kmerSize); i++) {
+            for (int i = 0; i <= Math.min(1, seqsize - kmerSize); i++) {
 
                 String kmer = sequence.substring(i, i + kmerSize);
                 l.addAll(findMatch(contigKmersRear, kmer, numErrors));
@@ -213,7 +265,7 @@ public class ContigKmer {
             /*
             now the back
              */
-            for (int i = Math.max(0, seqsize - kmerSize - 10); i <= seqsize - kmerSize; i++) {
+            for (int i = Math.max(0, seqsize - kmerSize - 1); i <= seqsize - kmerSize; i++) {
 
                 String kmer = sequence.substring(i, i + kmerSize);
                 l.addAll(findMatch(contigKmersFront, kmer, numErrors));
@@ -225,7 +277,7 @@ public class ContigKmer {
              */
             String sequenceComplement = MetaUtils.reverseComplement(sequence);
 
-            for (int i = 0; i <= Math.min(10, seqsize - kmerSize); i++) {
+            for (int i = 0; i <= Math.min(1, seqsize - kmerSize); i++) {
 
                 String kmer = sequenceComplement.substring(i, i + kmerSize);
                 l.addAll(findMatch(contigKmersFront, kmer, numErrors));
@@ -234,7 +286,7 @@ public class ContigKmer {
             /*
             now the back
              */
-            for (int i = Math.max(0, seqsize - kmerSize - 10); i <= seqsize - kmerSize; i++) {
+            for (int i = Math.max(0, seqsize - kmerSize - 1); i <= seqsize - kmerSize; i++) {
 
                 String kmer = sequence.substring(i, i + kmerSize);
                 l.addAll(findMatch(contigKmersRear, kmer, numErrors));
@@ -255,47 +307,10 @@ public class ContigKmer {
         }
 
         private Set<String> findMatch(Map<String, Set<String>> index, String kmer, int distance) {
-            Set<String> l = new HashSet<String>();
 
-            Set<String> kmerSet = MetaUtils.generateAllNeighbors(kmer, distance);
-            kmerSet.add(kmer);
+            return (index.get(kmer) != null ? index.get(kmer) : new HashSet<String>());
 
-            for (String k : kmerSet) {
-
-                Set<String> ll = index.get(k);
-                if (ll != null) l.addAll(ll);
-
-            }
-
-            return l;
         }
-
-        private static Set<String> generateAllNeighbors(Map<String, Set<String>> index, String start, int distance, Set x) {
-
-            char[] bases = {'a', 't', 'g', 'c', 'n'};
-            Set<String> s = new HashSet<String>();
-
-            //s.add(start);
-            if (distance == 0) {
-                return s;
-            }
-
-            for (int i = 0; i < start.length(); i++) {
-
-                for (char basePair : bases) {
-                    if (start.charAt(i) == basePair) continue;
-                    String n = stringReplaceIth(start, i, basePair);
-                    if (x.contains(n)) continue;
-
-                    s.add(n);
-                    s.addAll(generateAllNeighbors(n, distance-1, s));
-                }
-
-            }
-
-            return s;
-        }
-
     }
 
 
@@ -441,6 +456,7 @@ public class ContigKmer {
                 job0.setMapperClass(ContigKmerMapper.class);
                 //job.setCombinerClass(IntSumReducer.class);
                 job0.setReducerClass(AssembleByGroupKey.class);
+                //job0.setReducerClass(IdentityReducerGroupByKey.class);
                 job0.setOutputKeyClass(Text.class);
                 job0.setOutputValueClass(Text.class);
                 job0.setNumReduceTasks(conf.getInt("contigkmer.numreducers", 1));
