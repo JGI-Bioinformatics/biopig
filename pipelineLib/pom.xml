@@ -5,7 +5,7 @@
 	<groupId>gov.jgi.gentech</groupId>
 	<artifactId>pipelinelibrary</artifactId>
 	<packaging>jar</packaging>
-	<version>0.1</version>
+	<version>1.0-beta1</version>
 	<name>pipelineLib</name>
 	<description>java library for for accessing and using cassandra data model</description>
 	<url></url>

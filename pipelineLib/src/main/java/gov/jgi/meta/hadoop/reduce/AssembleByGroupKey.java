@@ -31,6 +31,8 @@ public class AssembleByGroupKey extends Reducer<Text, Text, Text, Text> {
     Boolean assemblerKeepTopHitOnly = false;
     Boolean assemblerFilterBySizeSpecial = false;
     Boolean assemblerRemoveIdenticalSequences = false;
+    int assemblerLimitReadsToSize = 0;
+
 
     /**
      * initialization of mapper retrieves connection parameters from context and opens socket
@@ -47,6 +49,7 @@ public class AssembleByGroupKey extends Reducer<Text, Text, Text, Text> {
         assemblerKeepTopHitOnly = context.getConfiguration().getBoolean("assembler.keeptophit", false);
         assemblerFilterBySizeSpecial = context.getConfiguration().getBoolean("assembler.filterbysizespecial", false);
         assemblerRemoveIdenticalSequences = context.getConfiguration().getBoolean("assembler.removeidenticalsequences", false);
+        assemblerLimitReadsToSize = context.getConfiguration().getInt("assembler.readsizelimit", 0);
 
         if ("cap3".equals(assembler)) {
 
@@ -99,18 +102,27 @@ public class AssembleByGroupKey extends Reducer<Text, Text, Text, Text> {
         Map<String, String> s = null;
         Map<String, String> map = new HashMap<String, String>();
 
+        int count = 0;
         for (Text r : values) {
+            count++;
+
             String[] a = r.toString().split("&", 2);
+
+            if (a[0].equals(groupId)) {
+                // this sequence is special
+                specialID = a[0];
+                specialSequence = a[1];
+                map.put(a[0], a[1]);
+                continue;
+            }
 
             if (assemblerRemoveIdenticalSequences && map.containsValue(a[1])) {
                 continue;
             }
 
-            map.put(a[0], a[1]);
-            if (a[0].equals(groupId)) {
-                // this sequence is special
-                specialID = a[0];
-                specialSequence = a[1];
+            if (assemblerLimitReadsToSize > 0) {
+                if (map.size() < assemblerLimitReadsToSize)
+                    map.put(a[0], a[1]);
             }
         }
 
@@ -146,7 +158,9 @@ public class AssembleByGroupKey extends Reducer<Text, Text, Text, Text> {
 
             if (assemblerFilterBySizeSpecial && specialSequence != null && s.get(k).length() <= specialSequence.length()) continue;
 
-            context.write(new Text(">" + groupId + "-" + k + " numberOfReadsInput=" + map.size() + " numberOfContigs=" + s.size()), new Text("\n" + s.get(k)));
+            context.write(new Text(">" + groupId + "-" + k + " numberOfReadsInput=" + count +
+                    ((assemblerLimitReadsToSize > 0) && (assemblerLimitReadsToSize < count)  ? " limit=" + assemblerLimitReadsToSize : " ")),
+                    new Text("\n" + s.get(k)));
 
             if (assemblerKeepTopHitOnly) break;
 
