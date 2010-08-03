@@ -128,6 +128,10 @@ public class AssembleByGroupKey extends Reducer<Text, Text, Text, Text> {
                map.put(a[0], a[1]);
             }
          }
+         else
+         {
+             map.put(a[0], a[1]);
+         }
       }
 
       context.getCounter("reduce.assembly", "NUMBER_OF_READS_IN_GROUP").increment(map.size());

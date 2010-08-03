@@ -132,7 +132,7 @@ public class ContigKmer {
                for (int i = Math.max(seqLength - contigEndLength, 0); i <= seqLength - kmerSize; i++)
                {
                   addContigToKmerIndex(contigKmersRear,
-                                       contigSequence.substring(i, i + kmerSize),
+                                       MetaUtils.generateAllNeighbors2(contigSequence.substring(i, i + kmerSize), numErrors),
                                        contigName);
                }
 
@@ -142,21 +142,23 @@ public class ContigKmer {
                for (int i = 0; i <= Math.min(contigEndLength, seqLength) - kmerSize; i++)
                {
                   addContigToKmerIndex(contigKmersFront,
-                                       contigSequence.substring(i, i + kmerSize),
+                                       MetaUtils.generateAllNeighbors2(contigSequence.substring(i, i + kmerSize), numErrors),
                                        contigName);
                }
             }
          }
-         context.setStatus("calculating neighbors");
+         //context.setStatus("calculating neighbors");
 
          /*
           * now do the neighbor calculation
           */
 
-         if (numErrors > 0)
+         if (0 > 0)
          {
+
             int n = contigKmersFront.size();
             String[] contigKmersArray = contigKmersFront.keySet().toArray(new String[n]);
+            context.setStatus("pairwise comparison of " + n + "kmers");
 
             for (int i = 0; i < n; i++)
             {
@@ -178,7 +180,8 @@ public class ContigKmer {
 
             n = contigKmersRear.size();
             contigKmersArray = contigKmersRear.keySet().toArray(new String[n]);
-
+            context.setStatus("2: pairwise comparison of " + n + "kmers");
+             
             for (int i = 0; i < n; i++)
             {
                String kmer1 = contigKmersArray[i];
@@ -270,6 +273,8 @@ public class ContigKmer {
          Text     seqText  = new Text(seqid.toString() + "&" + sequence);
          ReadNode rn       = new ReadNode(seqid.toString(), "", sequence);
 
+         context.setStatus("indexing sequence ");
+
          if (!sequence.matches("[atgcn]*"))
          {
             log.error("sequence " + seqid + " is not well formed: " + sequence);
@@ -336,7 +341,13 @@ public class ContigKmer {
 
       private Set<String> findMatch(Map < String, Set < String >> index, String kmer, int distance)
       {
-         return(index.get(kmer) != null ? index.get(kmer) : new HashSet<String>());
+          Set<String> kmerSet = MetaUtils.generateAllNeighbors2(kmer, 0);
+          Set<String> contigSet = new HashSet<String>();
+
+          for (String k : kmerSet) {
+              if (index.get(k) != null) contigSet.addAll(index.get(k));
+          }
+         return contigSet;
       }
    }
 
@@ -463,7 +474,12 @@ public class ContigKmer {
          "contigkmer.numreducers",
          "contigkmer.sleep",
          "kmersize",
-         "contigendlength"
+         "numerrors",
+         "contigendlength",
+         "assembler.readsizelimit",
+         "assembler.removeidenticalsequences",
+         "assembler.filterbysizespecial",
+         "assembler.command"
       };
 
       MetaUtils.printConfiguration(conf, log, optionalProperties);
