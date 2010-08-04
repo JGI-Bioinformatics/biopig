@@ -341,7 +341,7 @@ public class ContigKmer {
 
       private Set<String> findMatch(Map < String, Set < String >> index, String kmer, int distance)
       {
-          Set<String> kmerSet = MetaUtils.generateAllNeighbors2(kmer, 0);
+          Set<String> kmerSet = MetaUtils.generateAllNeighbors2(kmer, distance);
           Set<String> contigSet = new HashSet<String>();
 
           for (String k : kmerSet) {
