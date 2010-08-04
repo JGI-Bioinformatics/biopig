@@ -41,6 +41,12 @@
     </property>
 
     <property>
+        <name>maxcontigsize</name>
+        <value>10000</value>
+    </property>
+
+
+    <property>
         <name>numerrors</name>
         <value>2</value>
     </property>

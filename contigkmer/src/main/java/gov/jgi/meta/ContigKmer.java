@@ -68,7 +68,7 @@ public class ContigKmer {
       int kmerSize;
       int contigEndLength;
       int numErrors;
-
+      int maxContigSize;
 
       /**
        * reads all contigs from given file or directory and indexs them based on their kmers
@@ -125,6 +125,11 @@ public class ContigKmer {
             {
                String contigSequence = tmpcontigs.get(contigName);
                int    seqLength      = contigSequence.length();
+
+
+               if (maxContigSize > 0 && seqLength > maxContigSize) {
+                   continue;
+               }
 
                /*
                 * process the tail end of contig
@@ -259,7 +264,8 @@ public class ContigKmer {
          kmerSize        = context.getConfiguration().getInt("kmersize", 50);
          contigEndLength = context.getConfiguration().getInt("contigendlength", 100);
          numErrors       = context.getConfiguration().getInt("numerrors", 0);
-
+         maxContigSize   = context.getConfiguration().getInt("maxcontigsize", 0);
+          
          /*
           * read and index the contigs
           */
