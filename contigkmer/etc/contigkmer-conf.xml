@@ -37,12 +37,18 @@
 
     <property>
         <name>contigendlength</name>
-        <value>50</value>
+        <value>75</value>
     </property>
 
     <property>
+        <name>maxcontigsize</name>
+        <value>10000</value>
+    </property>
+
+
+    <property>
         <name>numerrors</name>
-        <value>0</value>
+        <value>2</value>
     </property>
 
     <property>
@@ -62,7 +68,7 @@
 
     <property>
         <name>assembler.readsizelimit</name>
-        <value>2</value>
+        <value>1000</value>
     </property>
     
 </configuration>

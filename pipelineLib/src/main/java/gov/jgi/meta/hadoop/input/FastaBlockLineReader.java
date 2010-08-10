@@ -42,6 +42,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static java.lang.Thread.sleep;
+
 /**
  * A class that provides a line reader from an input stream.
  */
@@ -284,17 +286,19 @@ public class FastaBlockLineReader {
 
     public static void main(String[] args) {
 
-        int num = 100;
+        int num = 1;
         int last = -1;
 
         do {
-        try {
+        try {                
             FileInputStream fstream = new FileInputStream("/scratch/karan/30mb.fas");
             FastaBlockLineReader fblr = new FastaBlockLineReader(fstream);
 
             Text key = new Text();
             Map<String, String> setofreads = new HashMap<String, String>();
+            Map<String, String> setofreadsTotal = new HashMap<String, String>();
             int length = (int) (Math.random() * 10000);
+            length = 3000000;
             System.out.println("lenght = " + length);
             
             int total = 0;
@@ -305,13 +309,18 @@ public class FastaBlockLineReader {
             //for (String s : setofreads.keySet()) {
 //                System.out.println(s);
 //            }
+            Runtime r = Runtime.getRuntime();
             while (setofreads.size() > 0) {
-                setofreads.clear();                
+                setofreadsTotal.putAll(setofreads);
+                setofreads.clear();
                 fblr.readLine(key, setofreads, Integer.MAX_VALUE, length);
   //              System.out.println("setofreads.size = " + setofreads.size());
                 total += setofreads.size();
+
+                r.gc();
             }
             System.out.println("total = " + total);
+            System.out.println("heap size = " + r.totalMemory()/ 1048576);
 
             if (last != -1) {
                if (last != total) {
@@ -324,5 +333,7 @@ public class FastaBlockLineReader {
             System.out.println(e);
         }
         } while (num-- > 0);
+
+      
     }
 }

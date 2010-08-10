@@ -59,434 +59,500 @@ import java.util.*;
 
 
 public class ContigKmer {
+   public static class ContigKmerMapper
+   extends Mapper<Text, Sequence, Text, Text> {
+      Logger              log = Logger.getLogger(this.getClass());
+      Map<String, String> contigs;
+      Map < String, Set < String >> contigKmersFront;
+      Map < String, Set < String >> contigKmersRear;
+      int kmerSize;
+      int contigEndLength;
+      int numErrors;
+      int maxContigSize;
 
-    public static class ContigKmerMapper
-            extends Mapper<Text, Sequence, Text, Text> {
+      /**
+       * reads all contigs from given file or directory and indexs them based on their kmers
+       *
+       * @param contigFileName - the file or directory where the contigs are stored
+       * @throws IOException if some file error comes up
+       */
+      private void readContigs(Context context, String contigFileName) throws IOException
+      {
+         Configuration conf         = new Configuration();
+         FileSystem    fs           = FileSystem.get(conf);
+         Path          filenamePath = new Path(contigFileName);
 
-        Logger log = Logger.getLogger(this.getClass());
-        Map<String, String> contigs;
-        Map<String, Set<String>> contigKmersFront;
-        Map<String, Set<String>> contigKmersRear;
-        int kmerSize;
-        int contigEndLength;
-        int numErrors;
-        
+         if (!fs.exists(filenamePath))
+         {
+            throw new IOException("file not found: " + contigFileName);
+         }
 
-        /**
-         * reads all contigs from given file or directory and indexs them based on their kmers
-         *
-         * @param contigFileName - the file or directory where the contigs are stored
-         * @throws IOException if some file error comes up
-         */
-        private void readContigs(String contigFileName) throws IOException {
+         contigs          = new HashMap<String, String>();
+         contigKmersFront = new HashMap < String, Set < String >> ();
+         contigKmersRear  = new HashMap < String, Set < String >> ();
 
-            Configuration conf = new Configuration();
-            FileSystem fs = FileSystem.get(conf);
-            Path filenamePath = new Path(contigFileName);
 
-            if (!fs.exists(filenamePath)) {
-                throw new IOException("file not found: " + contigFileName);
-            }
+         /*
+          * the contigs may be in multiple files (ala hadoop method), so lets
+          * find all files in the directory if necessary
+          */
+         context.setStatus("reading contig file(s)");
+         for (Path f : MetaUtils.findAllPaths(filenamePath))
+         {
+            /*
+             * open file and read the contigs
+             */
+            FSDataInputStream       in         = fs.open(f);
+            FastaBlockLineReader    fblr       = new FastaBlockLineReader(in);
+            Text                    key        = new Text();
+            long                    length     = fs.getFileStatus(f).getLen();
+            HashMap<String, String> tmpcontigs = new HashMap<String, String>();
 
-            contigs = new HashMap<String, String>();
-            contigKmersFront = new HashMap<String, Set<String>>();
-            contigKmersRear = new HashMap<String, Set<String>>();
+
+            fblr.readLine(key, tmpcontigs, Integer.MAX_VALUE, (int)length);
+            in.close();
 
             /*
-            the contigs may be in multiple files (ala hadoop method), so lets
-            find all files in the directory if necessary
+             * add the contigs from this file to the overall total
              */
-            for (Path f : MetaUtils.findAllPaths(filenamePath)) {
+            contigs.putAll(tmpcontigs);
 
-                /*
-                open file and read the contigs
-                 */
-                FSDataInputStream in = fs.open(f);
-                FastaBlockLineReader fblr = new FastaBlockLineReader(in);
-                Text key = new Text();
-                long length = fs.getFileStatus(f).getLen();
-                HashMap<String, String> tmpcontigs = new HashMap<String, String>();
-
-
-                fblr.readLine(key, tmpcontigs, Integer.MAX_VALUE, (int) length);
-                in.close();
-
-                /*
-                add the contigs from this file to the overall total
-                 */
-                contigs.putAll(tmpcontigs);
-
-
-                /*
-                now index the contigs in this file
-                 */
-                for (String contigName : tmpcontigs.keySet()) {
-
-                    String contigSequence = tmpcontigs.get(contigName);
-                    int seqLength = contigSequence.length();
-
-                    /*
-                     process the tail end of contig
-                     */
-                    for (int i = Math.max(seqLength - contigEndLength, 0); i <= seqLength - kmerSize; i++) {
-
-                        addContigToKmerIndex(contigKmersRear,
-                                             contigSequence.substring(i, i + kmerSize),
-                                             contigName);
-
-                    }
-
-                    /*
-                    now process the front
-                     */
-                    for (int i = 0; i <= Math.min(contigEndLength, seqLength) - kmerSize; i++) {
-
-                        addContigToKmerIndex(contigKmersFront,
-                                             contigSequence.substring(i, i + kmerSize),
-                                             contigName);
-
-                    }
-                }
-            }
 
             /*
-            now do the neighbor calculation
+             * now index the contigs in this file
              */
+            for (String contigName : tmpcontigs.keySet())
+            {
+               String contigSequence = tmpcontigs.get(contigName);
+               int    seqLength      = contigSequence.length();
+
+
+               if (maxContigSize > 0 && seqLength > maxContigSize) {
+                   continue;
+               }
+
+               /*
+                * process the tail end of contig
+                */
+               for (int i = Math.max(seqLength - contigEndLength, 0); i <= seqLength - kmerSize; i++)
+               {
+                  addContigToKmerIndex(contigKmersRear,
+                                       MetaUtils.generateAllNeighbors2(contigSequence.substring(i, i + kmerSize), numErrors),
+                                       contigName);
+               }
+
+               /*
+                * now process the front
+                */
+               for (int i = 0; i <= Math.min(contigEndLength, seqLength) - kmerSize; i++)
+               {
+                  addContigToKmerIndex(contigKmersFront,
+                                       MetaUtils.generateAllNeighbors2(contigSequence.substring(i, i + kmerSize), numErrors),
+                                       contigName);
+               }
+            }
+         }
+         //context.setStatus("calculating neighbors");
+
+         /*
+          * now do the neighbor calculation
+          */
+
+         if (0 > 0)
+         {
+
             int n = contigKmersFront.size();
-            String[] contigKmersFrontArray = contigKmersFront.keySet().toArray(new String[n]);
+            String[] contigKmersArray = contigKmersFront.keySet().toArray(new String[n]);
+            context.setStatus("pairwise comparison of " + n + "kmers");
 
-            for (int i = 0; i < n; i++) {
+            for (int i = 0; i < n; i++)
+            {
+               String kmer1 = contigKmersArray[i];
 
-                String kmer1 = contigKmersFrontArray[i];
+               for (int j = 0; j < i; j++)
+               {
+                  String kmer2 = contigKmersArray[j];
 
-                for (int j = 0; j < i; j++) {
+                  if (calculateHammingDistance(kmer1, kmer2) < numErrors)
+                  {
+                     Set<String> kmer1Set = new HashSet<String>(contigKmersFront.get(kmer1));
 
-                    String kmer2 = contigKmersFrontArray[j];
-
-                    if (calculateHammingDistance(kmer1, kmer2) < numErrors) {
-
-                        Set<String> kmer1Set = new HashSet<String>(contigKmersFront.get(kmer1));
-
-                        contigKmersFront.get(kmer1).addAll(contigKmersFront.get(kmer2));
-                        contigKmersFront.get(kmer2).addAll(kmer1Set);
-
-                    }
-
-
-                }
-
+                     contigKmersFront.get(kmer1).addAll(contigKmersFront.get(kmer2));
+                     contigKmersFront.get(kmer2).addAll(kmer1Set);
+                  }
+               }
             }
 
+            n = contigKmersRear.size();
+            contigKmersArray = contigKmersRear.keySet().toArray(new String[n]);
+            context.setStatus("2: pairwise comparison of " + n + "kmers");
+             
+            for (int i = 0; i < n; i++)
+            {
+               String kmer1 = contigKmersArray[i];
 
-        }
+               for (int j = 0; j < i; j++)
+               {
+                  String kmer2 = contigKmersArray[j];
 
-        private static int calculateHammingDistance(String s1, String s2) {
+                  if (calculateHammingDistance(kmer1, kmer2) < numErrors)
+                  {
+                     Set<String> kmer1Set = new HashSet<String>(contigKmersRear.get(kmer1));
 
-            int sum = 0;
-
-            for (int i = 0; i < s1.length(); i++) {
-                if (s1.charAt(i) != s2.charAt(i)) sum++;
+                     contigKmersRear.get(kmer1).addAll(contigKmersRear.get(kmer2));
+                     contigKmersRear.get(kmer2).addAll(kmer1Set);
+                  }
+               }
             }
+         }
+      }
 
-            return sum;
-        }
+
+      private static int calculateHammingDistance(String s1, String s2)
+      {
+         int sum = 0;
+
+         for (int i = 0; i < s1.length(); i++)
+         {
+            if (s1.charAt(i) != s2.charAt(i)) { sum++; }
+         }
+
+         return(sum);
+      }
 
 
-        private static void addContigToKmerIndex(Map<String, Set<String>> index, Set<String> kmerSet, String contigName) {
-            for (String kmer : kmerSet) {
-                addContigToKmerIndex(index, kmer, contigName);
+      private static void addContigToKmerIndex(Map < String, Set < String >> index, Set<String> kmerSet, String contigName)
+      {
+         for (String kmer : kmerSet)
+         {
+            addContigToKmerIndex(index, kmer, contigName);
+         }
+      }
+
+
+      private static void addContigToKmerIndex(Map < String, Set < String >> index, String kmer, String contigName)
+      {
+         if (index.containsKey(kmer))
+         {
+            index.get(kmer).add(contigName);
+         }
+         else
+         {
+            HashSet<String> l = new HashSet<String>();
+            l.add(contigName);
+            index.put(kmer, l);
+         }
+      }
+
+
+      /**
+       * initialize the map process by reading the contigs and execution parameters
+       *
+       * @param context is the map execution context by hadoop
+       * @throws IOException          if any file related error occures
+       * @throws InterruptedException
+       */
+      protected void setup(Context context)
+      throws IOException, InterruptedException
+      {
+         context.setStatus("running map-setup");
+
+         /*
+          * read parameters from the map context
+          */
+         String contigFileName = context.getConfiguration().get("contigfilename");
+         kmerSize        = context.getConfiguration().getInt("kmersize", 50);
+         contigEndLength = context.getConfiguration().getInt("contigendlength", 100);
+         numErrors       = context.getConfiguration().getInt("numerrors", 0);
+         maxContigSize   = context.getConfiguration().getInt("maxcontigsize", 0);
+          
+         /*
+          * read and index the contigs
+          */
+         readContigs(context, contigFileName);
+      }
+
+
+      public void map(Text seqid, Sequence s, Context context) throws IOException, InterruptedException
+      {
+         String   sequence = s.seqString();
+         Text     seqText  = new Text(seqid.toString() + "&" + sequence);
+         ReadNode rn       = new ReadNode(seqid.toString(), "", sequence);
+
+         context.setStatus("indexing sequence ");
+
+         if (!sequence.matches("[atgcn]*"))
+         {
+            log.error("sequence " + seqid + " is not well formed: " + sequence);
+            return;
+         }
+
+         /*
+          * generate kmers
+          */
+         int         seqsize = sequence.length();
+         Set<String> l       = new HashSet<String>();
+
+         //for (int i = 0; i <= seqsize - kmerSize; i++) {
+
+         /*
+          * first do the front
+          */
+         for (int i = 0; i <= Math.min(1, seqsize - kmerSize); i++)
+         {
+            String kmer = sequence.substring(i, i + kmerSize);
+            l.addAll(findMatch(contigKmersRear, kmer, numErrors));
+         }
+
+         /*
+          * now the back
+          */
+         for (int i = Math.max(0, seqsize - kmerSize - 1); i <= seqsize - kmerSize; i++)
+         {
+            String kmer = sequence.substring(i, i + kmerSize);
+            l.addAll(findMatch(contigKmersFront, kmer, numErrors));
+         }
+
+         /*
+          * now do the same with the reverse complement
+          */
+         String sequenceComplement = MetaUtils.reverseComplement(sequence);
+
+         for (int i = 0; i <= Math.min(1, seqsize - kmerSize); i++)
+         {
+            String kmer = sequenceComplement.substring(i, i + kmerSize);
+            l.addAll(findMatch(contigKmersFront, kmer, numErrors));
+         }
+
+         /*
+          * now the back
+          */
+         for (int i = Math.max(0, seqsize - kmerSize - 1); i <= seqsize - kmerSize; i++)
+         {
+            String kmer = sequence.substring(i, i + kmerSize);
+            l.addAll(findMatch(contigKmersRear, kmer, numErrors));
+         }
+
+         /*
+          * finally, output all the contigs that match this sequence.
+          */
+
+         for (String contigMatch : l)
+         {
+            context.write(new Text(contigMatch), new Text(rn.id + "&" + rn.sequence));
+            context.write(new Text(contigMatch), new Text(contigMatch + "&" + contigs.get(contigMatch)));
+         }
+      }
+
+
+      private Set<String> findMatch(Map < String, Set < String >> index, String kmer, int distance)
+      {
+          Set<String> kmerSet = MetaUtils.generateAllNeighbors2(kmer, distance);
+          Set<String> contigSet = new HashSet<String>();
+
+          for (String k : kmerSet) {
+              if (index.get(k) != null) contigSet.addAll(index.get(k));
+          }
+         return contigSet;
+      }
+   }
+
+
+   public static class ContigKmerReducer extends Reducer<Text, ReadNode, Text, Text> {
+      Logger log = Logger.getLogger(this.getClass());
+
+      public void reduce(Text key, Iterable<ReadNode> values, Context context)
+      throws InterruptedException, IOException
+      {
+         String keyStr = key.toString();
+
+         HashMap<String, ReadNode> hs = new HashMap<String, ReadNode>();
+         for (ReadNode v : values)
+         {
+            if (hs.containsKey(v.sequence))
+            {
+               hs.get(v.sequence).count++;
             }
-        }
-        private static void addContigToKmerIndex(Map<String, Set<String>> index, String kmer, String contigName) {
-
-            if (index.containsKey(kmer)) {
-                index.get(kmer).add(contigName);
-            } else {
-                HashSet<String> l = new HashSet<String>();
-                l.add(contigName);
-                index.put(kmer, l);
+            else
+            {
+               hs.put(v.sequence, new ReadNode(v));
             }
-
-        }
-
-        /**
-         * initialize the map process by reading the contigs and execution parameters
-         *
-         * @param context is the map execution context by hadoop
-         * @throws IOException          if any file related error occures
-         * @throws InterruptedException
-         */
-        protected void setup(Context context)
-                throws IOException, InterruptedException {
-
-            /*
-            read parameters from the map context
-             */
-            String contigFileName = context.getConfiguration().get("contigfilename");
-            kmerSize = context.getConfiguration().getInt("kmersize", 50);
-            contigEndLength = context.getConfiguration().getInt("contigendlength", 100);
-            numErrors = context.getConfiguration().getInt("numerrors", 0);
-
-            /*
-            read and index the contigs
-             */
-            readContigs(contigFileName);
-
-        }
-
-        public void map(Text seqid, Sequence s, Context context) throws IOException, InterruptedException {
-
-            String sequence = s.seqString();
-            Text seqText = new Text(seqid.toString() + "&" + sequence);
-            ReadNode rn = new ReadNode(seqid.toString(), "", sequence);
-
-            if (!sequence.matches("[atgcn]*")) {
-                log.error("sequence " + seqid + " is not well formed: " + sequence);
-                return;
-            }
-
-            /*
-             generate kmers
-              */
-            int seqsize = sequence.length();
-            Set<String> l = new HashSet<String>();
-
-            //for (int i = 0; i <= seqsize - kmerSize; i++) {
-            /*
-            first do the front
-             */
-            for (int i = 0; i <= Math.min(1, seqsize - kmerSize); i++) {
-
-                String kmer = sequence.substring(i, i + kmerSize);
-                l.addAll(findMatch(contigKmersRear, kmer, numErrors));
-
-
-            }
-            /*
-            now the back
-             */
-            for (int i = Math.max(0, seqsize - kmerSize - 1); i <= seqsize - kmerSize; i++) {
-
-                String kmer = sequence.substring(i, i + kmerSize);
-                l.addAll(findMatch(contigKmersFront, kmer, numErrors));
-
-            }
-
-            /*
-            now do the same with the reverse complement
-             */
-            String sequenceComplement = MetaUtils.reverseComplement(sequence);
-
-            for (int i = 0; i <= Math.min(1, seqsize - kmerSize); i++) {
-
-                String kmer = sequenceComplement.substring(i, i + kmerSize);
-                l.addAll(findMatch(contigKmersFront, kmer, numErrors));
-
-            }
-            /*
-            now the back
-             */
-            for (int i = Math.max(0, seqsize - kmerSize - 1); i <= seqsize - kmerSize; i++) {
-
-                String kmer = sequence.substring(i, i + kmerSize);
-                l.addAll(findMatch(contigKmersRear, kmer, numErrors));
-
-            }
-
-            /*
-            finally, output all the contigs that match this sequence.
-             */
-
-            for (String contigMatch : l) {
-
-                context.write(new Text(contigMatch), new Text(rn.id + "&" + rn.sequence));
-                context.write(new Text(contigMatch), new Text(contigMatch + "&" + contigs.get(contigMatch)));
-
-            }
-
-        }
-
-        private Set<String> findMatch(Map<String, Set<String>> index, String kmer, int distance) {
-
-            return (index.get(kmer) != null ? index.get(kmer) : new HashSet<String>());
-
-        }
-    }
-
-
-    public static class ContigKmerReducer extends Reducer<Text, ReadNode, Text, Text> {
-
-        Logger log = Logger.getLogger(this.getClass());
-
-        public void reduce(Text key, Iterable<ReadNode> values, Context context)
-                throws InterruptedException, IOException {
-
-            String keyStr = key.toString();
-
-            HashMap<String, ReadNode> hs = new HashMap<String, ReadNode>();
-            for (ReadNode v : values) {
-                if (hs.containsKey(v.sequence)) {
-                    hs.get(v.sequence).count++;
-                } else {
-                    hs.put(v.sequence, new ReadNode(v));
-                }
-            }
-
-            for (ReadNode s : hs.values()) {
-                context.write(new Text(">" + keyStr + "&" + s.id + " count=" + s.count), new Text("\n" + s.sequence));
-            }
-
-        }
-    }
-
-
-    static String findNewFiles(String inputDirectory, String outputDirectory) throws IOException {
-        Configuration conf = new Configuration();
-        FileSystem fs = FileSystem.get(conf);
-        Path inputPath = new Path(inputDirectory);
-        Path outputPath = new Path(outputDirectory);
-
-        if (!fs.exists(inputPath) || !fs.getFileStatus(inputPath).isDir()) {
-            throw new IOException("directory not found: " + inputDirectory);
-        }
-
-        FileStatus[] fsArray = fs.listStatus(inputPath);
-        for (FileStatus file : fsArray) {
-            if (file.getPath().getName().endsWith(".lock")) continue;
-            String output = outputDirectory + "/" + file.getPath().getName() + ".out";
-            String lockfile = file.getPath() + ".lock";
-            if (!fs.exists(new Path(output)) && !fs.exists(new Path(lockfile))) {
-                return file.getPath().getName();
-            }
-        }
-        return null;
-    }
-
-    static boolean iterationAlreadyComplete(String outputDirectoryName, int iterationNumber) throws IOException {
-        // if outputDirectoryName exists and ../contigs-step1.fas file exists
-
-        Configuration conf = new Configuration();
-        FileSystem fs = FileSystem.get(conf);
-        Path outputDirectoryPath = new Path(outputDirectoryName + "/step" + iterationNumber);
-        //Path resultFilePath = new Path(outputDirectoryName+"/contigs-"+iterationNumber+".fas");
-
-        return (fs.exists(outputDirectoryPath)); // && fs.exists(resultFilePath));
-
-    }
-
-    /**
-     * starts off the hadoop application
-     *
-     * @param args specify input file cassandra host and kmer size
-     * @throws Exception
-     */
-    public static void main(String[] args) throws Exception {
-
-        Logger log = Logger.getLogger(ContigKmer.class);
-
-        /*
-        load the application configuration parameters (from deployment directory)
-         */
-
-        Configuration conf = new Configuration();
-        String[] otherArgs = MetaUtils.loadConfiguration(conf, "contigkmer-conf.xml", args);
-
-        /*
-        process arguments
-         */
-        if (otherArgs.length < 3 || otherArgs.length > 4) {
-            System.err.println("Usage: contigkmer <contigfile> <readfile> <outputdir> <numiterations optional>");
-            System.exit(2);
-        }
-
-
-        int numberOfIterations = 1;
-
-        if (otherArgs.length == 4)
-            numberOfIterations = Integer.parseInt(otherArgs[3]);
-
-
-        /*
-       seems to help in file i/o performance
-        */
-        conf.setInt("io.file.buffer.size", 1024 * 1024);
-
-        log.info(System.getProperty("application.name") + "[version " + System.getProperty("application.version") + "] starting with following parameters");
-        log.info("\tsequence file: " + otherArgs[1]);
-        log.info("\tcontig dir: " + otherArgs[0]);
-
-        String[] optionalProperties = {
-                "mapred.min.split.size",
-                "mapred.max.split.size",
-                "contigkmer.numreducers",
-                "contigkmer.sleep",
-                "kmersize",
-                "contigendlength"
-        };
-
-        MetaUtils.printConfiguration(conf, log, optionalProperties);
-
-        int sleep = conf.getInt("contigkmer.sleep", 60000);
-        int iteration = 0;
-        int numContigs = 0;
-
-        String inputContigsFileOrDir = otherArgs[0];
-        Map<String, String> results = new TreeMap<String, String>();
-        results.putAll(MetaUtils.readSequences(otherArgs[0]));
-
-
-        do {
-            System.out.println(" *******   iteration " + iteration + "   ********");
-            iteration++;
-
-            // check to see if output already exists.
-
-            String outputContigFileName = otherArgs[2] + "/" + "contigs-" + iteration + ".fas";
-            String outputContigDirName = otherArgs[2] + "/" + "step" + iteration;
-
-            Boolean calculationDonePreviously = iterationAlreadyComplete(otherArgs[2], iteration);
-
-            if (!calculationDonePreviously) {
-
-                conf.set("contigfilename", inputContigsFileOrDir);
-
-                Job job0 = new Job(conf, "configkmer: " + "iteration " + iteration + ", file = " + inputContigsFileOrDir);
-                job0.setJarByClass(ContigKmer.class);
-                job0.setInputFormatClass(FastaInputFormat.class);
-                job0.setMapperClass(ContigKmerMapper.class);
-                //job.setCombinerClass(IntSumReducer.class);
-                job0.setReducerClass(AssembleByGroupKey.class);
-                //job0.setReducerClass(IdentityReducerGroupByKey.class);
-                job0.setOutputKeyClass(Text.class);
-                job0.setOutputValueClass(Text.class);
-                job0.setNumReduceTasks(conf.getInt("contigkmer.numreducers", 1));
-
-                FileInputFormat.addInputPath(job0, new Path(otherArgs[1]));  // this is the reads file
-                FileOutputFormat.setOutputPath(job0, new Path(outputContigDirName));
-
-                job0.waitForCompletion(true);
-            } else {
-                System.out.println("Found previous results ... skipping iteration " + iteration);
-            }
-
-            numContigs = MetaUtils.countSequences(outputContigDirName);
-            Map<String, String> tmpresults = MetaUtils.readSequences(outputContigDirName);
-            for (String k : tmpresults.keySet()) {
-                String[] a = k.split("-", 2);
-                results.put(a[0], tmpresults.get(k));
-            }
-
-            try {
-                MetaUtils.sequenceToFile(results, outputContigFileName);
-            } catch (IOException e) {
-                System.out.println(e);
-                System.out.println("continuing");
-            }
-
-            inputContigsFileOrDir = outputContigDirName;
-
-        } while (iteration < numberOfIterations && numContigs > 0);
-
-
-    }
+         }
+
+         for (ReadNode s : hs.values())
+         {
+            context.write(new Text(">" + keyStr + "&" + s.id + " count=" + s.count), new Text("\n" + s.sequence));
+         }
+      }
+   }
+
+
+   static String findNewFiles(String inputDirectory, String outputDirectory) throws IOException
+   {
+      Configuration conf       = new Configuration();
+      FileSystem    fs         = FileSystem.get(conf);
+      Path          inputPath  = new Path(inputDirectory);
+      Path          outputPath = new Path(outputDirectory);
+
+      if (!fs.exists(inputPath) || !fs.getFileStatus(inputPath).isDir())
+      {
+         throw new IOException("directory not found: " + inputDirectory);
+      }
+
+      FileStatus[] fsArray = fs.listStatus(inputPath);
+      for (FileStatus file : fsArray)
+      {
+         if (file.getPath().getName().endsWith(".lock")) { continue; }
+         String output   = outputDirectory + "/" + file.getPath().getName() + ".out";
+         String lockfile = file.getPath() + ".lock";
+         if (!fs.exists(new Path(output)) && !fs.exists(new Path(lockfile)))
+         {
+            return(file.getPath().getName());
+         }
+      }
+      return(null);
+   }
+
+
+   static boolean iterationAlreadyComplete(String outputDirectoryName, int iterationNumber) throws IOException
+   {
+      // if outputDirectoryName exists and ../contigs-step1.fas file exists
+
+      Configuration conf = new Configuration();
+      FileSystem    fs   = FileSystem.get(conf);
+      Path          outputDirectoryPath = new Path(outputDirectoryName + "/step" + iterationNumber);
+
+      //Path resultFilePath = new Path(outputDirectoryName+"/contigs-"+iterationNumber+".fas");
+
+      return(fs.exists(outputDirectoryPath));    // && fs.exists(resultFilePath));
+   }
+
+
+   /**
+    * starts off the hadoop application
+    *
+    * @param args specify input file cassandra host and kmer size
+    * @throws Exception
+    */
+   public static void main(String[] args) throws Exception
+   {
+      Logger log = Logger.getLogger(ContigKmer.class );
+
+      /*
+       * load the application configuration parameters (from deployment directory)
+       */
+
+      Configuration conf = new Configuration();
+
+      String[] otherArgs = MetaUtils.loadConfiguration(conf, "contigkmer-conf.xml", args);
+
+      /*
+       * process arguments
+       */
+      if ((otherArgs.length < 3) || (otherArgs.length > 4))
+      {
+         System.err.println("Usage: contigkmer <contigfile> <readfile> <outputdir> <numiterations optional>");
+         System.exit(2);
+      }
+
+
+      int numberOfIterations = 1;
+
+      if (otherArgs.length == 4)
+      {
+         numberOfIterations = Integer.parseInt(otherArgs[3]);
+      }
+
+
+      /*
+       * seems to help in file i/o performance
+       */
+      conf.setInt("io.file.buffer.size", 1024 * 1024);
+
+      log.info(System.getProperty("application.name") + "[version " + System.getProperty("application.version") + "] starting with following parameters");
+      log.info("\tsequence file: " + otherArgs[1]);
+      log.info("\tcontig dir: " + otherArgs[0]);
+
+      String[] optionalProperties =
+      {
+         "mapred.min.split.size",
+         "mapred.max.split.size",
+         "contigkmer.numreducers",
+         "contigkmer.sleep",
+         "kmersize",
+         "numerrors",
+         "contigendlength",
+         "assembler.readsizelimit",
+         "assembler.removeidenticalsequences",
+         "assembler.filterbysizespecial",
+         "assembler.command"
+      };
+
+      MetaUtils.printConfiguration(conf, log, optionalProperties);
+
+      int sleep      = conf.getInt("contigkmer.sleep", 60000);
+      int iteration  = 0;
+      int numContigs = 0;
+
+      String              inputContigsFileOrDir = otherArgs[0];
+      Map<String, String> results = new TreeMap<String, String>();
+      results.putAll(MetaUtils.readSequences(otherArgs[0]));
+
+
+      do
+      {
+         System.out.println(" *******   iteration " + iteration + "   ********");
+         iteration++;
+
+         // check to see if output already exists.
+
+         String outputContigFileName = otherArgs[2] + "/" + "contigs-" + iteration + ".fas";
+         String outputContigDirName  = otherArgs[2] + "/" + "step" + iteration;
+
+         Boolean calculationDonePreviously = iterationAlreadyComplete(otherArgs[2], iteration);
+
+         if (!calculationDonePreviously)
+         {
+            conf.set("contigfilename", inputContigsFileOrDir);
+
+            Job job0 = new Job(conf, "configkmer: " + "iteration " + iteration + ", file = " + inputContigsFileOrDir);
+            job0.setJarByClass(ContigKmer.class );
+            job0.setInputFormatClass(FastaInputFormat.class );
+            job0.setMapperClass(ContigKmerMapper.class );
+            //job.setCombinerClass(IntSumReducer.class);
+            job0.setReducerClass(AssembleByGroupKey.class );
+            //job0.setReducerClass(IdentityReducerGroupByKey.class);
+            job0.setOutputKeyClass(Text.class );
+            job0.setOutputValueClass(Text.class );
+            job0.setNumReduceTasks(conf.getInt("contigkmer.numreducers", 1));
+
+            FileInputFormat.addInputPath(job0, new Path(otherArgs[1]));      // this is the reads file
+            FileOutputFormat.setOutputPath(job0, new Path(outputContigDirName));
+
+            job0.waitForCompletion(true);
+         }
+         else
+         {
+            System.out.println("Found previous results ... skipping iteration " + iteration);
+         }
+
+         numContigs = MetaUtils.countSequences(outputContigDirName);
+         Map<String, String> tmpresults = MetaUtils.readSequences(outputContigDirName);
+         for (String k : tmpresults.keySet())
+         {
+            String[] a = k.split("-", 2);
+            results.put(a[0], tmpresults.get(k));
+         }
+
+         try {
+            MetaUtils.sequenceToFile(results, outputContigFileName);
+         }
+         catch (IOException e) {
+            System.out.println(e);
+            System.out.println("continuing");
+         }
+
+         inputContigsFileOrDir = outputContigDirName;
+      } while (iteration < numberOfIterations && numContigs > 0);
+   }
 }

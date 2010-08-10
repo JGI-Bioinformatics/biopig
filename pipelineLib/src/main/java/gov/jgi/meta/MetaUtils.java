@@ -4,6 +4,7 @@ import gov.jgi.meta.hadoop.input.FastaBlockLineReader;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.*;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.file.tfile.ByteArray;
 import org.apache.hadoop.util.GenericOptionsParser;
 import org.apache.log4j.Logger;
 
@@ -337,9 +338,69 @@ public class MetaUtils {
 
     }
 
+    public static Set<String> generateAllNeighbors2(String start, int distance) {
+
+        Set<String> r = new HashSet<String>();
+
+        if (distance == 0) {
+            r.add(start);
+            return r;
+
+        } else if (distance == 1) {
+            return(generateHammingDistanceOne(start));
+
+        } else if (distance == 2) {
+            return(generateHammingDistanceTwo(start));
+
+        } else {
+            // throw exception;
+        }
+        return r;
+    }
+
+    private static Set<String> generateHammingDistanceOne(String start) {
+        char[] bases = {'a', 't', 'g', 'c', 'n'};
+        Set<String> r = new HashSet<String>();
+
+        for (int i = 0; i < start.length(); i++) {
+
+            for (char basePair : bases) {
+                if (start.charAt(i) == basePair) continue;
+                String n = stringReplaceIth(start, i, basePair);
+                if (r.contains(n)) continue;
+                r.add(n);
+            }
+
+        }
+        return r;
+    }
+
+    private static Set<String> generateHammingDistanceTwo(String start) {
+        byte[] b = start.getBytes();
+        byte[] bases = {'a', 't', 'g', 'c', 'n'};
+        Set<String> r = new HashSet<String>();
+
+        for (int i = 0; i < start.length()-1; i++) {
+            for (int j = i+1; j < start.length(); j++) {
+                byte ii = b[i];
+                byte jj = b[j];
+                for (byte basePair1 : bases) {
+                    for (byte basePair2 : bases) {
+                        b[i] = basePair1;
+                        b[j] = basePair2;
+                        r.add(b.toString());
+                    }
+                }
+                b[i] = ii;
+                b[j] = jj;
+            }
+        }
+        return r;
+    }
+
     public static Set<String> generateAllNeighbors(String start, int distance, Set x) {
 
-        char[] bases = {'a', 't', 'g', 'c', 'n'};
+        char [] bases = {'a', 't', 'g', 'c', 'n'};                
         Set<String> s = new HashSet<String>();
 
         //s.add(start);
