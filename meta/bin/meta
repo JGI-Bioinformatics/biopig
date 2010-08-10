@@ -52,7 +52,8 @@ commandList = [
         new assemblerCommand(),
         new dereplicateCommand(),
         new contigkmerCommand(),
-        new faDiffCommand()
+        new faDiffCommand(),
+        new statCommand()
 ];
 
 HashMap<String, command> commandMap = new HashMap();
