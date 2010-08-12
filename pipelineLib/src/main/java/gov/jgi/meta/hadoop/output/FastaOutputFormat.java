@@ -9,34 +9,35 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.compress.CompressionCodec;
+import org.apache.hadoop.io.compress.GzipCodec;
 import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.util.Progressable;
+import org.apache.hadoop.util.ReflectionUtils;
 
-/*
+
 public class FastaOutputFormat<K, V> extends TextOutputFormat {
 
-  protected static class FastaRecordWriter<K, V> implements RecordWriter<K, V> {
+  protected static class FastaRecordWriter<K, V> extends RecordWriter<K, V> {
     private static final String utf8 = "UTF-8";
 
     private DataOutputStream out;
 
     public FastaRecordWriter(DataOutputStream out) throws IOException {
-      this.out = out;
-      out.writeBytes("<results>\n");
+      this.out = out;                          
     }
 
-    */
-/**
+      /**
      * Write the object to the byte stream, handling Text as a special case.
      *
      * @param o
      *          the object to print
      * @throws IOException
      *           if the write throws, we pass it on
-     *//*
+     */
 
     private void writeObject(Object o) throws IOException {
       if (o instanceof Text) {
@@ -45,18 +46,12 @@ public class FastaOutputFormat<K, V> extends TextOutputFormat {
       } else {
         out.write(o.toString().getBytes(utf8));
       }
+      out.writeBytes("\n");
     }
 
-    private void writeKey(Object o, boolean closing) throws IOException {
-      out.writeBytes("<");
-      if (closing) {
-        out.writeBytes("/");
-      }
-      writeObject(o);
+    private void writeKey(Object o) throws IOException {
       out.writeBytes(">");
-      if (closing) {
-        out.writeBytes("\n");
-      }
+      writeObject(o);
     }
 
     public synchronized void write(K key, V value) throws IOException {
@@ -74,33 +69,40 @@ public class FastaOutputFormat<K, V> extends TextOutputFormat {
         keyObj = "value";
       }
 
-      writeKey(keyObj, false);
+      writeKey(keyObj);
 
       if (!nullValue) {
         writeObject(value);
       }
 
-      writeKey(keyObj, true);
     }
 
     public synchronized void close(TaskAttemptContext c) throws IOException {
-      try {
-        out.writeBytes("</results>\n");
-      } finally {
         // even if writeBytes() fails, make sure we close the stream
         out.close();
-      }
     }
   }
-*/
 
-/*
-  public RecordWriter<K, V> getRecordWriter(FileSystem ignored, Configuration conf,
-      String name, Progressable progress) throws IOException {
-//    Path file = FileOutputFormat.getTaskOutputPath(job, name);
-//    FileSystem fs = file.getFileSystem(job);
-//    FSDataOutputStream fileOut = fs.create(file, progress);
-//    return new XmlRecordWriter<K, V>(fileOut);
+    public RecordWriter<K, V> getRecordWriter(TaskAttemptContext job) throws IOException, InterruptedException {
+    Configuration conf = job.getConfiguration();
+    boolean isCompressed = getCompressOutput(job);
+    CompressionCodec codec = null;
+    String extension = "";
+    if (isCompressed) {
+      Class<? extends CompressionCodec> codecClass =
+        getOutputCompressorClass(job, GzipCodec.class);
+      codec = (CompressionCodec) ReflectionUtils.newInstance(codecClass, conf);
+      extension = codec.getDefaultExtension();
+    }
+    Path file = getDefaultWorkFile(job, extension);
+    FileSystem fs = file.getFileSystem(conf);
+    if (!isCompressed) {
+      FSDataOutputStream fileOut = fs.create(file, false);
+      return new FastaRecordWriter<K, V>(fileOut);
+    } else {
+      FSDataOutputStream fileOut = fs.create(file, false);
+      return new FastaRecordWriter<K, V>(new DataOutputStream
+                                        (codec.createOutputStream(fileOut)));
+    }
   }
-*/
-//}
+}

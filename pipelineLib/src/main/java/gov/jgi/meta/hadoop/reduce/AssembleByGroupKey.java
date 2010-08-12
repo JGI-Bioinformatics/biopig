@@ -65,7 +65,6 @@ public class AssembleByGroupKey extends Reducer<Text, Text, Text, Text> {
       }
    }
 
-
    /**
     * free resource after mapper has finished, ie close socket to cassandra server
     *
@@ -75,7 +74,6 @@ public class AssembleByGroupKey extends Reducer<Text, Text, Text, Text> {
    {
       if (assemblerCmd != null) { assemblerCmd.cleanup(); }
    }
-
 
    /**
     * main reduce step, simply string concatenates all values of a particular key with tab as seperator
@@ -130,7 +128,7 @@ public class AssembleByGroupKey extends Reducer<Text, Text, Text, Text> {
          }
          else
          {
-             map.put(a[0], a[1]);
+            map.put(a[0], a[1]);
          }
       }
 
@@ -177,7 +175,6 @@ public class AssembleByGroupKey extends Reducer<Text, Text, Text, Text> {
       context.setStatus("Completed");
    }
 
-
    class ValueComparator implements Comparator {
       Map base;
 
@@ -185,7 +182,6 @@ public class AssembleByGroupKey extends Reducer<Text, Text, Text, Text> {
       {
          this.base = base;
       }
-
 
       public int compare(Object a, Object b)
       {

@@ -53,7 +53,8 @@ commandList = [
         new dereplicateCommand(),
         new contigkmerCommand(),
         new faDiffCommand(),
-        new statCommand()
+        new statCommand(),
+        new fastqToFastaCommand()
 ];
 
 HashMap<String, command> commandMap = new HashMap();
