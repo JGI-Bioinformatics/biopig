@@ -3,4 +3,4 @@
 	url = http://github.com/apache/cassandra.git
 [submodule "pig"]
 	path = pig
-	url = http://github.com/apache/pig.git
+	url = git://git.apache.org/pig.git
