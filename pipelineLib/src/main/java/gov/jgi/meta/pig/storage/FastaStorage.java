@@ -34,6 +34,7 @@ import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.PigSplit;
 import org.apache.pig.data.DataByteArray;
 import org.apache.pig.data.Tuple;
 import org.apache.pig.data.TupleFactory;
+import org.biojava.bio.seq.Sequence;
 
 /**
  * A Loader for Hadoop-Fasta files
@@ -51,24 +52,22 @@ public class FastaStorage extends LoadFunc {
 
     @Override
     public Tuple getNext() throws IOException {
+        if (mProtoTuple == null) {
+            mProtoTuple = new ArrayList<Object>();
+        }
+
         try {
             boolean notDone = in.nextKeyValue();
             if (!notDone) {
                 return null;
             }
-            Text value = (Text) in.getCurrentValue();
-            byte[] buf = value.getBytes();
-            int len = value.getLength();
-            int start = 0;
-
-            for (int i = 0; i < len; i++) {
-                if (buf[i] == fieldDel) {
-                    readField(buf, start, i);
-                    start = i + 1;
-                }
-            }
-            // pick up the last field
-            readField(buf, start, len);
+            String[] a = ((Text) in.getCurrentKey()).toString().split("/");
+            String key = a[0];
+            String direction = (a.length > 1 ? a[1] : "");
+            String value = ((Sequence) in.getCurrentValue()).seqString();
+            mProtoTuple.add(new DataByteArray(key.getBytes(), 0, key.length()));            // add key
+            mProtoTuple.add(new DataByteArray(direction.getBytes(), 0, direction.length()));            // add key
+            mProtoTuple.add(new DataByteArray(value.getBytes(), 0, value.length()));           // add sequence
 
             Tuple t =  mTupleFactory.newTupleNoCopy(mProtoTuple);
             mProtoTuple = null;
@@ -82,22 +81,9 @@ public class FastaStorage extends LoadFunc {
 
     }
 
-    private void readField(byte[] buf, int start, int end) {
-        if (mProtoTuple == null) {
-            mProtoTuple = new ArrayList<Object>();
-        }
-
-        if (start == end) {
-            // NULL value
-            mProtoTuple.add(null);
-        } else {
-            mProtoTuple.add(new DataByteArray(buf, start, end));
-        }
-    }
-
     @Override
     public InputFormat getInputFormat() {
-        return new TextInputFormat();
+        return new FastaInputFormat();
     }
 
     @Override
