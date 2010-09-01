@@ -37,7 +37,18 @@
 
     <property>
         <name>contigendlength</name>
-        <value>100</value>
+        <value>75</value>
+    </property>
+
+    <property>
+        <name>maxcontigsize</name>
+        <value>10000</value>
+    </property>
+
+
+    <property>
+        <name>numerrors</name>
+        <value>2</value>
     </property>
 
     <property>
@@ -53,6 +64,11 @@
     <property>
         <name>assembler.removeidenticalsequences</name>
         <value>true</value>
+    </property>
+
+    <property>
+        <name>assembler.readsizelimit</name>
+        <value>1000</value>
     </property>
     
 </configuration>

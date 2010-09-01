@@ -31,6 +31,7 @@
 package gov.jgi.meta.exec;
 
 import com.devdaily.system.SystemCommandExecutor;
+import gov.jgi.meta.MetaUtils;
 import gov.jgi.meta.hadoop.input.FastaBlockLineReader;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
@@ -108,7 +109,7 @@ public class CapCommand implements CommandLineProgram {
         commandPath = DEFAULTCOMMANDPATH;
         tmpDir = DEFAULTTMPDIR;
 
-        tmpDirFile = createTempDir();
+        tmpDirFile = MetaUtils.createTempDir(tmpDir);
     }
 
 
@@ -116,7 +117,7 @@ public class CapCommand implements CommandLineProgram {
 
        if (this.doCleanup) {
             if (tmpDirFile != null) {
-                recursiveDelete(tmpDirFile);
+                MetaUtils.recursiveDelete(tmpDirFile);
                 tmpDirFile = null;
             }
         }
@@ -164,7 +165,7 @@ public class CapCommand implements CommandLineProgram {
         if all is good, create a working space inside tmpDir
          */
 
-        tmpDirFile = createTempDir();
+        tmpDirFile = MetaUtils.createTempDir(tmpDir);
 
     }
 
@@ -185,46 +186,6 @@ public class CapCommand implements CommandLineProgram {
     }
 
 
-    /**
-     * given a list of sequences, creates a db for use with cap3
-     *
-     * @param seqList is the list of sequences to create the database with
-     * @return the full path of the location of the database
-     */
-    private String dumpToFile(Map<String, String> seqList) {
-
-        BufferedWriter out;
-        File seqFile = null;
-
-        /*
-        open temp file
-         */
-        try {
-            seqFile = new File(tmpDirFile, "reads.fa");
-            out = new BufferedWriter(new FileWriter(seqFile.getPath()));
-
-            /*
-            write out the sequences to file
-            */
-            for (String key : seqList.keySet()) {
-                assert(seqList.get(key) != null);
-                out.write(">" + key + "\n");
-                out.write(seqList.get(key) + "\n");
-            }
-
-            /*
-            close temp file
-             */
-            out.close();
-
-        } catch (Exception e) {
-            log.error(e);
-            return null;
-        }
-
-
-        return seqFile.getPath();
-    }
 
 
     /**
@@ -243,6 +204,7 @@ public class CapCommand implements CommandLineProgram {
         and write to temporary file.
         */
         File seqQueryFile = null;
+        Long executionStartTime = new Date().getTime();
 
         log.info("Preparing Assembly execution");
         if (context != null) context.setStatus("Preparing Assembly execution");
@@ -253,7 +215,7 @@ public class CapCommand implements CommandLineProgram {
         /*
         dump the database from the map to a file
          */
-        String seqFilepath = dumpToFile(seqDatabase);
+        String seqFilepath = MetaUtils.sequenceToLocalFile(seqDatabase, tmpDirFile+"/reads.fa");
 
         if (seqFilepath == null) {
             /*
@@ -262,7 +224,7 @@ public class CapCommand implements CommandLineProgram {
             return null;
         }
 
-        if (context != null) context.setStatus("Executing Assembler");
+        if (context != null) context.setStatus("running cap3 with " + seqDatabase.size() + " reads");
             /*
             now set up a blat execution
              */
@@ -284,7 +246,9 @@ public class CapCommand implements CommandLineProgram {
         log.debug("stdout = " + stdout);
         log.debug("stderr = " + stderr);
 
-
+        Long executionTime = new Date().getTime() - executionStartTime;
+        context.getCounter("reduce.assembly", "EXECUTION_TIME").increment(executionTime);
+        
         /*
             now parse the output and clean up
             */
@@ -304,62 +268,6 @@ public class CapCommand implements CommandLineProgram {
         return s;
     }
 
-
-    /**
-     * Create a new temporary directory. Use something like
-     * {@link #recursiveDelete(java.io.File)} to clean this directory up since it isn't
-     * deleted automatically
-     *
-     * @return the new directory
-     * @throws java.io.IOException if there is an error creating the temporary directory
-     */
-    public File createTempDir() throws IOException {
-        final File sysTempDir = new File(tmpDir);
-        File newTempDir;
-        final int maxAttempts = 9;
-        int attemptCount = 0;
-        do {
-            attemptCount++;
-            if (attemptCount > maxAttempts) {
-                throw new IOException(
-                        "The highly improbable has occurred! Failed to " +
-                                "create a unique temporary directory after " +
-                                maxAttempts + " attempts.");
-            }
-            String dirName = UUID.randomUUID().toString();
-            newTempDir = new File(sysTempDir, dirName);
-        } while (newTempDir.exists());
-
-        if (newTempDir.mkdirs()) {
-            newTempDir.setExecutable(true,false);
-            newTempDir.setReadable(true,false);
-            newTempDir.setWritable(true,false);
-            return newTempDir;
-        } else {
-            throw new IOException(
-                    "Failed to create temp dir named " +
-                            newTempDir.getAbsolutePath());
-        }
-    }
-
-    /**
-     * Recursively delete file or directory
-     *
-     * @param fileOrDir the file or dir to delete
-     * @return true iff all files are successfully deleted
-     */
-    public boolean recursiveDelete(File fileOrDir) {
-        if (fileOrDir.isDirectory()) {
-            // recursively delete contents
-            for (File innerFile : fileOrDir.listFiles()) {
-                if (!recursiveDelete(innerFile)) {
-                    return false;
-                }
-            }
-        }
-
-        return fileOrDir.delete();
-    }
 
     public static void main(String[] args) throws Exception {
 

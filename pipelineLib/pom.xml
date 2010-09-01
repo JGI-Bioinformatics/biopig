@@ -1,23 +1,24 @@
 <?xml version="1.0"?>
 
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
-	<modelVersion>4.0.0</modelVersion>
-	<groupId>gov.jgi.gentech</groupId>
-	<artifactId>pipelinelibrary</artifactId>
-	<packaging>jar</packaging>
-	<version>1.0-beta1</version>
-	<name>pipelineLib</name>
-	<description>java library for for accessing and using cassandra data model</description>
-	<url></url>
-	<organization>
-		<name>Joint Genomics Institute, US Department of Energy</name>
-		<url>http://www.jgi.gov</url>
-	</organization>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>gov.jgi.gentech</groupId>
+    <artifactId>pipelinelibrary</artifactId>
+    <packaging>jar</packaging>
+    <version>1.0-beta1</version>
+    <name>pipelineLib</name>
+    <description>java library for for accessing and using cassandra data model</description>
+    <url></url>
+    <organization>
+        <name>Joint Genomics Institute, US Department of Energy</name>
+        <url>http://www.jgi.gov</url>
+    </organization>
     <parent>
-         <groupId>gov.jgi.gentech</groupId>
-         <artifactId>pipeline</artifactId>
-         <version>0.1</version>
-     </parent>
+        <groupId>gov.jgi.gentech</groupId>
+        <artifactId>pipeline</artifactId>
+        <version>1.0-beta1</version>
+    </parent>
     <dependencies>
         <dependency>
             <groupId>log4j</groupId>
@@ -45,7 +46,7 @@
             <artifactId>google-collections</artifactId>
             <version>1.0</version>
         </dependency>
-        
+
         <dependency>
             <groupId>commons-httpclient</groupId>
             <artifactId>commons-httpclient</artifactId>
@@ -60,7 +61,7 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-log4j12</artifactId>
             <version>1.5.11</version>
-        </dependency>   
+        </dependency>
         <dependency>
             <groupId>apache-cassandra</groupId>
             <artifactId>apache-cassandra</artifactId>
@@ -86,6 +87,32 @@
 
         <plugins>
             <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                            <mainClass>gov.jgi.meta.hadoop.apps.Fastq2FastaApp</mainClass>
+                        </manifest>
+                    </archive>
+                    <descriptors>
+                        <descriptor>src/main/assembly/job.xml</descriptor>
+                    </descriptors>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>make-assembly</id>
+                        <!-- this is used for inheritance merges -->
+                        <phase>package</phase>
+                        <!-- append to the packaging phase. -->
+                        <goals>
+                            <goal>single</goal>
+                            <!-- goals == mojos -->
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
@@ -93,15 +120,16 @@
                     <target>1.5</target>
                 </configuration>
             </plugin>
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                    <version>2.6.1</version>
+                <version>2.6.1</version>
                 <configuration>
 
                 </configuration>
             </plugin>
-            
+
         </plugins>
     </build>
 </project>

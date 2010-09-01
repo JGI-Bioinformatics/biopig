@@ -28,44 +28,63 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package gov.jgi.meta.hadoop.input;
+package gov.jgi.meta.command
 
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.compress.CompressionCodec;
-import org.apache.hadoop.io.compress.CompressionCodecFactory;
-import org.apache.hadoop.mapreduce.InputSplit;
-import org.apache.hadoop.mapreduce.JobContext;
-import org.apache.hadoop.mapreduce.RecordReader;
-import org.apache.hadoop.mapreduce.TaskAttemptContext;
-import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
-import org.biojava.bio.seq.Sequence;
+import gov.jgi.meta.MetaUtils
 
 
-/** An {@link FastqInputFormat} is for fasta text files.  Files are broken
- * records seperated by ">" eg:
- * >756:1:1:1074:20235/1
- * TGCAGCTCAACANCGTCGGCTACGACNNCACCNNNGAGCGCATCGGCTNCNNNANNNCCTNNNNNNNNCGGGAGGT
- * >756:1:1:1074:20235/2
- * TCGTCGCTGAAGCCTTCTTCCACCTTGGCGTTGAACGCCTCCATGTCCAGTGGAGTCCCCTGGACCCCGCGCCCGC
- *
- * the identifier is from after the ">" till new line, and the sequence is
- * the following line till the next ">"
- */
-public class FastqInputFormat extends FileInputFormat<Text, Sequence> {
+class statCommand implements command {
 
-  @Override
-  public RecordReader<Text, Sequence>
-    createRecordReader(InputSplit split,
-                       TaskAttemptContext context) {
-    return new FastqRecordReader();
-  }
+    List flags = [
 
-  @Override
-  protected boolean isSplitable(JobContext context, Path file) {
-    CompressionCodec codec =
-      new CompressionCodecFactory(context.getConfiguration()).getCodec(file);
-    return codec == null;
-  }
+    ]
+
+    List params = [
+            '--filter'   // number of reads
+    ]
+
+
+    String name() {
+        return "stat"
+    }
+
+    List options() {
+
+      /* return list of flags (existential) and parameters  */
+      return [
+              flags, params
+      ];
+
+    }
+
+    String usage() {
+        return "stat <input file/dir> [--filter <n>] ";
+    }
+
+    int execute(List args, Map options) {
+
+      int numBases;
+      int numSequences;
+
+      Map<String, String> contigs1 = MetaUtils.readSequences(args[1]);
+      if (options['-d']) {
+        println("read " + args[1] + ": " + contigs1.size() + " sequences")
+      }
+
+      int maxCount = (options['--filter'] ? options['--filter'] : contigs1.size());
+
+      int count = 0;
+      for (String k : contigs1.keySet()) {
+        count++;
+
+        String s1 = contigs1.get(k);
+
+        println(">" + k + "\n" + s1);
+
+        if (count >= maxCount) break;
+      }
+
+        return 1;
+    }
 
 }

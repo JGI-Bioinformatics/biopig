@@ -4,6 +4,7 @@ import gov.jgi.meta.hadoop.input.FastaBlockLineReader;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.*;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.file.tfile.ByteArray;
 import org.apache.hadoop.util.GenericOptionsParser;
 import org.apache.log4j.Logger;
 
@@ -197,7 +198,7 @@ public class MetaUtils {
         Path fp = new Path(filename);
 
         if (fs.exists(fp)) {
-            throw new IOException("file "+filename+" already exists");
+            throw new IOException("file " + filename + " already exists");
         }
 
         FSDataOutputStream out = fs.create(fp);
@@ -206,7 +207,7 @@ public class MetaUtils {
         */
         for (String key : seqList.keySet()) {
             assert (seqList.get(key) != null);
-            out.writeBytes(">" + key + "\n");
+            out.writeBytes(">" + key + " length=" + seqList.get(key).length() + "\n");
             out.writeBytes(seqList.get(key) + "\n");
         }
 
@@ -219,5 +220,214 @@ public class MetaUtils {
         return fp.toString();
     }
 
+
+    /**
+     * given a list of sequences, creates a db for use with cap3
+     *
+     * @param seqList is the list of sequences to create the database with
+     * @return the full path of the location of the database
+     */
+    public static String sequenceToLocalFile(Map<String, String> seqList, String tmpFileName) throws IOException {
+
+        BufferedWriter out;
+        File seqFile = null;
+
+        /*
+        open temp file
+         */
+        seqFile = new File(tmpFileName);
+        seqFile.setExecutable(true, false);
+        seqFile.setReadable(true, false);
+        seqFile.setWritable(true, false);
+        out = new BufferedWriter(new FileWriter(seqFile.getPath()));
+
+        /*
+        write out the sequences to file
+        */
+        for (String key : seqList.keySet()) {
+            assert (seqList.get(key) != null);
+            out.write(">" + key + "\n");
+            out.write(seqList.get(key) + "\n");
+        }
+
+        /*
+       close temp file
+        */
+        out.close();
+
+        return seqFile.getPath();
+    }
+
+
+    /**
+     * Create a new temporary directory. Use something like
+     * {@link #recursiveDelete(java.io.File)} to clean this directory up since it isn't
+     * deleted automatically
+     *
+     * @return the new directory
+     * @throws java.io.IOException if there is an error creating the temporary directory
+     */
+    public static File createTempDir(String tmpDir) throws IOException {
+        final File sysTempDir = new File(tmpDir);
+        File newTempDir;
+        final int maxAttempts = 9;
+        int attemptCount = 0;
+        do {
+            attemptCount++;
+            if (attemptCount > maxAttempts) {
+                throw new IOException(
+                        "The highly improbable has occurred! Failed to " +
+                                "create a unique temporary directory after " +
+                                maxAttempts + " attempts.");
+            }
+            String dirName = UUID.randomUUID().toString();
+            newTempDir = new File(sysTempDir, dirName);
+        } while (newTempDir.exists());
+
+        if (newTempDir.mkdirs()) {
+            newTempDir.setExecutable(true, false);
+            newTempDir.setReadable(true, false);
+            newTempDir.setWritable(true, false);
+
+            return newTempDir;
+        } else {
+            throw new IOException(
+                    "Failed to create temp dir named " +
+                            newTempDir.getAbsolutePath());
+        }
+    }
+
+    /**
+     * Recursively delete file or directory
+     *
+     * @param fileOrDir the file or dir to delete
+     * @return true iff all files are successfully deleted
+     */
+    public static boolean recursiveDelete(File fileOrDir) {
+        if (fileOrDir.isDirectory()) {
+            // recursively delete contents
+            for (File innerFile : fileOrDir.listFiles()) {
+                if (!recursiveDelete(innerFile)) {
+                    return false;
+                }
+            }
+        }
+
+        return fileOrDir.delete();
+    }
+
+
+    public static String reverseComplement(String s) {
+            StringBuffer sb = new StringBuffer();
+            for (int i = 0; i < s.length(); i++) {
+                if (s.charAt(i) == 'a') sb.append("t");
+                else if (s.charAt(i) == 't') sb.append("a");
+                else if (s.charAt(i) == 'g') sb.append("c");
+                else if (s.charAt(i) == 'c') sb.append("g");
+                else if (s.charAt(i) == 'n') sb.append("n");
+            }
+            return sb.reverse().toString();
+        }
+
+    public static Set<String> generateAllNeighbors(String start, int distance) {
+
+        Set<String> neighbors = generateAllNeighbors(start, distance, new HashSet());
+        neighbors.add(start);
+        return neighbors;
+
+
+    }
+
+    public static Set<String> generateAllNeighbors2(String start, int distance) {
+
+        Set<String> r = new HashSet<String>();
+
+        if (distance == 0) {
+            r.add(start);
+            return r;
+
+        } else if (distance == 1) {
+            return(generateHammingDistanceOne(start));
+
+        } else if (distance == 2) {
+            return(generateHammingDistanceTwo(start));
+
+        } else {
+            // throw exception;
+        }
+        return r;
+    }
+
+    private static Set<String> generateHammingDistanceOne(String start) {
+        char[] bases = {'a', 't', 'g', 'c', 'n'};
+        Set<String> r = new HashSet<String>();
+
+        for (int i = 0; i < start.length(); i++) {
+
+            for (char basePair : bases) {
+                if (start.charAt(i) == basePair) continue;
+                String n = stringReplaceIth(start, i, basePair);
+                if (r.contains(n)) continue;
+                r.add(n);
+            }
+
+        }
+        return r;
+    }
+
+    private static Set<String> generateHammingDistanceTwo(String start) {
+        byte[] b = start.getBytes();
+        byte[] bases = {'a', 't', 'g', 'c', 'n'};
+        Set<String> r = new HashSet<String>();
+
+        for (int i = 0; i < start.length()-1; i++) {
+            for (int j = i+1; j < start.length(); j++) {
+                byte ii = b[i];
+                byte jj = b[j];
+                for (byte basePair1 : bases) {
+                    for (byte basePair2 : bases) {
+                        b[i] = basePair1;
+                        b[j] = basePair2;
+                        r.add(b.toString());
+                    }
+                }
+                b[i] = ii;
+                b[j] = jj;
+            }
+        }
+        return r;
+    }
+
+    public static Set<String> generateAllNeighbors(String start, int distance, Set x) {
+
+        char [] bases = {'a', 't', 'g', 'c', 'n'};                
+        Set<String> s = new HashSet<String>();
+
+        //s.add(start);
+        if (distance == 0) {
+            return s;
+        }
+
+        for (int i = 0; i < start.length(); i++) {
+
+            for (char basePair : bases) {
+                if (start.charAt(i) == basePair) continue;
+                String n = stringReplaceIth(start, i, basePair);
+                if (x.contains(n)) continue;
+
+                s.add(n);
+                s.addAll(generateAllNeighbors(n, distance-1, s));
+            }
+
+        }
+
+        return s;
+    }
+
+    public static String stringReplaceIth(String s, int i, char c) {
+
+        return s.substring(0,i) + c + s.substring(i+1);
+
+    }
 
 }
