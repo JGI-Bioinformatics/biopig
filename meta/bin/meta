@@ -38,7 +38,6 @@ import org.apache.log4j.PropertyConfigurator;
 
 Logger log = Logger.getLogger("meta")
 
-
 /**
  * the set of commands that are configured
  */
@@ -54,7 +53,7 @@ commandList = [
         new contigkmerCommand(),
         new faDiffCommand(),
         new statCommand(),
-        new fastqToFastaCommand()
+//        new fastqToFastaCommand()
 ];
 
 HashMap<String, command> commandMap = new HashMap();

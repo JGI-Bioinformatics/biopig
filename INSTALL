@@ -30,7 +30,15 @@ Step 1: untar the tar file in some location where you want to install
    this installs the directory that includes this INSTALL file
 
 
-Step 2: configure the groovy loadpath
+Step 2: set your path
+
+   add the following to your .profile or type
+
+   # meta
+   export META_HOME=${HOME}/local/meta
+   export PATH=${PATH}:${META_HOME}/bin
+
+Step 3: configure the groovy load path
 
    In your .profile (or .bash_profile etc) add the following:
    export GROOVY_CONF=~/.groovy/groovy-starter.conf
@@ -43,22 +51,26 @@ load !{groovy.home}/lib/*.jar
 load !{user.home}/.groovy/lib/*.jar
 # tools.jar for ant tasks
 load ${tools.jar}
-load /usr/local/meta/lib/*.jar
+load !{meta.home}/lib/*.jar
 
-change the last line to reflect the path where you installed it.
+In order to define meta.home system variable add the following environment variable to
+your setup:
 
-Step 3: set your path
+% export JAVA_OPTS=" -Dmeta.home=${META_HOME}
 
-   add the following to your .profile or type
 
-   # meta
-   export META_HOME=${HOME}/local/meta
-   export PATH=${PATH}:${META_HOME}/bin
-
-That should be it.  to test it out try
+To test it out try
    % meta -help
 
-see below for more details on running...
+Step 3: finally, set the hadoop classpath so that it can find the configuration
+        directory
+
+% export HADOOP_CLASSPATH=/usr/local/meta/conf
+
+the conf directory has application-level parameters that are site-specific, things like
+memory size, number of processes to split, etc.
+
+you are all set to go.
 
 
 BUILD from Source
