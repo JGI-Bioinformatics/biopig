@@ -1,0 +1,64 @@
+meta build instructions
+-----------------------
+
+If you want to compile from source you will need the following:
+
+  - java compiler
+  - maven build system
+
+steps:
+  1. add specific libraries to your local maven repository
+  2. build and package using maven2
+  3. install binary package
+
+1. add non-maven libraries to your local maven repository
+---------------------------------------------------------
+
+Maven is great, however not all libraries are always available from
+maven repos.  The directory nonmavenlibs contains a set of jars that
+aren't found in any repo.  you will need to add them to your local
+maven repository (by default that's ~/.m2).  just run the following
+script:
+
+    % cd nonmavenlibs; ./installLibsInMaven.sh
+
+this will generate appropriate maven metadata.
+
+2. build and package using maven2
+---------------------------------
+
+building is easy, once maven2 is installed.
+
+    % mvn package
+
+This will compile the source code and generate a binary .tgz file in
+
+    ./meta/target/meta-1.0-beta1-bin.tar.gz  (for example, your file may
+                                              have a different version)
+
+
+3. install binary package
+-------------------------
+
+You can install the binary package anywhere you like.  for example:
+
+    % cat meta/target/meta-1.0-beta1-bin.tar.gz | tar -zxvf - -C /usr/local
+
+this will create the directory /usr/local/meta-1.0-beta1 which will look
+something like:
+
+karans-macbook:git.metagenomics dev$ ls -l /usr/local/meta-1.0-beta1/
+total 104
+-rw-r--r--   1 dev  staff  39251 Sep  1 15:02 CHANGELOG       - the git log of changes
+-rw-r--r--   1 dev  staff   2821 Sep  1 14:53 INSTALL         - directions on installing and running
+-rw-r--r--   1 dev  staff   1642 Jun  1 20:10 LICENSE         - license file you implicitly agree to
+-rw-r--r--   1 dev  staff    942 Jul 14 23:33 README          - overall readme that describes the probject
+drwxr-xr-x   5 dev  staff    170 Sep  1 15:51 bin             - directory with application binaries
+drwxr-xr-x   4 dev  staff    136 Sep  1 15:03 conf            - directory with application default configurations
+                                                                (you probably want to edit these to reflect your site)
+drwxr-xr-x   5 dev  staff    170 Sep  1 15:03 hadoop          - directory of hadoop applications
+                                                                (you will most likely not need this, use the binary
+                                                                wrappers instead in ./bin)
+drwxr-xr-x  37 dev  staff   1258 Sep  1 15:03 lib             - additional libraries needed by the binaries.
+
+
