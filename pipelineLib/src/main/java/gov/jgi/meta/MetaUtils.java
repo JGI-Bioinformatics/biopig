@@ -63,11 +63,7 @@ public class MetaUtils {
 
     public static String[] loadConfiguration(Configuration conf, String[] args) {
 
-        String appName = System.getProperty("application.name");
-        String appVersion = System.getProperty("application.version");
-        String confFileName = appName + "-" + appVersion + "-conf.xml";
-
-        return loadConfiguration(conf, confFileName, args);
+        return loadConfiguration(conf, null, args);
 
     }
 
@@ -93,15 +89,22 @@ public class MetaUtils {
         /*
         override properties with the deployment descriptor
          */
-
+        if (configurationFileName == null) {
+            String appName = System.getProperty("application.name");
+            String appVersion = System.getProperty("application.version");
+            configurationFileName = appName + "-" + appVersion + "-conf.xml";
+        }
         System.out.println("loading application configuration from " + configurationFileName);
         try {
 
             URL u = ClassLoader.getSystemResource(configurationFileName);
-            System.out.println("url = " + u);
+            if (u == null) {
+               System.err.println("unable to find " + configurationFileName + " ... skipping");
+            } else {
             conf.addResource(configurationFileName);
+            }
         } catch (Exception e) {
-            System.out.println("unable to find " + configurationFileName + " ... skipping");
+            System.err.println("unable to find " + configurationFileName + " ... skipping");
         }
 
         /*

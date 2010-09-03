@@ -404,6 +404,11 @@ public class BlastCommand {
          return(null);
       }
 
+      if (exitValue != 0) {
+          log.error("blast executable exit value = " + exitValue + ": " + stderr);
+          return null;
+      }
+
       /*
        * now parse the output
        */

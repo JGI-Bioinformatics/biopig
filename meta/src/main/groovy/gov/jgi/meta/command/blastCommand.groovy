@@ -56,7 +56,7 @@ class blastCommand implements command {
 
 
     String name() {
-        return "blast"
+        return "geneblaster"
     }
 
     List options() {
@@ -69,7 +69,7 @@ class blastCommand implements command {
     }
 
     String usage() {
-        return "blast <readfastafile> <genefastafile> <outputdir>";
+        return "geneblaster <readfastafile> <genefastafile> <outputdir>";
     }
 
     int execute(List args, Map options) {
@@ -99,12 +99,16 @@ class blastCommand implements command {
       /*
       find the jar file to execute
        */
+      if (options['-d']) {
+        println("looking for blaster application in " + metaHome+"/hadoop");
+      }
+
       String jar = new File(metaHome + "/hadoop").listFiles(
               {dir, file-> file ==~ /blastHadoopApp-.*-job.jar/ } as FilenameFilter
       ).sort {it.lastModified() }.reverse()[0];
 
       command.append(" " + jar + " gov.jgi.meta.ReadBlaster")
-      command.append(" " + args[1] + " " + args[2] + " " + args[3])
+      command.append(" " + (args[1] ? args[1] : "") + " " + args[2] + " " + args[3])
 
       /*
       execute command and pipe stdout/stderr to local stdout/stderr

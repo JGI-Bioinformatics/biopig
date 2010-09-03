@@ -47,6 +47,7 @@ Step 2: set your path
    # meta
    export META_HOME=${HOME}/local/meta
    export PATH=${PATH}:${META_HOME}/bin
+   export MANPATH=${MANPATH}:${META_HOME}/man
 
 Step 3: configure the groovy load path
 
