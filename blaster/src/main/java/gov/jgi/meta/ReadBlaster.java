@@ -167,6 +167,7 @@ public class ReadBlaster {
         seems to help in file i/o performance
          */
         conf.setInt("io.file.buffer.size", 1024 * 1024);
+        conf.setBoolean("debug", true);
 
         log.info(System.getProperty("application.name") + "[version " + System.getProperty("application.version") + "] starting with following parameters");
         log.info("\tsequence file: " + otherArgs[0]);
@@ -246,7 +247,7 @@ public class ReadBlaster {
         if (recalculate) {
             fs.delete(new Path(otherArgs[2]+"/step2"), true);
         }
-        if (!abort && !fs.exists(new Path(otherArgs[1]+"/step2"))) {
+        if (!abort && !fs.exists(new Path(otherArgs[2]+"/step2"))) {
             conf.set("blat.blastoutputfile", otherArgs[2]+"/step1/part-r-00000");
             Job jobBlat = new Job(conf, System.getProperty("application.name")+"-"+System.getProperty("application.version")+"-step2");
             jobBlat.setJarByClass(ReadBlaster.class);

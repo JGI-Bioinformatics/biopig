@@ -39,12 +39,14 @@
 
 package gov.jgi.meta.hadoop.map;
 
+import gov.jgi.meta.MetaUtils;
 import gov.jgi.meta.exec.BlastCommand;
 import gov.jgi.meta.exec.BlatCommand;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
@@ -61,6 +63,12 @@ extends Mapper<Object, Map<String, String>, Text, Text> {
 
    protected void setup(Context context) throws IOException, InterruptedException
    {
+      //MetaUtils.configureLog4j();
+      if (context.getConfiguration().getBoolean("debug", false)) {
+          System.out.println("setting logger to debug");
+          log.setLevel(Level.DEBUG);
+      }
+
       blastCmd = new BlastCommand(context.getConfiguration());
       blatCmd  = new BlatCommand(context.getConfiguration());
 
@@ -81,6 +89,8 @@ extends Mapper<Object, Map<String, String>, Text, Text> {
       {
          throw new IOException("file (" + geneDBFilePath + ") does not exist or is not a regular file");
       }
+
+
    }
 
 
@@ -137,6 +147,8 @@ extends Mapper<Object, Map<String, String>, Text, Text> {
           * blast returns the stdout, line by line.  the output is split by tab and
           * the first column is the id of the gene, second column is the read id
           */
+         System.out.println("blast output line = " + k);
+
          String[] a = k.split("\t");
 
          /*
