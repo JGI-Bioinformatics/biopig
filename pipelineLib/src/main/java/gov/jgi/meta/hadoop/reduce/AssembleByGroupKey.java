@@ -173,20 +173,12 @@ public class AssembleByGroupKey extends Reducer<Text, Text, Text, Text> {
 
       context.getCounter("reduce.assembly", "NUMBER_OF_READS_IN_GROUP").increment(map.size());
       context.getCounter("reduce", "NUMBER_OF_UNIQUE_GROUPS").increment(1);
-      try {
+
          Map<String, String> tmpmap = assemblerCmd.exec(groupId, map, context);
          ValueComparator     bvc    = new ValueComparator(tmpmap);
          s = new TreeMap<String, String>(bvc);
          s.putAll(tmpmap);
-      }
-      catch (Exception e) {
-         /*
-          * something bad happened.  update the counter and throw exception
-          */
-         log.error(e);
-//                context.getCounter(AssemblyCounters.NUMBER_OF_ERROR_BLATCOMMANDS).increment(1);
-         throw new IOException(e);
-      }
+
 
       if (s == null) { return; }
 
