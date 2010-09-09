@@ -66,7 +66,7 @@ public class FastaStorage extends LoadFunc {
             String direction = (a.length > 1 ? a[1] : "");
             String value = ((Sequence) in.getCurrentValue()).seqString();
             mProtoTuple.add(new DataByteArray(key.getBytes(), 0, key.length()));            // add key
-            mProtoTuple.add(new DataByteArray(direction.getBytes(), 0, direction.length()));            // add key
+            mProtoTuple.add(new DataByteArray(direction.getBytes(), 0, direction.length()));            // add direction
             mProtoTuple.add(new DataByteArray(value.getBytes(), 0, value.length()));           // add sequence
 
             Tuple t =  mTupleFactory.newTupleNoCopy(mProtoTuple);
