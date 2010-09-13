@@ -1,35 +1,46 @@
 /*
- * Copyright (c) 2010, Joint Genome Institute (JGI) United States Department of Energy
+ * Copyright (c) 2010, The Regents of the University of California, through Lawrence Berkeley
+ * National Laboratory (subject to receipt of any required approvals from the U.S. Dept. of Energy).
  * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *    This product includes software developed by the JGI.
- * 4. Neither the name of the JGI nor the
- *    names of its contributors may be used to endorse or promote products
- *    derived from this software without specific prior written permission.
+ * Redistribution and use in source and binary forms, with or without modification, are permitted provided
+ * that the following conditions are met:
  *
- * THIS SOFTWARE IS PROVIDED BY JGI ''AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL JGI BE LIABLE FOR ANY
- * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * (1) Redistributions of source code must retain the above copyright notice, this list of conditions and the
+ * following disclaimer.
+ *
+ * (2) Redistributions in binary form must reproduce the above copyright notice, this list of conditions
+ * and the following disclaimer in the documentation and/or other materials provided with the distribution.
+ *
+ * (3) Neither the name of the University of California, Lawrence Berkeley National Laboratory, U.S. Dept.
+ * of Energy, nor the names of its contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * You are under no obligation whatsoever to provide any bug fixes, patches, or upgrades to the
+ * features, functionality or performance of the source code ("Enhancements") to anyone; however,
+ * if you choose to make your Enhancements available either publicly, or directly to Lawrence Berkeley
+ * National Laboratory, without imposing a separate written license agreement for such Enhancements,
+ * then you hereby grant the following license: a  non-exclusive, royalty-free perpetual license to install,
+ * use, modify, prepare derivative works, incorporate into other computer software, distribute, and
+ * sublicense such enhancements or derivative works thereof, in binary and source code form.
  */
 
 package gov.jgi.meta.hadoop.input;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
 
@@ -40,6 +51,7 @@ import java.io.InputStream;
  * A class that provides a line reader from an input stream.
  */
 public class FastaLineReader {
+    private static final Log LOG = LogFactory.getLog(FastaLineReader.class);
   private static final int DEFAULT_BUFFER_SIZE = 64 * 1024;
   private int bufferSize = DEFAULT_BUFFER_SIZE;
   private InputStream in;
@@ -117,87 +129,142 @@ public class FastaLineReader {
    */
   public int readLine(Text key, Text str, int maxLineLength,
                       int maxBytesToConsume) throws IOException {
-    /* We're reading data from in, but the head of the stream may be
-     * already buffered in buffer, so we have several cases:
-     * 1. No newline characters are in the buffer, so we need to copy
-     *    everything and read another buffer from the stream.
-     * 2. An unambiguously terminated line is in buffer, so we just
-     *    copy to str.
-     * 3. Ambiguously terminated line is in buffer, i.e. buffer ends
-     *    in CR.  In this case we copy everything up to CR to str, but
-     *    we also need to see what follows CR: if it's LF, then we
-     *    need consume LF as well, so next call to readLine will read
-     *    from after that.
-     * We use a flag prevCharCR to signal if previous character was CR
-     * and, if it happens to be at the end of the buffer, delay
-     * consuming it until we have a chance to look at the char that
-     * follows.
-     */
-    str.clear();
-    key.clear();
-    int txtLength = 0; //tracks str.getLength(), as an optimization
-    int recordEnd = 0;
-    int seenData = 0;
-    int newline = 0;
-    int keySeen = 0;
-    //int newlineLength = 0; //length of terminating newline
-    //boolean prevCharCR = false; //true of prev char was CR
-    long bytesConsumed = 0;
-    do {
-      int startPosn = bufferPosn; //starting from where we left off the last time
-      if (bufferPosn >= bufferLength) {
-        startPosn = bufferPosn = 0;
-//        if (prevCharCR)
-//          ++bytesConsumed; //account for CR from previous read
-        bufferLength = in.read(buffer);
-        if (bufferLength <= 0)
-          break; // EOF
-      }
-      for (; bufferPosn < bufferLength; ++bufferPosn) { //search for record end
+        int totalBytesRead = 0;
+        int numRecordsRead = 0;
+        Boolean eof = false;
+        int startPosn;
+        Text recordBlock = new Text();
 
-        if (buffer[bufferPosn] == CR || buffer[bufferPosn] == LF) {
-            // CR and LF should be ignored
-            newline = 1;
-            ++bufferPosn;
-            break;
-        } else if (buffer[bufferPosn] == seperator) {
-           // found seperator, now determine if we have seen any data.
-            if (seenData == 1) {
-                // means we read a record
-                recordEnd = 1;
-                break;
-            } else {
-                //++bufferPosn;
-                startPosn = bufferPosn+1; // skip till next byte
+        /*
+        first thing to do is to move forward till you see a start character
+         */
+        startPosn = bufferPosn;
+        do {
+            if (bufferPosn >= bufferLength) {
+                totalBytesRead += bufferPosn - startPosn;
+                bufferPosn = 0;
+                bufferLength = in.read(buffer);
+                if (bufferLength <= 0) {
+                    eof = true;
+                    break; // EOF
+                }
             }
-        } else {
-            seenData = 1;  // means we saw some data
-        }
-      }
-      int readLength = bufferPosn - startPosn;
-//      if (prevCharCR && newlineLength == 0)
-//        --readLength; //CR at the end of the buffer
-      bytesConsumed += readLength;
-      int appendLength = readLength - newline;
-      if (appendLength > maxLineLength - txtLength) {
-        appendLength = maxLineLength - txtLength;
-      }
-      if (appendLength > 0) {
-        if (keySeen == 0) {
-            // set the key first
-            key.append(buffer, startPosn, appendLength);
-            if (newline == 1)
-                keySeen = 1;
-        } else {
-            str.append(buffer, startPosn, appendLength);
-            txtLength += appendLength;
-        }
-      }
-    } while (bytesConsumed < maxBytesToConsume && recordEnd == 0);
+        } while (buffer[bufferPosn++] != '>');
 
-    if (bytesConsumed > (long)Integer.MAX_VALUE)
-      throw new IOException("Too many bytes before newline: " + bytesConsumed);
-    return (int)bytesConsumed;
+        /*
+        if we hit the end of file already, then just return 0 bytes processed
+         */
+        if (eof)
+            return totalBytesRead;  
+
+        /*
+        now bufferPosn should be at the start of a fasta record
+         */
+        totalBytesRead += (bufferPosn - 1) - startPosn;
+        startPosn = bufferPosn-1;  // startPosn guaranteed to be at a ">"
+
+        /*
+        find the next record start
+         */
+        eof = false;
+        do {
+            if (bufferPosn >= bufferLength) {
+
+                /*
+                copy the current buffer before refreshing the buffer
+                 */
+                int appendLength = bufferPosn - startPosn;
+                recordBlock.append(buffer, startPosn, appendLength);
+                totalBytesRead += appendLength;
+
+                startPosn = bufferPosn = 0;
+                bufferLength = in.read(buffer);
+                if (bufferLength <= 0) {
+                    eof = true;
+                    break; // EOF
+                }
+            }
+
+        } while (buffer[bufferPosn++] != '>');  // only read one record at a time
+
+        if (!eof) {
+            bufferPosn--;  // make sure we leave bufferPosn pointing to the next record
+            int appendLength = bufferPosn - startPosn;
+            recordBlock.append(buffer, startPosn, appendLength);
+            totalBytesRead += appendLength;
+        }
+
+        /*
+        record block now has the byte array we want to process for reads
+         */
+
+        int i = 1; // skip initial record seperator ">"
+        int j = 1;
+        do {
+            key.clear();
+            str.clear();
+            /*
+            first parse the key
+             */
+            i = j;
+            Boolean junkOnLine = false;
+            while (j < recordBlock.getLength()) {
+                int c = recordBlock.charAt(j++);
+                if (c == CR || c == LF) {
+                    break;
+                } else if (c == ' ' || c == '\t') {
+                    junkOnLine = true;
+                    break;
+                }
+            }
+            key.append(recordBlock.getBytes(), i, j - i - 1);
+           
+            /*
+            in case there is additional metadata on the header line, ignore everything after
+            the first word.
+             */
+            if (junkOnLine) {
+                while (j < recordBlock.getLength() && recordBlock.charAt(j) != CR && recordBlock.charAt(j) != LF ) j++;
+            }
+
+            //LOG.info ("key = " + k.toString());
+
+            /*
+           now skip the newlines
+            */
+            while (j < recordBlock.getLength() && (recordBlock.charAt(j) == CR || recordBlock.charAt(j) == LF)) j++;
+
+            /*
+           now read the sequence
+            */
+            do {
+                i = j;
+                while (j < recordBlock.getLength()) {
+                    int c = recordBlock.charAt(j++);
+                    if (c == CR || c == LF) {
+                        break;
+                    }
+                }
+                str.append(recordBlock.getBytes(), i, j - i - 1);
+
+                while (j < recordBlock.getLength() && (recordBlock.charAt(j) == CR || recordBlock.charAt(j) == LF)) j++;
+
+            } while (j < recordBlock.getLength() && recordBlock.charAt(j) != '>');
+
+            numRecordsRead++;
+
+            /*
+           now skip characters (newline or carige return most likely) till record start
+            */
+            while (j < recordBlock.getLength() && recordBlock.charAt(j) != '>') {
+                j++;
+            }
+
+            j++; // skip the ">"
+
+        } while (j < recordBlock.getLength());
+
+        return totalBytesRead;
   }
 
   /**

@@ -1,40 +1,51 @@
 /*
- * Copyright (c) 2010, Joint Genome Institute (JGI) United States Department of Energy
+ * Copyright (c) 2010, The Regents of the University of California, through Lawrence Berkeley
+ * National Laboratory (subject to receipt of any required approvals from the U.S. Dept. of Energy).
  * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- * 1. Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in the
- *     documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *     must display the following acknowledgement:
- *     This product includes software developed by the JGI.
- * 4. Neither the name of the JGI nor the
- *     names of its contributors may be used to endorse or promote products
- *     derived from this software without specific prior written permission.
+ * Redistribution and use in source and binary forms, with or without modification, are permitted provided
+ * that the following conditions are met:
  *
- * THIS SOFTWARE IS PROVIDED BY JGI ''AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL JGI BE LIABLE FOR ANY
- * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * (1) Redistributions of source code must retain the above copyright notice, this list of conditions and the
+ * following disclaimer.
+ *
+ * (2) Redistributions in binary form must reproduce the above copyright notice, this list of conditions
+ * and the following disclaimer in the documentation and/or other materials provided with the distribution.
+ *
+ * (3) Neither the name of the University of California, Lawrence Berkeley National Laboratory, U.S. Dept.
+ * of Energy, nor the names of its contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * You are under no obligation whatsoever to provide any bug fixes, patches, or upgrades to the
+ * features, functionality or performance of the source code ("Enhancements") to anyone; however,
+ * if you choose to make your Enhancements available either publicly, or directly to Lawrence Berkeley
+ * National Laboratory, without imposing a separate written license agreement for such Enhancements,
+ * then you hereby grant the following license: a  non-exclusive, royalty-free perpetual license to install,
+ * use, modify, prepare derivative works, incorporate into other computer software, distribute, and
+ * sublicense such enhancements or derivative works thereof, in binary and source code form.
  */
 
 package gov.jgi.meta.exec;
 
 import com.devdaily.system.SystemCommandExecutor;
+import gov.jgi.meta.MetaUtils;
 import gov.jgi.meta.hadoop.input.FastaBlockLineReader;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.util.GenericOptionsParser;
 import org.apache.log4j.Logger;
 
@@ -96,7 +107,7 @@ public class CapCommand implements CommandLineProgram {
      * flat to determine whether to clean up directories after
      * execution
      */
-    Boolean cleanup = true;
+    Boolean doCleanup = true;
 
     /**
      * new blast command based on default parameters
@@ -107,9 +118,20 @@ public class CapCommand implements CommandLineProgram {
         commandPath = DEFAULTCOMMANDPATH;
         tmpDir = DEFAULTTMPDIR;
 
-        tmpDirFile = createTempDir();
+        tmpDirFile = MetaUtils.createTempDir(tmpDir);
     }
 
+
+    public void cleanup(){
+
+       if (this.doCleanup) {
+            if (tmpDirFile != null) {
+                MetaUtils.recursiveDelete(tmpDirFile);
+                tmpDirFile = null;
+            }
+        }
+
+    }
     /**
      * new blast command based on values stored in the configuration.
      * <p/>
@@ -123,23 +145,23 @@ public class CapCommand implements CommandLineProgram {
 
         String c;
 
-        if ((c = config.get("assembly.commandline")) != null) {
+        if ((c = config.get("cap3.commandline")) != null) {
             commandLine = c;
         } else {
             commandLine = DEFAULTCOMMANDLINE;
         }
-        if ((c = config.get("assembly.commandpath")) != null) {
+        if ((c = config.get("cap3.commandpath")) != null) {
             commandPath = c;
         } else {
             commandPath = DEFAULTCOMMANDPATH;
         }
-        if ((c = config.get("assembly.tmpdir")) != null) {
+        if ((c = config.get("assembler.tmpdir")) != null) {
             tmpDir = c;
         } else {
             tmpDir = DEFAULTTMPDIR;
         }
 
-        cleanup = config.getBoolean("assembly.cleanup", true);
+        doCleanup = config.getBoolean("assembler.cleanup", true);
 
          /*
          do sanity check to make sure all paths exist
@@ -152,7 +174,7 @@ public class CapCommand implements CommandLineProgram {
         if all is good, create a working space inside tmpDir
          */
 
-        tmpDirFile = createTempDir();
+        tmpDirFile = MetaUtils.createTempDir(tmpDir);
 
     }
 
@@ -167,55 +189,12 @@ public class CapCommand implements CommandLineProgram {
          */
         log.info("deleting tmp file: " + tmpDirFile.getPath());
 
-        if (tmpDirFile != null) {
-            if (cleanup) recursiveDelete(tmpDirFile);
-            tmpDirFile = null;
-        }
+        cleanup();
 
         super.finalize();
     }
 
 
-    /**
-     * given a list of sequences, creates a db for use with cap3
-     *
-     * @param seqList is the list of sequences to create the database with
-     * @return the full path of the location of the database
-     */
-    private String dumpToFile(Map<String, String> seqList) {
-
-        BufferedWriter out;
-        File seqFile = null;
-
-        /*
-        open temp file
-         */
-        try {
-            seqFile = new File(tmpDirFile, "reads.fa");
-            out = new BufferedWriter(new FileWriter(seqFile.getPath()));
-
-            /*
-            write out the sequences to file
-            */
-            for (String key : seqList.keySet()) {
-                assert(seqList.get(key) != null);
-                out.write(">" + key + "\n");
-                out.write(seqList.get(key) + "\n");
-            }
-
-            /*
-            close temp file
-             */
-            out.close();
-
-        } catch (Exception e) {
-            log.error(e);
-            return null;
-        }
-
-
-        return seqFile.getPath();
-    }
 
 
     /**
@@ -224,7 +203,7 @@ public class CapCommand implements CommandLineProgram {
      * @param seqDatabase is the key/value map of sequences that act as reference keyed by name
      * @return a list of sequence ids in the reference that match the cazy database
      */
-    public Map<String,String> exec(String groupId, Map<String, String> seqDatabase, Mapper.Context context)  throws IOException, InterruptedException  {
+    public Map<String,String> exec(String groupId, Map<String, String> seqDatabase, Reducer.Context context)  throws IOException, InterruptedException  {
 
         Map<String, String> s = new HashMap<String, String>();
 
@@ -234,6 +213,7 @@ public class CapCommand implements CommandLineProgram {
         and write to temporary file.
         */
         File seqQueryFile = null;
+        Long executionStartTime = new Date().getTime();
 
         log.info("Preparing Assembly execution");
         if (context != null) context.setStatus("Preparing Assembly execution");
@@ -244,7 +224,7 @@ public class CapCommand implements CommandLineProgram {
         /*
         dump the database from the map to a file
          */
-        String seqFilepath = dumpToFile(seqDatabase);
+        String seqFilepath = MetaUtils.sequenceToLocalFile(seqDatabase, tmpDirFile+"/reads.fa");
 
         if (seqFilepath == null) {
             /*
@@ -253,7 +233,7 @@ public class CapCommand implements CommandLineProgram {
             return null;
         }
 
-        if (context != null) context.setStatus("Executing Assembler");
+        if (context != null) context.setStatus("running cap3 with " + seqDatabase.size() + " reads");
             /*
             now set up a blat execution
              */
@@ -275,7 +255,9 @@ public class CapCommand implements CommandLineProgram {
         log.debug("stdout = " + stdout);
         log.debug("stderr = " + stderr);
 
-
+        Long executionTime = new Date().getTime() - executionStartTime;
+        context.getCounter("reduce.assembly", "EXECUTION_TIME").increment(executionTime);
+        
         /*
             now parse the output and clean up
             */
@@ -295,59 +277,6 @@ public class CapCommand implements CommandLineProgram {
         return s;
     }
 
-
-    /**
-     * Create a new temporary directory. Use something like
-     * {@link #recursiveDelete(java.io.File)} to clean this directory up since it isn't
-     * deleted automatically
-     *
-     * @return the new directory
-     * @throws java.io.IOException if there is an error creating the temporary directory
-     */
-    public File createTempDir() throws IOException {
-        final File sysTempDir = new File(tmpDir);
-        File newTempDir;
-        final int maxAttempts = 9;
-        int attemptCount = 0;
-        do {
-            attemptCount++;
-            if (attemptCount > maxAttempts) {
-                throw new IOException(
-                        "The highly improbable has occurred! Failed to " +
-                                "create a unique temporary directory after " +
-                                maxAttempts + " attempts.");
-            }
-            String dirName = UUID.randomUUID().toString();
-            newTempDir = new File(sysTempDir, dirName);
-        } while (newTempDir.exists());
-
-        if (newTempDir.mkdirs()) {
-            return newTempDir;
-        } else {
-            throw new IOException(
-                    "Failed to create temp dir named " +
-                            newTempDir.getAbsolutePath());
-        }
-    }
-
-    /**
-     * Recursively delete file or directory
-     *
-     * @param fileOrDir the file or dir to delete
-     * @return true iff all files are successfully deleted
-     */
-    public boolean recursiveDelete(File fileOrDir) {
-        if (fileOrDir.isDirectory()) {
-            // recursively delete contents
-            for (File innerFile : fileOrDir.listFiles()) {
-                if (!recursiveDelete(innerFile)) {
-                    return false;
-                }
-            }
-        }
-
-        return fileOrDir.delete();
-    }
 
     public static void main(String[] args) throws Exception {
 
