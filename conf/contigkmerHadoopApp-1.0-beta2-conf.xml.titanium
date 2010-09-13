@@ -1,0 +1,86 @@
+<?xml version="1.0" ?>
+
+<!-- configuration file for kmerHadoopApp
+
+   this file should be in the classpath of hadoop somewhere.
+
+  -->
+
+<configuration>
+    <!-- version number for application.  should match build version in pom.xml
+    -->
+    <property>
+        <name>version</name>
+        <value>0.1.1</value>
+    </property>
+
+  <property>
+    <name>mapred.child.java.opts</name>
+    <value>-Xmx2000m</value>
+  </property> 
+
+  <property>
+    <name>mapred.task.timeout</name>
+    <value>162000000</value>
+   </property>
+
+    <property>
+        <name>contigkmer.numreducers</name>
+        <value>39</value>
+    </property>
+
+    <!-- mapred.min.split.size -->
+    <property>
+        <name>mapred.min.split.size</name>
+        <value>5000</value>
+    </property>
+
+<!--    <property>
+         <name>mapred.max.split.size</name>
+         <value>15000000</value>
+    </property>
+-->
+
+    <property>
+        <name>contigendlength</name>
+        <value>100</value>
+    </property>
+
+    <property>
+        <name>kmersize</name>
+        <value>25</value>
+    </property>
+
+    <property>
+        <name>numerrors</name>
+        <value>0</value>
+    </property>
+
+    <property>
+        <name>assembler.command</name>
+        <value>cap3</value>
+    </property>
+
+    <property>
+   	<name>assembler.tmpdir</name>
+ 	<value>/ifs/scratch/kbhatia/tmp</value>
+    </property>
+
+    <property>
+        <name>assembler.filterbysizespecial</name>
+        <value>true</value>
+    </property>
+
+    <property>
+        <name>assembler.removeidenticalsequences</name>
+        <value>true</value>
+    </property>
+
+    <property>
+        <name>assembler.readsizelimit</name>
+        <value>1000</value>
+    </property>
+
+
+</configuration>
+
