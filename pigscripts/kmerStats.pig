@@ -5,7 +5,8 @@
 --
 
 register pipelineLib/target/pipelinelibrary-1.0-beta2.jar
-A = load '$fasta' using gov.jgi.meta.pig.storage.FastaStorage as (id: chararray, d: int, seq: chararray);
+define GENERATEKMER gov.jgi.meta.pig.eval.SequencePairMerge();
+A = load '/scratch/karan/1M.fas' using gov.jgi.meta.pig.storage.FastaStorage as (id: chararray, d: int, seq: chararray);
 B = foreach A generate id, FLATTEN(gov.jgi.meta.pig.generator.KmerGenerator(seq)) as (kmer:chararray);
 C = group B by kmer;
 D = foreach C generate group, COUNT(B);
