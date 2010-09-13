@@ -11,4 +11,4 @@ C = group B by kmer;
 D = foreach C generate group, COUNT(B);
 E = group D by $1;
 F = foreach E generate group, COUNT(D);
-dump F;
+store F into 'x';
