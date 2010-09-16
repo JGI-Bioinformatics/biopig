@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gov.jgi.meta.pig.generator;
+package gov.jgi.meta.pig.eval;
 
 import java.io.IOException;
 import java.util.HashSet;

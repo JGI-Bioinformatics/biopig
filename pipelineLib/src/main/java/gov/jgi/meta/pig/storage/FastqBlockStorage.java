@@ -39,49 +39,57 @@
 
 package gov.jgi.meta.pig.storage;
 
-import java.io.IOException;
-import java.util.ArrayList;
-
+import gov.jgi.meta.hadoop.input.FastaBlockInputFormat;
+import gov.jgi.meta.hadoop.input.FastqBlockInputFormat;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
-import gov.jgi.meta.hadoop.input.*;
-import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.pig.LoadFunc;
 import org.apache.pig.PigException;
 import org.apache.pig.backend.executionengine.ExecException;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.PigSplit;
-import org.apache.pig.data.DataByteArray;
-import org.apache.pig.data.Tuple;
-import org.apache.pig.data.TupleFactory;
-import org.biojava.bio.seq.Sequence;
+import org.apache.pig.data.*;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Map;
 
 /**
- * A pig loader for fasta files.  The loader reads fasta sequence files and returns tuples of the form
- * <seqid: chararray, direction: int, sequence: chararray>
+ * A data loader for fastq files.  Loads sequences in blocks defined by the hdfs blocksize.
+ * Typically, each mapper will load a single block of sequences, as opposed to loading each
+ * sequence individually.  The advantage of loading them in blocks is where you want to operate
+ * on blocks at a time, eg. running blast against a dataset.  In this case, you don't want to
+ * run blast on each sequence, rather, you want to load a block of sequences (or a bag in pig
+ * parlance), and run blast against them all.  The blocks are guaranteed to be co-located within
+ * the a single map.
+ *
+ * returns a bag in the form {offset: int,  sequences: { seq1, seq2, seq3 ... } }  where
+ * each sequence is of the form {id: chararray, direction: int, sequence: chararray}
+ *
  **/
 
-public class FastaStorage extends LoadFunc {
+public class FastqBlockStorage extends LoadFunc {
    protected RecordReader    in            = null;
    private ArrayList<Object> mProtoTuple   = null;
    private TupleFactory      mTupleFactory = TupleFactory.getInstance();
 
    /**
-    * null constructor
+    * Null constructor
     */
-   public FastaStorage()
+   public FastqBlockStorage()
    {
    }
 
    /**
-    * returns the next sequence from the block
+    * read input and return next tuple.
+    * @return Tuple of the form <offset: int, sequences:bag>
+    * @throws java.io.IOException if any error occurs
     */
    @Override
    public Tuple getNext() throws IOException
    {
-
       if (mProtoTuple == null)
       {
          mProtoTuple = new ArrayList<Object>();
@@ -93,25 +101,35 @@ public class FastaStorage extends LoadFunc {
          {
             return(null);
          }
+         String key                 = ((Text) in.getCurrentKey()).toString();
+         Map<String, String> seqMap = (Map<String, String>) in.getCurrentValue();
+         DataBag             output = DefaultBagFactory.getInstance().newDefaultBag();
 
-         /*
-           check the id of the sequence to see if its a paired read
-          */
-         String seqid = ((Text)in.getCurrentKey()).toString();
-         String seqkey;
-         String direction;
-         if (seqid.indexOf("/") >= 0) {
-            String[] a = seqid.split("/");
-            seqkey = a[0];
-            direction = a[1];
-         } else {
-            seqkey = seqid;
-            direction = "0";
+         for (String seqid : seqMap.keySet())
+         {
+            Tuple t = DefaultTupleFactory.getInstance().newTuple(3);
+
+            /*
+             check the id of the sequence to see if its a paired read
+             */
+            String seqkey;
+            String direction;
+            if (seqid.indexOf("/") >= 0) {
+               String[] a = seqid.split("/");
+               seqkey = a[0];
+               direction = a[1];
+            } else {
+               seqkey = seqid;
+               direction = "0";
+            }
+            t.set(0, seqkey);
+            t.set(1, direction);
+            t.set(2, seqMap.get(seqid));
+
+            output.add(t);
          }
-         String value     = ((Sequence)in.getCurrentValue()).seqString();
-         mProtoTuple.add(new DataByteArray(seqkey.getBytes(), 0, seqkey.length()));                           // add key
-         mProtoTuple.add(new DataByteArray(direction.getBytes(), 0, direction.length()));               // add direction
-         mProtoTuple.add(new DataByteArray(value.getBytes(), 0, value.length()));                       // add sequence
+         mProtoTuple.add(new DataByteArray(key.getBytes(), 0, key.length()));
+         mProtoTuple.add(output);
 
          Tuple t = mTupleFactory.newTupleNoCopy(mProtoTuple);
          mProtoTuple = null;
@@ -127,7 +145,7 @@ public class FastaStorage extends LoadFunc {
    @Override
    public InputFormat getInputFormat()
    {
-      return(new FastaInputFormat());
+      return(new FastqBlockInputFormat());
    }
 
    @Override

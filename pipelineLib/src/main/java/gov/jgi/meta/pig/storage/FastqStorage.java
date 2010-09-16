@@ -39,16 +39,13 @@
 
 package gov.jgi.meta.pig.storage;
 
-import java.io.IOException;
-import java.util.ArrayList;
-
+import gov.jgi.meta.hadoop.input.FastaInputFormat;
+import gov.jgi.meta.hadoop.input.FastqInputFormat;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
-import gov.jgi.meta.hadoop.input.*;
-import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.pig.LoadFunc;
 import org.apache.pig.PigException;
 import org.apache.pig.backend.executionengine.ExecException;
@@ -58,12 +55,15 @@ import org.apache.pig.data.Tuple;
 import org.apache.pig.data.TupleFactory;
 import org.biojava.bio.seq.Sequence;
 
+import java.io.IOException;
+import java.util.ArrayList;
+
 /**
- * A pig loader for fasta files.  The loader reads fasta sequence files and returns tuples of the form
+ * A pig loader for fastq files.  The loader reads fastq sequence files and returns tuples of the form
  * <seqid: chararray, direction: int, sequence: chararray>
  **/
 
-public class FastaStorage extends LoadFunc {
+public class FastqStorage extends LoadFunc {
    protected RecordReader    in            = null;
    private ArrayList<Object> mProtoTuple   = null;
    private TupleFactory      mTupleFactory = TupleFactory.getInstance();
@@ -71,7 +71,7 @@ public class FastaStorage extends LoadFunc {
    /**
     * null constructor
     */
-   public FastaStorage()
+   public FastqStorage()
    {
    }
 
@@ -127,7 +127,7 @@ public class FastaStorage extends LoadFunc {
    @Override
    public InputFormat getInputFormat()
    {
-      return(new FastaInputFormat());
+      return(new FastqInputFormat());
    }
 
    @Override
