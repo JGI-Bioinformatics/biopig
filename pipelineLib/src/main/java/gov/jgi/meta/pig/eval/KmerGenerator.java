@@ -43,7 +43,6 @@ import org.apache.pig.impl.logicalLayer.FrontendException;
  */
 public class KmerGenerator extends EvalFunc<DataBag> {
 
-    private static final int _ngramSizeLimit = 2;
 
     public DataBag exec(Tuple input) throws IOException {
         if (input == null || input.size() == 0)
@@ -51,10 +50,9 @@ public class KmerGenerator extends EvalFunc<DataBag> {
         try{
             DataBag output = DefaultBagFactory.getInstance().newDefaultBag();
             String seq = (String)input.get(0);
-            //Long d = (Long) input.get(1);
-            //String seq = (String) input.get(2);
+            int kmerSize = (Integer) input.get(1);
 
-            Set<String> kmers = generateKmers(seq, 21);
+            Set<String> kmers = generateKmers(seq, kmerSize);
             for (String kmer : kmers) {
                 Tuple t = DefaultTupleFactory.getInstance().newTuple(1);
                 //t.set(0, seqid);
@@ -84,16 +82,5 @@ public class KmerGenerator extends EvalFunc<DataBag> {
         return set;
     }
 
-    /* (non-Javadoc)
-     * @see org.apache.pig.EvalFunc#getArgToFuncMapping()
-     * This is needed to make sure that both bytearrays and chararrays can be passed as arguments
-     */
-    @Override
-    public List<FuncSpec> getArgToFuncMapping() throws FrontendException {
-        List<FuncSpec> funcList = new ArrayList<FuncSpec>();
-        funcList.add(new FuncSpec(this.getClass().getName(), new Schema(new Schema.FieldSchema(null, DataType.CHARARRAY))));
-
-        return funcList;
-    }
 
 }

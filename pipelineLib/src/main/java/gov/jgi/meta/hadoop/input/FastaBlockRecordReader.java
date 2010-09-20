@@ -113,6 +113,7 @@ public class FastaBlockRecordReader extends RecordReader<Text, Map<String,String
     }
     int newSize = 0;
     while (pos < end) {
+      key.set(Long.toString(pos));
       newSize = in.readLine(key, value, maxLineLength,
                             Math.min((int)Math.min(Integer.MAX_VALUE, end-pos),
                                      maxLineLength));

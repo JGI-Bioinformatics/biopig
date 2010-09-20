@@ -41,10 +41,7 @@ package gov.jgi.meta.pig.aggregate;
 
 import gov.jgi.meta.MetaUtils;
 import gov.jgi.meta.exec.BlastCommand;
-import gov.jgi.meta.exec.CapCommand;
-import gov.jgi.meta.exec.CommandLineProgram;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.io.Text;
 import org.apache.pig.EvalFunc;
 import org.apache.pig.data.DataBag;
 import org.apache.pig.data.DefaultBagFactory;
@@ -61,12 +58,14 @@ import java.util.*;
  *
  * given a bag of sequences, and the number of contigs to return, return either a tuple or a bag
  */
-public class BLAST extends EvalFunc<DataBag> {
+public class kmerMatch extends EvalFunc<DataBag> {
    /**
     * Method invoked on every tuple during foreach evaluation
     * @param input tuple; assumed to be a sequence tuple of the form (id, direction, sequence)
     * @exception java.io.IOException
     */
+
+   
    public DataBag exec(Tuple input) throws IOException
    {
       DataBag output = DefaultBagFactory.getInstance().newDefaultBag();
@@ -76,6 +75,7 @@ public class BLAST extends EvalFunc<DataBag> {
        */
       DataBag values     = (DataBag)input.get(0);
       String databaseFilename = (String) input.get(1);
+      int kmerSize = (Integer) input.get(2);
 
       long numberOfSequences = values.size();
 
@@ -89,66 +89,76 @@ public class BLAST extends EvalFunc<DataBag> {
        */
       Configuration conf = new Configuration();
       MetaUtils.loadConfiguration(conf, "BioPig.xml", null);
-      BlastCommand blastCmd = new BlastCommand(conf);
 
       /*
        * now process inputs and execute blast
        */
-      Map<String, String> seqMap = new HashMap<String, String>();
-      Set<String> s;
-      Map<String, Set<String>> resultMap = new HashMap<String, Set<String>>();
+      Map<String, Boolean> seqMap = new HashMap<String, Boolean>();
+      Set<String> s = new HashSet<String>();
 
       Iterator<Tuple> it = values.iterator();
+      Set<String> kmers = new HashSet<String>();
+      Map<String, String> dbsequences = MetaUtils.readSequences(databaseFilename);
+      int ii = 0;
+
       while (it.hasNext())
       {
+         System.out.println("calculating... " + ii++);
+
          Tuple t = it.next();
-         seqMap.put((String)t.get(0) + "/" + (Integer)t.get(1), (String)t.get(2));
-      }
-      try {
-         s = blastCmd.exec(seqMap, databaseFilename);
-      } catch (InterruptedException e) {
-         throw new IOException(e);
+         String seq = (String) t.get(2);
+         String seqid = (String)t.get(0) + "/" + (Integer)t.get(1);
+
+         kmers.addAll(generateKmers(seq, kmerSize));
       }
 
-      for (String k : s)
-      {
+         System.out.println("size = " + dbsequences.size());
 
-         /*
-          * blast returns the stdout, line by line.  the output is split by tab and
-          * the first column is the id of the gene, second column is the read id
-          */
-         String[] a = k.split("\t");
+         for (String d : dbsequences.keySet()) {
 
-         if (resultMap.containsKey(a[0])) {
-            resultMap.get(a[0]).add(a[1]);
-         } else {
-            resultMap.put(a[0], new HashSet<String>());
-            resultMap.get(a[0]).add(a[1]);
-         }
-      }
+            int window = kmerSize;
+            String seq2 = dbsequences.get(d);
+            int seqLength = seq2.length();
 
-      for (String k : resultMap.keySet()) {
-         Tuple t = DefaultTupleFactory.getInstance().newTuple(2);
+            for (int i = 0; i < seqLength-window-1; i++) {
+               String kmer = seq2.substring(i, i+window);
+               if (kmers.contains(kmer)) {
+                  s.add(d);
+                  break;
+               }
+            }
 
-         t.set(0, k);
-
-         DataBag oo = DefaultBagFactory.getInstance().newDefaultBag();
-         for (String kk : resultMap.get(k)) {
-            Tuple tt = DefaultTupleFactory.getInstance().newTuple(3);
-
-            String[] a = kk.split("/");
-            tt.set(0, a[0]);
-            tt.set(1, a[1]);
-            tt.set(2, seqMap.get(kk));
-
-            oo.add(tt);
          }
 
-         t.set(1, oo);
-         output.add(t);
+      Tuple t = DefaultTupleFactory.getInstance().newTuple(1);
+      DataBag oo = DefaultBagFactory.getInstance().newDefaultBag();
+
+      for (String k : s) {
+
+         Tuple tt = DefaultTupleFactory.getInstance().newTuple(1);
+         tt.set(0, k);
+         oo.add(tt);
+
       }
+      t.set(0, oo);
+      output.add(t);
 
       return(output);
+   }
+
+   Set<String> generateKmers(String s, int window)
+   {
+      Set<String> set= new HashSet<String>();
+
+      int seqLength = s.length();
+
+       if (window > seqLength) return set;
+
+       for (int i = 0; i < seqLength-window-1; i++) {
+           set.add(s.substring(i, i+window));
+       }
+
+       return set;
    }
 
 }

@@ -39,65 +39,105 @@
 
 package gov.jgi.meta.pig.aggregate;
 
-import org.apache.commons.lang.StringUtils;
+import gov.jgi.meta.MetaUtils;
+import gov.jgi.meta.exec.CapCommand;
+import gov.jgi.meta.exec.CommandLineProgram;
+import gov.jgi.meta.exec.VelvetCommand;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.pig.EvalFunc;
-import org.apache.pig.backend.executionengine.ExecException;
 import org.apache.pig.data.DataBag;
 import org.apache.pig.data.DefaultTupleFactory;
 import org.apache.pig.data.Tuple;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 
 
 /**
- * string.LOWER implements eval function to convert a string to lower case
- * Example:
- *      register pigudfs.jar;
- *      A = load 'mydata' as (name);
- *      B = foreach A generate string.LOWER(name);
- *      dump B;
+ * Pig eval command that given a bag of sequences, assemble them using Cap3 assembler and returns
+ * the assembled contigs.
+ *
+ * given a bag of sequences, and the number of contigs to return, return either a tuple or a bag
  */
 public class VELVET extends EvalFunc<Tuple> {
+   /**
+    * Method invoked on every tuple during foreach evaluation
+    * @param input tuple; assumed to be a sequence tuple of the form (id, direction, sequence)
+    * @exception java.io.IOException
+    */
+   public Tuple exec(Tuple input) throws IOException
+   {
+      /*
+       * process the inputs (bagOfSequences, optionalNumberOfContigsToReturn, optionalGroupId)
+       */
+      DataBag values     = (DataBag)input.get(0);
+      Long    numContigs = new Long(1); // by default only return a single contig
 
-    /**
-     * Method invoked on every tuple during foreach evaluation
-     * @param input tuple; assumed to be a sequence tuple of the form (id, direction, sequence)
-     * @exception java.io.IOException
-     */
-    public Tuple exec(Tuple input) throws IOException {
+      if (input.size() > 1)
+      {
+         numContigs = (Long)input.get(1);
+      }
+      String groupId = "";
+      if (input.size() > 2)
+      {
+         groupId = (String)input.get(2);
+      }
 
-        DataBag values = (DataBag) input.get(0);
+      long numberOfSequences = values.size();
 
-        if(values.size() == 0)
-            return null;
-
-        if (values.size() != 2) {
-            ExecException newE = new ExecException("Error: can't merge more than 2 pairs ");
-            throw newE;
-        }
-
-        Iterator<Tuple> it = values.iterator();
-        Tuple seqPair1 = it.next();
-        Tuple seqPair2 = it.next();
-
-        if (!arePairedSequences(seqPair1, seqPair2)) {
-            ExecException newE = new ExecException("Error: sequences are not pairs");
-        }
-        Tuple t = DefaultTupleFactory.getInstance().newTuple(3);
-        t.set(0, seqPair1.get(0));
-        t.set(1, "0");
-        String seq1 = seqPair1.get(2).toString();
-        String seq2 = seqPair2.get(2).toString();
-        t.set(2, (seq1 + StringUtils.reverse(seq2)));
-
-        return t;
-    }
-
-    boolean arePairedSequences(Tuple s1, Tuple s2) {
-        return true;
-    }
+      if (numberOfSequences == 0)
+      {
+         return(null);
+      }
 
 
+      /*
+       * need to load the biopig defaults from the classpath
+       */
+      Configuration conf = new Configuration();
+      MetaUtils.loadConfiguration(conf, "BioPig.xml", null);
+      CommandLineProgram assemblerCmd = new VelvetCommand(conf);
 
+      /*
+       * now process inputs and execute assembler
+       */
+      Map<String, String> seqMap = new HashMap<String, String>();
+      Map<String, String> resultMap;
+
+      Iterator<Tuple> it = values.iterator();
+      while (it.hasNext())
+      {
+         Tuple t = it.next();
+         seqMap.put((String)t.get(0) + "/" + (Integer)t.get(1), (String)t.get(2));
+      }
+      try {
+         resultMap = assemblerCmd.exec(groupId, seqMap, null);
+      } catch (InterruptedException e) {
+         throw new IOException(e);
+      }
+
+      int    maxLength = 0;
+      String maxKey    = null;
+      for (String key : resultMap.keySet())
+      {
+         int l;
+         if ((l = resultMap.get(key).length()) > maxLength)
+         {
+            maxKey    = key;
+            maxLength = l;
+         }
+      }
+
+      Tuple t = DefaultTupleFactory.getInstance().newTuple(1);
+      t.set(0, resultMap.get(maxKey));
+
+      return(t);
+   }
+
+   boolean arePairedSequences(Tuple s1, Tuple s2)
+   {
+      return(true);
+   }
 }
