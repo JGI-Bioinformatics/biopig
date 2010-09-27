@@ -118,6 +118,7 @@ public class CapCommand implements CommandLineProgram {
         commandPath = DEFAULTCOMMANDPATH;
         tmpDir = DEFAULTTMPDIR;
 
+        
         tmpDirFile = MetaUtils.createTempDir(tmpDir);
     }
 
@@ -256,7 +257,7 @@ public class CapCommand implements CommandLineProgram {
         log.debug("stderr = " + stderr);
 
         Long executionTime = new Date().getTime() - executionStartTime;
-        context.getCounter("reduce.assembly", "EXECUTION_TIME").increment(executionTime);
+        if (context != null) context.getCounter("reduce.assembly", "EXECUTION_TIME").increment(executionTime);
         
         /*
             now parse the output and clean up

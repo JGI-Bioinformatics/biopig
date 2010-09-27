@@ -40,6 +40,7 @@
 package gov.jgi.meta.exec;
 
 import com.devdaily.system.SystemCommandExecutor;
+import gov.jgi.meta.MetaUtils;
 import gov.jgi.meta.hadoop.input.FastaBlockLineReader;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
@@ -149,7 +150,7 @@ public class VelvetCommand implements CommandLineProgram {
         velvetg_commandPath = DEFAULT_VELVETG_COMMANDPATH;
 
         tmpDir = DEFAULTTMPDIR;
-        tmpDirFile = createTempDir();
+        tmpDirFile = MetaUtils.createTempDir(tmpDir);
 
     }
 
@@ -208,7 +209,7 @@ public class VelvetCommand implements CommandLineProgram {
         if all is good, create a working space inside tmpDir
          */
 
-        tmpDirFile = createTempDir();
+        tmpDirFile = MetaUtils.createTempDir(tmpDir);
 
     }
 
@@ -275,7 +276,7 @@ public class VelvetCommand implements CommandLineProgram {
 
         if (this.doCleanup) {
             if (tmpDirFile != null) {
-                recursiveDelete(tmpDirFile);
+                MetaUtils.recursiveDelete(tmpDirFile);
                 tmpDirFile = null;
             }
         }
@@ -314,7 +315,8 @@ public class VelvetCommand implements CommandLineProgram {
             /*
             return with fail
              */
-            return null;
+            throw new IOException("seqFilepath is null, can't run assembler (velvet)");
+
         }
 
         /*
@@ -344,78 +346,31 @@ public class VelvetCommand implements CommandLineProgram {
         log.debug("stdout = " + stdout);
         log.debug("stderr = " + stderr);
 
+        if (exitValue != 0) {
+            System.out.println("velvet output != 0, checking stderr");
+            System.out.println("stderr = " + stderr);
+            System.out.println("match = " + stderr.indexOf("PreGraph file incomplete"));
+            if (stderr.indexOf("PreGraph file incomplete") > -1) {
+
+                // special case here.. no results computed, but no error either
+                return s;
+            } else {
+                throw new IOException(stderr);
+            }
+        }
         /*
             now parse the output and clean up
          */
-
-        try {
 
             Text t = new Text();
             FileInputStream fstream = new FileInputStream(tmpDirFile.getPath()+"/sillyDirectory/contigs.fa");
             FastaBlockLineReader in = new FastaBlockLineReader(fstream);
             int bytes = in.readLine(t, s);
 
-        } catch (Exception e) {
-            log.error("unable to find outputfile:" + e);
-            return null;
-        }
-
         return s;
     }
 
 
-    /**
-     * Create a new temporary directory. Use something like
-     * {@link #recursiveDelete(java.io.File)} to clean this directory up since it isn't
-     * deleted automatically
-     *
-     * @return the new directory
-     * @throws java.io.IOException if there is an error creating the temporary directory
-     */
-    public File createTempDir() throws IOException {
-        final File sysTempDir = new File(tmpDir);
-        File newTempDir;
-        final int maxAttempts = 9;
-        int attemptCount = 0;
-        do {
-            attemptCount++;
-            if (attemptCount > maxAttempts) {
-                throw new IOException(
-                        "The highly improbable has occurred! Failed to " +
-                                "create a unique temporary directory after " +
-                                maxAttempts + " attempts.");
-            }
-            String dirName = UUID.randomUUID().toString();
-            newTempDir = new File(sysTempDir, dirName);
-        } while (newTempDir.exists());
-
-        if (newTempDir.mkdirs()) {
-            return newTempDir;
-        } else {
-            throw new IOException(
-                    "Failed to create temp dir named " +
-                            newTempDir.getAbsolutePath());
-        }
-    }
-
-    /**
-     * Recursively delete file or directory
-     *
-     * @param fileOrDir the file or dir to delete
-     * @return true iff all files are successfully deleted
-     */
-    public boolean recursiveDelete(File fileOrDir) {
-        if (fileOrDir.isDirectory()) {
-            // recursively delete contents
-            for (File innerFile : fileOrDir.listFiles()) {
-                if (!recursiveDelete(innerFile)) {
-                    return false;
-                }
-            }
-        }
-
-        return fileOrDir.delete();
-    }
 
     public static void main(String[] args) throws Exception {
 

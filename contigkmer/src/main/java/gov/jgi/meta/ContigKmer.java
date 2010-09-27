@@ -453,7 +453,7 @@ public class ContigKmer {
 
       Configuration conf = new Configuration();
 
-      String[] otherArgs = MetaUtils.loadConfiguration(conf, "contigkmer-conf.xml", args);
+      String[] otherArgs = MetaUtils.loadConfiguration(conf, args);
 
       /*
        * process arguments

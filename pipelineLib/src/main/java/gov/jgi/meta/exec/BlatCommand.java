@@ -356,7 +356,7 @@ public class BlatCommand {
             /*
             return with fail
              */
-            return null;
+            throw new IOException("unable to write " + seqDatabase + " to filesystem");
         }
 
         Map<String, Set<String>> s = new HashMap<String, Set<String>>();
@@ -464,7 +464,6 @@ public class BlatCommand {
             now parse the output and clean up
             */
 
-            try {
 
                 log.info("reading outputfile: " + tmpDirFile.getPath() + "/blat.output");
 
@@ -497,9 +496,6 @@ public class BlatCommand {
                 bufRead2.close();
 
                 log.info("done reading file");
-            } catch (Exception e) {
-                log.error(e);
-            }
 
             /*
             should clean up - note: files get overwritten, so don't worry about it. :-)

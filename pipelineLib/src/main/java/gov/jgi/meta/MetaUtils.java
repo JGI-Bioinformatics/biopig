@@ -44,8 +44,10 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.*;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.file.tfile.ByteArray;
+import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.util.GenericOptionsParser;
 import org.apache.log4j.Logger;
+import org.apache.log4j.PropertyConfigurator;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -469,6 +471,21 @@ public class MetaUtils {
     public static String stringReplaceIth(String s, int i, char c) {
 
         return s.substring(0,i) + c + s.substring(i+1);
+
+    }
+
+    public static void configureLog4j() {
+        // configure the log4j system for hadoop map jobs
+
+        String log4jConfigurationFile = System.getProperty("log4j.properties");
+        System.out.println("configuring log4j using: " + log4jConfigurationFile);
+
+        URL u = ClassLoader.getSystemResource(log4jConfigurationFile);
+        if (u == null) {
+               System.err.println("unable to find " + log4jConfigurationFile + " ... skipping");
+        } else {
+            PropertyConfigurator.configure(log4jConfigurationFile);
+        }
 
     }
 

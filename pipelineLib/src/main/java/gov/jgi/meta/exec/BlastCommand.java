@@ -298,7 +298,7 @@ public class BlastCommand {
       File         seqFile  = new File(tmpDirFile, "seqfile");
       commands.add("/bin/sh");
       commands.add("-c");
-      commands.add("cd " + tmpDirFile.getPath() + ";" + formatdbCommandPath + " " + formatdbCommandLine + " -i " + seqFile.getPath() + " -n " + "seqfile");
+      commands.add("export TMPDIR=" + tmpDirFile.getPath() + "; cd " + tmpDirFile.getPath() + ";" + formatdbCommandPath + " " + formatdbCommandLine + " -i " + seqFile.getPath() + " -n " + "seqfile");
 
       log.debug("blastcmd: formatdbcommand = " + commands);
 
@@ -373,7 +373,7 @@ public class BlastCommand {
          /*
           * didn't run formatdb, so return with fail
           */
-         return(null);
+         throw new IOException("blast can't run... formatdb did not process the inputs");
       }
 
       List<String> commands = new ArrayList<String>();
@@ -386,7 +386,6 @@ public class BlastCommand {
 
       // TODO: remove the try statement to throw exception in case of failure
 
-      try {
          log.debug("command = " + commands);
          SystemCommandExecutor commandExecutor = new SystemCommandExecutor(commands);
          exitValue = commandExecutor.executeCommand();
@@ -398,15 +397,10 @@ public class BlastCommand {
          log.debug("exit = " + exitValue);
          log.debug("stdout = " + stdout);
          log.debug("stderr = " + stderr);
-      }
-      catch (Exception e) {
-         log.error(e);
-         return(null);
-      }
 
       if (exitValue != 0) {
           log.error("blast executable exit value = " + exitValue + ": " + stderr);
-          return null;
+          throw new IOException("blast executable exit value = " + exitValue + ": " + stderr);
       }
 
       /*

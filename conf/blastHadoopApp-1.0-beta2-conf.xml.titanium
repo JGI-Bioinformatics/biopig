@@ -1,0 +1,115 @@
+<?xml version="1.0" ?>
+
+
+
+<configuration>
+
+    <!--
+     defines the minimum size in bytes of each input split. used to control the maximum
+     number of map tasks.  (eg if file size is 100 bytes and min is 10, then maximum number
+     of mappers is 10).
+     -->
+     <property>
+         <name>mapred.min.split.size</name>
+         <value>5000</value>
+     </property>
+
+
+  <property>
+    <name>mapred.child.java.opts</name>
+    <value>-Xmx2000m </value>
+  </property>
+
+  <property>
+    <name>mapred.task.timeout</name>
+    <value>162000000</value>
+   </property>
+
+
+     <!--
+     defines the maximum size in bytes of each input split.  used to control the minimum
+     number of map tasks.
+     -->
+     <!--
+     <property>
+         <name>mapred.max.split.size</name>
+         <value>10000</value>
+     </property>
+        -->
+
+    <!-- the commandline to execute for the blast command, eg:
+         "-m 8 -p tblastn -b 1000000 -a 10"  this is the default
+    -->
+    <property>
+        <name>blast.commandline</name>
+        <value>-m 8 -p tblastn -b 9999999999 -F F</value>
+    </property>
+
+    <!-- the full pathname of the blast executable
+     default is: "/home/asczyrba/src/blast-2.2.20/bin/blastall"
+    -->
+    <property>
+        <name>blast.commandpath</name>
+        <value>/home/kbhatia/local/bin/blastall</value>
+    </property>
+
+    <property>
+ 	<name>formatdb.commandpath</name>
+  	<value>/jgi/tools/bin/formatdb</value>
+    </property>
+
+    <property>
+ 	<name>formatdb.commandline</name>
+	<value>-o T -p F -s</value>
+    </property>
+
+    <!-- path to a temporary directory in which to do all the work
+      default is "/tmp/blast"
+    -->
+    <property>
+        <name>blast.tmpdir</name>
+        <value>/ifs/scratch/kbhatia/tmp</value>
+    </property>
+
+    <property>
+        <name>blast.numreducers</name>
+        <value>100</value>
+    </property>
+
+    <property>
+        <name>blast.cleanup</name>
+        <value>true</value>
+    </property>
+
+    <property>
+        <name>blat.tmpdir</name>
+        <value>/ifs/scratch/kbhatia/tmp</value>
+    </property>
+
+    <property>
+        <name>blat.cleanup</name>
+        <value>true</value>
+    </property>
+
+    <property>
+        <name>blat.skipexecution</name>
+        <value>false</value>
+    </property>
+
+    <property>
+        <name>blat.paired</name>
+        <value>true</value>
+    </property>
+
+   <property>
+        <name>blat.numreducers</name>
+        <value>10</value>
+    </property>
+
+    <property>
+	<name>assembler.tmpdir</name>
+	<value>/ifs/scratch/kbhatia/tmp</value>
+    </property>
+
+</configuration>
+

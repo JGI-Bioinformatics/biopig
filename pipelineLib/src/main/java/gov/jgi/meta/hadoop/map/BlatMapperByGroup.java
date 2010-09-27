@@ -142,6 +142,7 @@ extends Mapper<Object, Map<String, String>, Text, Text> {
       {
          log.info("unable to retrieve results of blat execution");
          context.getCounter("map.blat", "NUMBER_OF_ERROR_BLATCOMMANDS").increment(1);
+         throw new IOException("unable to retrieve blat execution results");
       }
 
       /*
