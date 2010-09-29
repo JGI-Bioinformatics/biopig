@@ -6,16 +6,16 @@
     <groupId>gov.jgi.gentech</groupId>
     <artifactId>pipeline</artifactId>
     <packaging>pom</packaging>
-    <version>1.0-beta2</version>
+    <version>0.1.0</version>
     <name>pipeline</name>
     <description>Hadoop application pipeline</description>
 
     <modules>
         <module>pipelineLib</module>
-        <module>blaster</module>
+        <module>geneBlaster</module>
         <module>dereplicate</module>
         <module>meta</module>
-        <module>contigkmer</module>
+        <module>contigX</module>
     </modules>
     
 </project>

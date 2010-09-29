@@ -45,7 +45,7 @@
     <groupId>gov.jgi.gentech</groupId>
     <artifactId>blastHadoopApp</artifactId>
     <packaging>jar</packaging>
-    <version>1.0</version>
+    <version>0.1.0</version>
     <name>blastHadoopApp</name>
     <description>Hadoop application that groups reads by gene and assembles to contigs</description>
     <url></url>
@@ -56,13 +56,13 @@
     <parent>
         <groupId>gov.jgi.gentech</groupId>
         <artifactId>pipeline</artifactId>
-        <version>1.0</version>
+        <version>0.1.0</version>
     </parent>
     <dependencies>
         <dependency>
             <groupId>gov.jgi.gentech</groupId>
             <artifactId>pipelinelibrary</artifactId>
-            <version>1.0</version>
+            <version>0.1.0</version>
         </dependency>
         <dependency>
             <groupId>log4j</groupId>

@@ -39,9 +39,22 @@
 
 package test.gov.jgi.meta.exec;
 
+import gov.jgi.meta.MetaUtils;
+import gov.jgi.meta.exec.BlastCommand;
+import gov.jgi.meta.exec.BlatCommand;
 import junit.framework.Test;
 import junit.framework.TestSuite;
 import junit.framework.TestCase;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.Text;
+import org.junit.Assert;
+
+import java.io.File;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * BlatCommand Tester.
@@ -68,93 +81,55 @@ public class BlatCommandTest extends TestCase {
      * Method: cleanup()
      *
      */
-    public void testCleanup() throws Exception {
-        //TODO: Test goes here...
-    }
 
-    /**
-     *
-     * Method: finalize()
-     *
-     */
-    public void testFinalize() throws Exception {
-        //TODO: Test goes here...
-    }
-
-    /**
-     *
-     * Method: exec(Map<String, String> seqDatabase, String seqQueryFilepath, Mapper.Context context)
-     *
-     */
     public void testExec() throws Exception {
-        //TODO: Test goes here...
+
+
+      Configuration conf = new Configuration();
+      conf.addResource("test-conf.xml");
+
+      BlatCommand blatCmd = new BlatCommand(conf);
+
+      Set<String> s = null;
+        Map<String, String> value = MetaUtils.readSequences("target/test-classes/1M.fas");
+       String blastOutputFilePath = "target/test-classes/1M.blastoutput";
+
+       try {
+           s = blatCmd.exec(value, blastOutputFilePath, null);
+          blatCmd.cleanup();
+       }
+       catch (Exception e) {
+          Assert.fail(e.toString());
+       }
+
+      if (s == null)
+      {
+          Assert.fail("blat command returned NULL");
+      }
+
+       Assert.assertTrue(s.size() == 1);
+
+       Assert.assertEquals("Blat output not what was expected", (s.toArray())[0],
+       "AAA02563.1, 756:1:1:1196:17481/1, 756:1:1:1196:17481/2, 756:1:1:1276:8904/1, 756:1:1:1276:8904/2, 756:1:1:1319:17745/2, 756:1:1:1319:17745/1, 756:1:1:1574:14523/2, 756:1:1:1574:14523/1, 756:1:1:1410:12617/1, 756:1:1:1410:12617/2, 756:1:1:1586:3684/2, 756:1:1:1483:18618/2, 756:1:1:1240:9612/2, 756:1:1:1386:15793/2, 756:1:1:1483:18618/1, 756:1:1:1100:4343/1, 756:1:1:1364:13482/2, 756:1:1:1100:4343/2, 756:1:1:1586:3684/1, 756:1:1:1386:15793/1, 756:1:1:1364:13482/1, 756:1:1:1240:9612/1, 756:1:1:1313:3308/2, 756:1:1:1313:3308/1");
     }
 
-    /**
-     *
-     * Method: createTempDir()
-     *
-     */
-    public void testCreateTempDir() throws Exception {
-        //TODO: Test goes here...
-    }
+    public void testMakeSureTempFilesAreCleanedUp() {
 
-    /**
-     *
-     * Method: recursiveDelete(File fileOrDir)
-     *
-     */
-    public void testRecursiveDelete() throws Exception {
-        //TODO: Test goes here...
-    }
+        File s = null;
 
-    /**
-     *
-     * Method: main(String[] args)
-     *
-     */
-    public void testMain() throws Exception {
-        //TODO: Test goes here...
-    }
+        Configuration conf = new Configuration();
 
+        conf.addResource("test-conf.xml");
 
-    /**
-     *
-     * Method: dumpToFile(Map<String, String> seqList)
-     *
-     */
-    public void testDumpToFile() throws Exception {
-        //TODO: Test goes here...
-        /*
         try {
-           Method method = BlatCommand.class.getMethod("dumpToFile", Map<String,.class);
-           method.setAccessible(true);
-           method.invoke(<Object>, <Parameters>);
-        } catch(NoSuchMethodException e) {
-        } catch(IllegalAccessException e) {
-        } catch(InvocationTargetException e) {
+            BlatCommand b = new BlatCommand(conf);
+            s = b.getTmpDir();
+            b.cleanup();
+            Assert.assertTrue(!s.exists());
+        } catch (Exception e) {
+           Assert.fail(e.toString());
         }
-        */
-        }
-
-    /**
-     *
-     * Method: copyDBFile(String dfsPath)
-     *
-     */
-    public void testCopyDBFile() throws Exception {
-        //TODO: Test goes here...
-        /*
-        try {
-           Method method = BlatCommand.class.getMethod("copyDBFile", String.class);
-           method.setAccessible(true);
-           method.invoke(<Object>, <Parameters>);
-        } catch(NoSuchMethodException e) {
-        } catch(IllegalAccessException e) {
-        } catch(InvocationTargetException e) {
-        }
-        */
-        }
+    }
 
 
     public static Test suite() {

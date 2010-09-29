@@ -176,6 +176,9 @@ public class BlatCommand {
 
     }
 
+   public File getTmpDir () { return tmpDirFile;}
+
+   
     public void cleanup() {
         
         if (tmpDirFile != null) {
@@ -298,10 +301,9 @@ public class BlatCommand {
         //Map<String,String> l = new HashMap<String,String>();
 
         File seqQueryFile = null;
-        File tmpdir;
 
         log.info("Preparing Blat execution");
-        context.setStatus("Preparing Blat execution");
+        if (context != null) context.setStatus("Preparing Blat execution");
 
         Map<String, String> l = new HashMap<String, String>();
         int numGroups = 0;
@@ -343,8 +345,8 @@ public class BlatCommand {
         }
         bufRead.close();
 
-        context.getCounter("blat.input", "NUMBER_OF_INPUT_READS").increment(numReads);
-        context.getCounter("blat.input", "NUMBER_OF_INPUT_GROUPS").increment(numGroups);        
+        if (context != null) context.getCounter("blat.input", "NUMBER_OF_INPUT_READS").increment(numReads);
+        if (context != null) context.getCounter("blat.input", "NUMBER_OF_INPUT_GROUPS").increment(numGroups);
         log.info("read " + numReads + " Reads in " + numGroups + " gene groups");
 
         /*
@@ -377,7 +379,7 @@ public class BlatCommand {
 
             log.info("processing group " + k);
 
-            context.setStatus("Executing Blat " + numBlats + "/" + totalBlats);
+            if (context != null) context.setStatus("Executing Blat " + numBlats + "/" + totalBlats);
             /*
            create a new file in temp direectory
             */
@@ -503,7 +505,7 @@ public class BlatCommand {
 
         }
 
-        context.setStatus("Postprocessing Blat output");
+        if (context != null) context.setStatus("Postprocessing Blat output");
         /*
         post processing.  since i need to return in the format of
         <groupid> <readid1> <readid2> <readid3> ...

@@ -39,9 +39,19 @@
 
 package test.gov.jgi.meta.exec;
 
+import gov.jgi.meta.MetaUtils;
+import gov.jgi.meta.exec.BlatCommand;
+import gov.jgi.meta.exec.CapCommand;
 import junit.framework.Test;
 import junit.framework.TestSuite;
 import junit.framework.TestCase;
+import org.apache.hadoop.conf.Configuration;
+import org.junit.Assert;
+
+import java.io.File;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 
 /**
  * CapCommand Tester.
@@ -65,42 +75,50 @@ public class CapCommandTest extends TestCase {
 
     /**
      *
-     * Method: cleanup()
-     *
-     */
-    public void testCleanup() throws Exception {
-        //TODO: Test goes here...
-    }
-
-    /**
-     *
-     * Method: finalize()
-     *
-     */
-    public void testFinalize() throws Exception {
-        //TODO: Test goes here...
-    }
-
-    /**
-     *
      * Method: exec(String groupId, Map<String, String> seqDatabase, Reducer.Context context)
      *
      */
     public void testExec() throws Exception {
-        //TODO: Test goes here...
+
+     Configuration conf = new Configuration();
+     conf.addResource("test-conf.xml");
+
+     CapCommand assemblerCmd = new CapCommand(conf);
+
+     Map<String, String> value = MetaUtils.readSequences("target/test-classes/1M.fas");
+
+       try {
+
+          Map<String, String> tmpmap = assemblerCmd.exec("test", value, null);
+          assemblerCmd.cleanup();
+          Assert.assertTrue(tmpmap.size() == 157);
+
+       } catch (Exception e) {
+          Assert.fail(e.toString());
+       }
+
+
     }
 
-    /**
-     *
-     * Method: main(String[] args)
-     *
-     */
-    public void testMain() throws Exception {
-        //TODO: Test goes here...
+       public void testMakeSureTempFilesAreCleanedUp() {
+
+        File s = null;
+
+        Configuration conf = new Configuration();
+
+        conf.addResource("test-conf.xml");
+
+        try {
+            CapCommand b = new CapCommand(conf);
+            s = b.getTmpDir();
+            b.cleanup();
+            Assert.assertTrue(!s.exists());
+        } catch (Exception e) {
+           Assert.fail(e.toString());
+        }
     }
 
-
-
+   
     public static Test suite() {
         return new TestSuite(CapCommandTest.class);
     }

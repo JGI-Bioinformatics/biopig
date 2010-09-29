@@ -139,7 +139,7 @@ extends Mapper<Object, Map<String, String>, Text, Text> {
       context.getCounter("blast", "NUMBER_OF_SUCCESSFUL_BLASTCOMMANDS").increment(1);
       context.getCounter("blast", "NUMBER_OF_MATCHED_READS_AFTER_BLAST").increment(s.size());
 
-      log.debug("blast retrieved " + s.size() + " results");
+       log.debug("blast retrieved " + s.size() + " results");
 
       for (String k : s)
       {

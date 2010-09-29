@@ -39,9 +39,18 @@
 
 package test.gov.jgi.meta.hadoop.input;
 
+import gov.jgi.meta.hadoop.input.FastaBlockLineReader;
+import gov.jgi.meta.hadoop.input.FastaLineReader;
+import gov.jgi.meta.hadoop.input.FastqLineReader;
 import junit.framework.Test;
 import junit.framework.TestSuite;
 import junit.framework.TestCase;
+import org.apache.hadoop.io.Text;
+import org.junit.Assert;
+
+import java.io.FileInputStream;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * FastaLineReader Tester.
@@ -68,37 +77,35 @@ public class FastaLineReaderTest extends TestCase {
      * Method: close()
      *
      */
-    public void testClose() throws Exception {
-        //TODO: Test goes here...
-    }
+    public void testRead() throws Exception {
 
-    /**
-     *
-     * Method: readLine(Text key, Text str, int maxLineLength, int maxBytesToConsume)
-     *
-     */
-    public void testReadLineForKeyStrMaxLineLengthMaxBytesToConsume() throws Exception {
-        //TODO: Test goes here...
-    }
+        try {
+            FileInputStream fstream = new FileInputStream("target/test-classes/1M.fas");
+            FastaLineReader fqlr = new FastaLineReader(fstream);
 
-    /**
-     *
-     * Method: readLine(Text key, Text str, int maxLineLength)
-     *
-     */
-    public void testReadLineForKeyStrMaxLineLength() throws Exception {
-        //TODO: Test goes here...
-    }
+            Text key = new Text();
+            Text sequence = new Text();
 
-    /**
-     *
-     * Method: readLine(Text key, Text str)
-     *
-     */
-    public void testReadLineForKeyStr() throws Exception {
-        //TODO: Test goes here...
-    }
+            int total = 0;
+            int bytes = 0;
 
+            do {
+                //System.out.print("reading: ");
+                if ((bytes = fqlr.readLine(key, sequence)) > 0) {
+                    //System.out.println(key + "/" + sequence);
+                    total++;
+                }
+            } while (bytes > 0);
+            Assert.assertTrue(total==10638);
+
+            Assert.assertEquals("sequence not read correctly", sequence.toString(), "CTGTTGGAGAGATTGAATTCCTCAGCGAGCGCCTCTCCGCTGACGGCTTCAAAGGCTTCAAACTGCCCTGCGGAGT");
+            Assert.assertEquals("sequence key not read correctly", key.toString(), "756:1:1:1599:15858/2");
+
+           
+        } catch (Exception e) {
+            Assert.fail(e.toString());
+        }
+    }
 
 
     public static Test suite() {

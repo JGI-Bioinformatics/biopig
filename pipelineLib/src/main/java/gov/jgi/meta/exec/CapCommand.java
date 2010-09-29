@@ -133,6 +133,9 @@ public class CapCommand implements CommandLineProgram {
         }
 
     }
+
+   public File getTmpDir() { return tmpDirFile; }
+   
     /**
      * new blast command based on values stored in the configuration.
      * <p/>

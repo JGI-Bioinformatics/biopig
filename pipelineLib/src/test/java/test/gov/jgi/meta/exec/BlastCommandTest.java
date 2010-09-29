@@ -1,54 +1,25 @@
-/*
- * Copyright (c) 2010, The Regents of the University of California, through Lawrence Berkeley
- * National Laboratory (subject to receipt of any required approvals from the U.S. Dept. of Energy).
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without modification, are permitted provided
- * that the following conditions are met:
- *
- * (1) Redistributions of source code must retain the above copyright notice, this list of conditions and the
- * following disclaimer.
- *
- * (2) Redistributions in binary form must reproduce the above copyright notice, this list of conditions
- * and the following disclaimer in the documentation and/or other materials provided with the distribution.
- *
- * (3) Neither the name of the University of California, Lawrence Berkeley National Laboratory, U.S. Dept.
- * of Energy, nor the names of its contributors may be used to endorse or promote products derived from
- * this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
- * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
- * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * You are under no obligation whatsoever to provide any bug fixes, patches, or upgrades to the
- * features, functionality or performance of the source code ("Enhancements") to anyone; however,
- * if you choose to make your Enhancements available either publicly, or directly to Lawrence Berkeley
- * National Laboratory, without imposing a separate written license agreement for such Enhancements,
- * then you hereby grant the following license: a  non-exclusive, royalty-free perpetual license to install,
- * use, modify, prepare derivative works, incorporate into other computer software, distribute, and
- * sublicense such enhancements or derivative works thereof, in binary and source code form.
- */
-
 package test.gov.jgi.meta.exec;
 
-
+import gov.jgi.meta.exec.BlastCommand;
+import gov.jgi.meta.hadoop.input.FastaBlockLineReader;
 import junit.framework.Test;
 import junit.framework.TestSuite;
 import junit.framework.TestCase;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.Text;
+import org.junit.Assert;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * BlastCommand Tester.
  *
  * @author <Authors name>
- * @since <pre>09/27/2010</pre>
+ * @since <pre>09/23/2010</pre>
  * @version 1.0
  */
 public class BlastCommandTest extends TestCase {
@@ -64,136 +35,55 @@ public class BlastCommandTest extends TestCase {
         super.tearDown();
     }
 
-    /**
-     *
-     * Method: finalize()
-     *
-     */
-    public void testFinalize() throws Exception {
-        //TODO: Test goes here...
-    }
+    public void testBlastBasic()
+   {
+      Configuration conf = new Configuration();
 
-    /**
-     *
-     * Method: cleanup()
-     *
-     */
-    public void testCleanup() throws Exception {
-        //TODO: Test goes here...
-    }
+      conf.addResource("test-conf.xml");
 
-    /**
-     *
-     * Method: exec(Map<String, String> seqMap, String cazyEC)
-     *
-     */
-    public void testExec() throws Exception {
-        //TODO: Test goes here...
-    }
+      /*
+       * process arguments
+       */
 
-    /**
-     *
-     * Method: createTempDir()
-     *
-     */
-    public void testCreateTempDir() throws Exception {
-        //TODO: Test goes here...
-    }
+      Map<String, String> l = new HashMap<String, String>();
+      Set<String> r = null;
 
-    /**
-     *
-     * Method: recursiveDelete(File fileOrDir)
-     *
-     */
-    public void testRecursiveDelete() throws Exception {
-        //TODO: Test goes here...
-    }
+       try {
+      Text t       = new Text();
+      FileInputStream fstream = new FileInputStream("target/test-classes/1M.fas");
+      FastaBlockLineReader in      = new FastaBlockLineReader(fstream);
+      int bytes = in.readLine(t, l);
 
-    /**
-     *
-     * Method: main(String[] args)
-     *
-     */
-    public void testMain() throws Exception {
-        //TODO: Test goes here...
-    }
+      BlastCommand b = new BlastCommand(conf);
+      r = b.exec(l, "target/test-classes/EC3.2.1.4.faa");
+      b.cleanup();
 
+       } catch (Exception e) {
+           Assert.fail(e.toString());
+       }
+       // print last 10 lines of output
+       Assert.assertTrue(r.size() > 0);
+   }
 
-    /**
-     *
-     * Method: checkFileExists(String filePath)
-     *
-     */
-    public void testCheckFileExists() throws Exception {
-        //TODO: Test goes here...
-        /*
+    public void testMakeSureTempFilesAreCleanedUp() {
+
+        File s = null;
+
+        Configuration conf = new Configuration();
+
+        conf.addResource("test-conf.xml");
+
         try {
-           Method method = BlastCommand.class.getMethod("checkFileExists", String.class);
-           method.setAccessible(true);
-           method.invoke(<Object>, <Parameters>);
-        } catch(NoSuchMethodException e) {
-        } catch(IllegalAccessException e) {
-        } catch(InvocationTargetException e) {
+            BlastCommand b = new BlastCommand(conf);
+            s = b.getTmpDir();
+            b.cleanup();
+            Assert.assertTrue(!s.exists());
+        } catch (Exception e) {
+           Assert.fail(e.toString());
         }
-        */
-        }
+    }
 
-    /**
-     *
-     * Method: checkDirExists(String filePath)
-     *
-     */
-    public void testCheckDirExists() throws Exception {
-        //TODO: Test goes here...
-        /*
-        try {
-           Method method = BlastCommand.class.getMethod("checkDirExists", String.class);
-           method.setAccessible(true);
-           method.invoke(<Object>, <Parameters>);
-        } catch(NoSuchMethodException e) {
-        } catch(IllegalAccessException e) {
-        } catch(InvocationTargetException e) {
-        }
-        */
-        }
-
-    /**
-     *
-     * Method: execFormatDB(Map<String, String> seqList)
-     *
-     */
-    public void testExecFormatDB() throws Exception {
-        //TODO: Test goes here...
-        /*
-        try {
-           Method method = BlastCommand.class.getMethod("execFormatDB", Map<String,.class);
-           method.setAccessible(true);
-           method.invoke(<Object>, <Parameters>);
-        } catch(NoSuchMethodException e) {
-        } catch(IllegalAccessException e) {
-        } catch(InvocationTargetException e) {
-        }
-        */
-        }
-
-    /**
-     *
-     * Method: copyDBFile(String dfsPath)
-     *
-     */
-    public void testCopyDBFile() throws Exception {
-        //TODO: Test goes here...
-        /*
-        try {
-           Method method = BlastCommand.class.getMethod("copyDBFile", String.class);
-           method.setAccessible(true);
-           method.invoke(<Object>, <Parameters>);
-        } catch(NoSuchMethodException e) {
-        } catch(IllegalAccessException e) {
-        } catch(InvocationTargetException e) {
-        }
-        */
-        }
+    
 
 
     public static Test suite() {

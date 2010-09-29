@@ -39,9 +39,17 @@
 
 package test.gov.jgi.meta.exec;
 
+import gov.jgi.meta.MetaUtils;
+import gov.jgi.meta.exec.CapCommand;
+import gov.jgi.meta.exec.VelvetCommand;
 import junit.framework.Test;
 import junit.framework.TestSuite;
 import junit.framework.TestCase;
+import org.apache.hadoop.conf.Configuration;
+import org.junit.Assert;
+
+import java.io.File;
+import java.util.Map;
 
 /**
  * VelvetCommand Tester.
@@ -63,23 +71,6 @@ public class VelvetCommandTest extends TestCase {
         super.tearDown();
     }
 
-    /**
-     *
-     * Method: finalize()
-     *
-     */
-    public void testFinalize() throws Exception {
-        //TODO: Test goes here...
-    }
-
-    /**
-     *
-     * Method: cleanup()
-     *
-     */
-    public void testCleanup() throws Exception {
-        //TODO: Test goes here...
-    }
 
     /**
      *
@@ -87,37 +78,45 @@ public class VelvetCommandTest extends TestCase {
      *
      */
     public void testExec() throws Exception {
-        //TODO: Test goes here...
+
+       Configuration conf = new Configuration();
+       conf.addResource("test-conf.xml");
+
+     VelvetCommand assemblerCmd = new VelvetCommand(conf);
+
+     Map<String, String> value = MetaUtils.readSequences("target/test-classes/1M.fas");
+
+       try {
+
+          Map<String, String> tmpmap = assemblerCmd.exec("test", value, null);
+          assemblerCmd.cleanup();
+          Assert.assertTrue(tmpmap.size() == 313);
+
+       } catch (Exception e) {
+          Assert.fail(e.toString());
+       }
+
+
     }
 
-    /**
-     *
-     * Method: main(String[] args)
-     *
-     */
-    public void testMain() throws Exception {
-        //TODO: Test goes here...
-    }
+       public void testMakeSureTempFilesAreCleanedUp() {
 
+        File s = null;
 
-    /**
-     *
-     * Method: dumpToFile(Map<String, String> seqList)
-     *
-     */
-    public void testDumpToFile() throws Exception {
-        //TODO: Test goes here...
-        /*
+        Configuration conf = new Configuration();
+
+        conf.addResource("test-conf.xml");
+
         try {
-           Method method = VelvetCommand.class.getMethod("dumpToFile", Map<String,.class);
-           method.setAccessible(true);
-           method.invoke(<Object>, <Parameters>);
-        } catch(NoSuchMethodException e) {
-        } catch(IllegalAccessException e) {
-        } catch(InvocationTargetException e) {
+            VelvetCommand b = new VelvetCommand(conf);
+            s = b.getTmpDir();
+            b.cleanup();
+            Assert.assertTrue(!s.exists());
+        } catch (Exception e) {
+           Assert.fail(e.toString());
         }
-        */
-        }
+    }
+
 
 
     public static Test suite() {

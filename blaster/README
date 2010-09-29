@@ -1,4 +1,0 @@
-This directory contains the source for hadoop version of blast.  The code runs
-execs blast from java and reads the output files from standard output.
-
-

@@ -81,6 +81,9 @@ public class Fastq2FastaAppTest extends TestCase {
          mrCluster.shutdown();
          mrCluster = null;
       }
+
+      deleteDirectory(new File("build"));
+      deleteDirectory(new File("test-logs"));
    }
 
    /**
