@@ -68,6 +68,7 @@ import java.util.Map;
  */
 public class FastaBlockInputFormat extends FileInputFormat<Text, Map<String,String>> {
 
+    
   @Override
   public RecordReader<Text, Map<String,String>>
     createRecordReader(InputSplit split,

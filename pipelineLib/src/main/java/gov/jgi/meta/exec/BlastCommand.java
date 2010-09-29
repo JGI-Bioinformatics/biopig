@@ -430,6 +430,8 @@ public class BlastCommand {
       final int  maxAttempts  = 9;
       int        attemptCount = 0;
 
+       if (this.tmpDirFile != null) return this.tmpDirFile;
+       
       do
       {
          attemptCount++;
@@ -484,35 +486,5 @@ public class BlastCommand {
    }
 
 
-   public static void main(String[] args) throws Exception
-   {
-      Configuration conf = new Configuration();
 
-      conf.addResource("blast-test-conf.xml");
-      String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
-
-      /*
-       * process arguments
-       */
-
-      if (otherArgs.length != 2)
-      {
-         System.err.println("Usage: blast <seqfilepath> <ecfilepath>");
-         System.exit(2);
-      }
-
-
-      Map<String, String> l = new HashMap<String, String>();
-      Set<String>         r;
-
-      Text                 t       = new Text();
-      FileInputStream      fstream = new FileInputStream(otherArgs[0]);
-      FastaBlockLineReader in      = new FastaBlockLineReader(fstream);
-      int bytes = in.readLine(t, l);
-
-      BlastCommand b = new BlastCommand();
-      r = b.exec(l, otherArgs[1]);
-
-      System.out.println("matches = " + r);
-   }
 }

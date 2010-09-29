@@ -143,3 +143,18 @@ public class FastaStorage extends LoadFunc {
       FileInputFormat.setInputPaths(job, location);
    }
 }
+
+// @Test public void testRepeatQueryParams() throws IOException {
+// String url = "http://localhost/foo?a=123&a=456nx=y nhttp://localhost/bar?a=761&b=hi";
+// QuerystringLoader loader = new QuerystringLoader("a", "b");
+// InputStream in = new ByteArrayInputStream(url.getBytes());
+// loader.bindTo(null, new BufferedPositionedInputStream(in), 0, url.length());
+// Tuple tuple = loader.getNext(); assertEquals("123", (String) tuple.get(0));
+// assertNull(tuple.get(1)); tuple = loader.getNext();
+// assertEquals(2, tuple.size());
+// assertNull(tuple.get(0));
+// assertNull(tuple.get(1));
+// tuple = loader.getNext();
+// assertEquals("761", (String) tuple.get(0));
+// assertEquals("hi", (String) tuple.get(1));
+// }
