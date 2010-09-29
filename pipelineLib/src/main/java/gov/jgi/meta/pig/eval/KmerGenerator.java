@@ -23,6 +23,8 @@ import java.util.Set;
 import java.util.List;
 import java.util.ArrayList;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.pig.EvalFunc;
 import org.apache.pig.FuncSpec;
 import org.apache.pig.data.DataBag;
@@ -42,15 +44,20 @@ import org.apache.pig.impl.logicalLayer.FrontendException;
  * the record is split into: (u1, h1, pig), (u1, h1, hadoop), (u1, h1, pig hadoop)
  */
 public class KmerGenerator extends EvalFunc<DataBag> {
-
+    private static final Log LOG = LogFactory.getLog(KmerGenerator.class);
 
     public DataBag exec(Tuple input) throws IOException {
+
+
         if (input == null || input.size() == 0)
             return null;
         try{
+
             DataBag output = DefaultBagFactory.getInstance().newDefaultBag();
             String seq = (String)input.get(0);
             int kmerSize = (Integer) input.get(1);
+
+            LOG.info("generating kmers with k=" + kmerSize);
 
             Set<String> kmers = generateKmers(seq, kmerSize);
             for (String kmer : kmers) {

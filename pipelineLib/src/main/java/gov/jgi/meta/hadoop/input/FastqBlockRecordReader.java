@@ -117,7 +117,7 @@ public class FastqBlockRecordReader extends RecordReader<Text, Map<String,String
                             Math.min((int)Math.min(Integer.MAX_VALUE, end-pos),
                                      maxLineLength));
 
-      LOG.info("split value is size " + value.size());
+      LOG.info("inside fastqBlockRecordReader: split value is size " + value.size());
 
       if (newSize == 0) {
         break;

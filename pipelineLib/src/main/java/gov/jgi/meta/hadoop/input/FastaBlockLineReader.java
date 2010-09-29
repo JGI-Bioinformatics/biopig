@@ -125,7 +125,7 @@ public class FastaBlockLineReader {
 
 
     public int readLine(Text key, Map<String, String> set, int maxLineLength,
-                        int maxBytesToConsume) throws IOException {
+                        long maxBytesToConsume) throws IOException {
 
         int totalBytesRead = 0;
         int numRecordsRead = 0;

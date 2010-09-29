@@ -71,7 +71,6 @@ public class ContigKmer {
    public static class ContigKmerMapper
    extends Mapper<Text, Sequence, Text, Text> {
       Logger              log = Logger.getLogger(this.getClass());
-      Map<String, String> contigs;
       Map < String, Set < String >> contigKmersFront;
       Map < String, Set < String >> contigKmersRear;
       int kmerSize;
@@ -96,7 +95,6 @@ public class ContigKmer {
             throw new IOException("file not found: " + contigFileName);
          }
 
-         contigs          = new HashMap<String, String>();
          contigKmersFront = new HashMap < String, Set < String >> ();
          contigKmersRear  = new HashMap < String, Set < String >> ();
 
@@ -116,16 +114,13 @@ public class ContigKmer {
             Text                    key        = new Text();
             long                    length     = fs.getFileStatus(f).getLen();
             HashMap<String, String> tmpcontigs = new HashMap<String, String>();
+             long                   byteoffset = 0;
 
 
-            fblr.readLine(key, tmpcontigs, Integer.MAX_VALUE, (int)length);
-            in.close();
-
-            /*
-             * add the contigs from this file to the overall total
-             */
-            contigs.putAll(tmpcontigs);
-
+             do {
+                 tmpcontigs = new HashMap<String, String>();
+                 context.setStatus("reading more ...");
+                 byteoffset += fblr.readLine(key, tmpcontigs, Integer.MAX_VALUE, 50000);
 
             /*
              * now index the contigs in this file
@@ -153,13 +148,17 @@ public class ContigKmer {
                /*
                 * now process the front
                 */
-               for (int i = 0; i <= Math.min(contigEndLength, seqLength) - kmerSize; i++)
-               {
-                  addContigToKmerIndex(contigKmersFront,
-                                       MetaUtils.generateAllNeighbors2(contigSequence.substring(i, i + kmerSize), numErrors),
-                                       contigName);
-               }
+ //              for (int i = 0; i <= Math.min(contigEndLength, seqLength) - kmerSize; i++)
+//               {
+//                  addContigToKmerIndex(contigKmersFront,
+//                                       MetaUtils.generateAllNeighbors2(contigSequence.substring(i, i + kmerSize), numErrors),
+//                                       contigName);
+//               }
             }
+
+         } while (byteoffset < length);
+
+          in.close();
          }
          //context.setStatus("calculating neighbors");
 
@@ -348,8 +347,9 @@ public class ContigKmer {
 
          for (String contigMatch : l)
          {
-            context.write(new Text(contigMatch), new Text(rn.id + "&" + rn.sequence));
-            context.write(new Text(contigMatch), new Text(contigMatch + "&" + contigs.get(contigMatch)));
+//             context.write(new Text(contigMatch), new Text(rn.id + "&" + rn.sequence));
+//             context.write(new Text(contigMatch), new Text(contigMatch + "&" + contigs.get(contigMatch)));
+             context.write(new Text(contigMatch), new Text(""));
          }
       }
 
@@ -367,15 +367,17 @@ public class ContigKmer {
    }
 
 
-   public static class ContigKmerReducer extends Reducer<Text, ReadNode, Text, Text> {
+   public static class ContigKmerReducer extends Reducer<Text, Text, Text, Text> {
       Logger log = Logger.getLogger(this.getClass());
 
-      public void reduce(Text key, Iterable<ReadNode> values, Context context)
+      public void reduce(Text key, Iterable<Text> values, Context context)
       throws InterruptedException, IOException
       {
          String keyStr = key.toString();
 
-         HashMap<String, ReadNode> hs = new HashMap<String, ReadNode>();
+          context.write(key, new Text(""));
+
+/*         HashMap<String, ReadNode> hs = new HashMap<String, ReadNode>();
          for (ReadNode v : values)
          {
             if (hs.containsKey(v.sequence))
@@ -391,7 +393,7 @@ public class ContigKmer {
          for (ReadNode s : hs.values())
          {
             context.write(new Text(">" + keyStr + "&" + s.id + " count=" + s.count), new Text("\n" + s.sequence));
-         }
+         }*/
       }
    }
 
@@ -529,7 +531,7 @@ public class ContigKmer {
             job0.setInputFormatClass(FastaInputFormat.class );
             job0.setMapperClass(ContigKmerMapper.class );
             //job.setCombinerClass(IntSumReducer.class);
-            job0.setReducerClass(AssembleByGroupKey.class );
+            job0.setReducerClass(IdentityReducerGroupByKey.class );
             //job0.setReducerClass(IdentityReducerGroupByKey.class);
             job0.setOutputKeyClass(Text.class );
             job0.setOutputValueClass(Text.class );

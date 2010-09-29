@@ -40,6 +40,9 @@
 package gov.jgi.meta.pig.storage;
 
 import gov.jgi.meta.hadoop.input.FastaBlockInputFormat;
+import gov.jgi.meta.hadoop.input.FastaBlockRecordReader;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.Job;
@@ -71,6 +74,8 @@ import java.util.Map;
  **/
 
 public class FastaBlockStorage extends LoadFunc {
+    private static final Log LOG = LogFactory.getLog(FastaBlockStorage.class);
+
    protected RecordReader    in            = null;
    private ArrayList<Object> mProtoTuple   = null;
    private TupleFactory      mTupleFactory = TupleFactory.getInstance();
@@ -80,6 +85,7 @@ public class FastaBlockStorage extends LoadFunc {
     */
    public FastaBlockStorage()
    {
+        LOG.info("initializing FastaBlockStorage");
    }
 
    /**
@@ -96,12 +102,19 @@ public class FastaBlockStorage extends LoadFunc {
       }
 
       try {
-         boolean notDone = in.nextKeyValue();
+          LOG.info("loading next key/value");
+         boolean notDone = ((FastaBlockRecordReader) in).nextKeyValue();
+          LOG.info("notDone = " + notDone);
+
+
          if (!notDone)
          {
             return(null);
          }
+
+          LOG.info("retrieving key/value from fastablockstorage");
          String key                 = ((Text) in.getCurrentKey()).toString();
+          LOG.info("key = " + key);
          Map<String, String> seqMap = (Map<String, String>) in.getCurrentValue();
          DataBag             output = DefaultBagFactory.getInstance().newDefaultBag();
 
@@ -146,7 +159,11 @@ public class FastaBlockStorage extends LoadFunc {
    @Override
    public InputFormat getInputFormat()
    {
-      return(new FastaBlockInputFormat());
+       FastaBlockInputFormat in = new FastaBlockInputFormat();
+
+       
+
+      return (in);
    }
 
    @Override
