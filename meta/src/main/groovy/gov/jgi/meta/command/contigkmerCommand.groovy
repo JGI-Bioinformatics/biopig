@@ -96,7 +96,7 @@ class contigkmerCommand implements command {
               {dir, file-> file ==~ /contigkmerHadoopApp-.*-job.jar/ } as FilenameFilter
       ).sort {it.lastModified() }.reverse()[0];
 
-      command.append(" " + jar + " gov.jgi.meta.ContigKmer")
+      command.append(" " + jar )
       command.append(" " + args[1] + " " + args[2] + " " + args[3])
 
       /*
