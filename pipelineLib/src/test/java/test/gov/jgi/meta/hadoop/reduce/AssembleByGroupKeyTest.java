@@ -39,19 +39,9 @@
 
 package test.gov.jgi.meta.hadoop.reduce;
 
-import gov.jgi.meta.hadoop.reduce.AssembleByGroupKey;
-import gov.jgi.meta.hadoop.reduce.IdentityReducerGroupByKey;
 import junit.framework.Test;
 import junit.framework.TestSuite;
 import junit.framework.TestCase;
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.Reducer;
-
-import java.util.Arrays;
-import java.util.List;
-
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 
 /**
  * AssembleByGroupKey Tester.
@@ -80,19 +70,7 @@ public class AssembleByGroupKeyTest extends TestCase {
      */
     public void testReduce() throws Exception {
 
-       Reducer.Context context = 
 
-       AssembleByGroupKey reducer = new AssembleByGroupKey();
-
-       Text key = new Text("abc");
-
-       List<Text> values = Arrays.asList(new Text("a"), new Text("b"), new Text("c"));
-
-       Reducer.Context output = mock(Reducer.Context.class);
-
-       reducer.reduce(key, values, output);
-
-       verify(output).write(new Text("abc"), new Text("a\tb\tc"));
     }
 
     public static Test suite() {
