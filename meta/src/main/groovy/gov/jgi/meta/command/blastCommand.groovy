@@ -77,6 +77,12 @@ class blastCommand implements command {
       if (options["-d"]) {
         println("executing blast wrapper");
       }
+
+      if (args.size() != 4) {
+        println usage();
+        return 0;
+      }
+
       String metaHome = System.getProperty("meta.home").replaceFirst("~", System.getenv("HOME"));
       if (metaHome == null) {
         println("unable to find meta.home environment.  add to your ~/.meta-prefs file");

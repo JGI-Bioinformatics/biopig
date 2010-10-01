@@ -76,7 +76,7 @@ g/xsd/assembly-1.1.0.xsd">
             <fileMode>0755</fileMode>
         </fileSet>
         <fileSet>
-            <directory>../blaster/target</directory>
+            <directory>../geneBlaster/target</directory>
             <outputDirectory>hadoop</outputDirectory>
             <includes>
                 <include>*-job.jar</include>
@@ -111,7 +111,7 @@ g/xsd/assembly-1.1.0.xsd">
             </includes>
         </fileSet>
          <fileSet>
-            <directory>../contigkmer/target</directory>
+            <directory>../contigX/target</directory>
             <outputDirectory>hadoop</outputDirectory>
             <includes>
                 <include>*-job.jar</include>
@@ -121,7 +121,7 @@ g/xsd/assembly-1.1.0.xsd">
             <directory>../conf</directory>
             <outputDirectory>conf</outputDirectory>
             <includes>
-                <include>*.in</include>
+                <include>*</include>
             </includes>
         </fileSet>
     </fileSets>

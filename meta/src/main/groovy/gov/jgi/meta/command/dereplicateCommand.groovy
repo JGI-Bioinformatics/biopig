@@ -76,6 +76,12 @@ class dereplicateCommand implements command {
 
     int execute(List args, Map options) {
 
+
+      if (args.size() != 3) {
+        println usage();
+        return 0;
+      }
+      
       String metaHome = System.getProperty("meta.home").replaceFirst("~", System.getenv("HOME"));
       String pbsJobId = System.getenv("PBS_JOBID");
 
@@ -98,7 +104,7 @@ class dereplicateCommand implements command {
               {dir, file-> file ==~ /dereplicateHadoopApp-.*-job.jar/ } as FilenameFilter
       ).sort {it.lastModified() }.reverse()[0];
 
-      command.append(" " + jar + " gov.jgi.meta.Dereplicate")
+      command.append(" " + jar )
       command.append(" " + args[1] + " " + args[2])
 
       /*

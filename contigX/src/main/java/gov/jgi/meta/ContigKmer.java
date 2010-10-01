@@ -510,8 +510,8 @@ public class ContigKmer {
 
       do
       {
-         System.out.println(" *******   iteration " + iteration + "   ********");
          iteration++;
+         System.out.println(" *******   iteration " + iteration + "   ********");
 
          // check to see if output already exists.
 

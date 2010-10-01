@@ -83,6 +83,10 @@ public class Dereplicate {
 
          String[] seqNameArray = seqid.toString().split("/");
 
+         if (seqNameArray.length != 2) {
+            throw new IOException("sequence (" + seqid + ") is not paired");
+         }
+
          context.write(new Text(seqNameArray[0]), new Text(sequence + "/" + seqNameArray[1]));
       }
    }
@@ -177,7 +181,7 @@ public class Dereplicate {
             //if (sequenceHashValue.contains("n")) return;
             ReadNode rn = new ReadNode(keyStr, sequenceHashValue, sequence);
 
-            log.info("real value: " + sequenceHashValue + "/" + rn.toString());
+            //log.info("real value: " + sequenceHashValue + "/" + rn.toString());
             context.write(new Text(sequenceHashValue), rn);
             //context.write(new Text(sequenceHashValue), new ReadNode("", sequenceHashValue, ""));  // cache
             context.setStatus("generating neighbors");
@@ -388,7 +392,7 @@ public class Dereplicate {
 
       Configuration conf = new Configuration();
 
-      String[] otherArgs = MetaUtils.loadConfiguration(conf, "dereplicate-conf.xml", args);
+      String[] otherArgs = MetaUtils.loadConfiguration(conf, args);
 
       /*
        * process arguments

@@ -56,7 +56,7 @@ class contigkmerCommand implements command {
 
 
     String name() {
-        return "contigkmer"
+        return "contigx"
     }
 
     List options() {
@@ -69,10 +69,17 @@ class contigkmerCommand implements command {
     }
 
     String usage() {
-        return "contigkmer <inputdir> <readfastafile> <outputdir>";
+        return "contigx <inputdir> <readfastafile> <outputdir> <optional iterations>";
     }
 
     int execute(List args, Map options) {
+
+
+      if (args.size() < 4 || args.size() > 5) {
+        println usage();
+        return 0;
+      }
+
 
       String metaHome = System.getProperty("meta.home").replaceFirst("~", System.getenv("HOME"));
       String pbsJobId = System.getenv("PBS_JOBID");
@@ -96,8 +103,10 @@ class contigkmerCommand implements command {
               {dir, file-> file ==~ /contigkmerHadoopApp-.*-job.jar/ } as FilenameFilter
       ).sort {it.lastModified() }.reverse()[0];
 
+      String numiterations = (args.size() == 4 ? "1" : args[4]);
+
       command.append(" " + jar )
-      command.append(" " + args[1] + " " + args[2] + " " + args[3])
+      command.append(" " + args[1] + " " + args[2] + " " + args[3] + " " + numiterations)
 
       /*
       execute command and pipe stdout/stderr to local stdout/stderr
