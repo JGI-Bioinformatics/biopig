@@ -174,10 +174,10 @@ public class AssembleByGroupKey extends Reducer<Text, Text, Text, Text> {
       context.getCounter("reduce.assembly", "NUMBER_OF_READS_IN_GROUP").increment(map.size());
       context.getCounter("reduce", "NUMBER_OF_UNIQUE_GROUPS").increment(1);
 
-         Map<String, String> tmpmap = assemblerCmd.exec(groupId, map, context);
-         ValueComparator     bvc    = new ValueComparator(tmpmap);
-         s = new TreeMap<String, String>(bvc);
-         s.putAll(tmpmap);
+      Map<String, String> tmpmap = assemblerCmd.exec(groupId, map, context);
+      ValueComparator     bvc    = new ValueComparator(tmpmap);
+      s = new TreeMap<String, String>(bvc);
+      s.putAll(tmpmap);
 
 
       if (s == null) { return; }

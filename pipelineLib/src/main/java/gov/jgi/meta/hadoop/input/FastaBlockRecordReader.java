@@ -73,8 +73,16 @@ public class FastaBlockRecordReader extends RecordReader<Text, Map<String,String
   private Text key = null;
   private Map<String,String> value = null;
 
+  FastaBlockRecordReader() {
+      LOG.info("creating new fastablockrecordreader");
+  }
+
+
     public void initialize(InputSplit genericSplit,
                            TaskAttemptContext context) throws IOException {
+
+      LOG.info("initializing FastaBlockRecordReader");
+        
       FileSplit split = (FileSplit) genericSplit;
       Configuration job = context.getConfiguration();
       this.maxLineLength = job.getInt("mapred.linerecordreader.maxlength",
@@ -104,6 +112,9 @@ public class FastaBlockRecordReader extends RecordReader<Text, Map<String,String
     }
 
   public boolean nextKeyValue() throws IOException {
+
+      LOG.info("retrieving next key/value, pos = " + pos + " : end = " + end);
+
     if (key == null) {
       key = new Text();
     }
@@ -113,11 +124,13 @@ public class FastaBlockRecordReader extends RecordReader<Text, Map<String,String
     }
     int newSize = 0;
     while (pos < end) {
+      key.set(Long.toString(pos));
       newSize = in.readLine(key, value, maxLineLength,
                             Math.min((int)Math.min(Integer.MAX_VALUE, end-pos),
                                      maxLineLength));
 
-      LOG.info("split value is size " + value.size());
+      LOG.info("split value is sizex " + value.size());
+      LOG.info("key value = " + key);
 
       if (newSize == 0) {
         break;

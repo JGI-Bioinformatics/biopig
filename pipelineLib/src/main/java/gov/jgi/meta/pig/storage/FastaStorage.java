@@ -1,20 +1,42 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Copyright (c) 2010, The Regents of the University of California, through Lawrence Berkeley
+ * National Laboratory (subject to receipt of any required approvals from the U.S. Dept. of Energy).
+ * All rights reserved.
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * Redistribution and use in source and binary forms, with or without modification, are permitted provided
+ * that the following conditions are met:
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * (1) Redistributions of source code must retain the above copyright notice, this list of conditions and the
+ * following disclaimer.
+ *
+ * (2) Redistributions in binary form must reproduce the above copyright notice, this list of conditions
+ * and the following disclaimer in the documentation and/or other materials provided with the distribution.
+ *
+ * (3) Neither the name of the University of California, Lawrence Berkeley National Laboratory, U.S. Dept.
+ * of Energy, nor the names of its contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * You are under no obligation whatsoever to provide any bug fixes, patches, or upgrades to the
+ * features, functionality or performance of the source code ("Enhancements") to anyone; however,
+ * if you choose to make your Enhancements available either publicly, or directly to Lawrence Berkeley
+ * National Laboratory, without imposing a separate written license agreement for such Enhancements,
+ * then you hereby grant the following license: a  non-exclusive, royalty-free perpetual license to install,
+ * use, modify, prepare derivative works, incorporate into other computer software, distribute, and
+ * sublicense such enhancements or derivative works thereof, in binary and source code form.
  */
+
 package gov.jgi.meta.pig.storage;
 
 import java.io.IOException;
@@ -37,63 +59,102 @@ import org.apache.pig.data.TupleFactory;
 import org.biojava.bio.seq.Sequence;
 
 /**
- * A Loader for Hadoop-Fasta files
+ * A pig loader for fasta files.  The loader reads fasta sequence files and returns tuples of the form
+ * <seqid: chararray, direction: int, sequence: chararray>
  **/
 
 public class FastaStorage extends LoadFunc {
-    protected RecordReader in = null;
-    private byte fieldDel = '\t';
-    private ArrayList<Object> mProtoTuple = null;
-    private TupleFactory mTupleFactory = TupleFactory.getInstance();
-    private static final int BUFFER_SIZE = 1024;
+   protected RecordReader    in            = null;
+   private ArrayList<Object> mProtoTuple   = null;
+   private TupleFactory      mTupleFactory = TupleFactory.getInstance();
 
-    public FastaStorage() {
-    }
+   /**
+    * null constructor
+    */
+   public FastaStorage()
+   {
+   }
 
-    @Override
-    public Tuple getNext() throws IOException {
-        if (mProtoTuple == null) {
-            mProtoTuple = new ArrayList<Object>();
-        }
+   /**
+    * returns the next sequence from the block
+    */
+   @Override
+   public Tuple getNext() throws IOException
+   {
 
-        try {
-            boolean notDone = in.nextKeyValue();
-            if (!notDone) {
-                return null;
-            }
-            String[] a = ((Text) in.getCurrentKey()).toString().split("/");
-            String key = a[0];
-            String direction = (a.length > 1 ? a[1] : "");
-            String value = ((Sequence) in.getCurrentValue()).seqString();
-            mProtoTuple.add(new DataByteArray(key.getBytes(), 0, key.length()));            // add key
-            mProtoTuple.add(new DataByteArray(direction.getBytes(), 0, direction.length()));            // add direction
-            mProtoTuple.add(new DataByteArray(value.getBytes(), 0, value.length()));           // add sequence
+      if (mProtoTuple == null)
+      {
+         mProtoTuple = new ArrayList<Object>();
+      }
 
-            Tuple t =  mTupleFactory.newTupleNoCopy(mProtoTuple);
-            mProtoTuple = null;
-            return t;
-        } catch (InterruptedException e) {
-            int errCode = 6018;
-            String errMsg = "Error while reading input";
-            throw new ExecException(errMsg, errCode,
-                    PigException.REMOTE_ENVIRONMENT, e);
-        }
+      try {
+         boolean notDone = in.nextKeyValue();
+         if (!notDone)
+         {
+            return(null);
+         }
 
-    }
+         /*
+           check the id of the sequence to see if its a paired read
+          */
+         String seqid = ((Text)in.getCurrentKey()).toString();
+         String seqkey;
+         String direction;
+         if (seqid.indexOf("/") >= 0) {
+            String[] a = seqid.split("/");
+            seqkey = a[0];
+            direction = a[1];
+         } else {
+            seqkey = seqid;
+            direction = "0";
+         }
+         String value     = ((Sequence)in.getCurrentValue()).seqString();
+         mProtoTuple.add(new DataByteArray(seqkey.getBytes(), 0, seqkey.length()));                           // add key
+         mProtoTuple.add(new DataByteArray(direction.getBytes(), 0, direction.length()));               // add direction
+         mProtoTuple.add(new DataByteArray(value.getBytes(), 0, value.length()));                       // add sequence
 
-    @Override
-    public InputFormat getInputFormat() {
-        return new FastaInputFormat();
-    }
+         Tuple t = mTupleFactory.newTupleNoCopy(mProtoTuple);
+         mProtoTuple = null;
+         return(t);
+      } catch (InterruptedException e) {
+         int    errCode = 6018;
+         String errMsg  = "Error while reading input";
+         throw new ExecException(errMsg, errCode,
+                                 PigException.REMOTE_ENVIRONMENT, e);
+      }
+   }
 
-    @Override
-    public void prepareToRead(RecordReader reader, PigSplit split) {
-        in = reader;
-    }
+   @Override
+   public InputFormat getInputFormat()
+   {
+      return(new FastaInputFormat());
+   }
 
-    @Override
-    public void setLocation(String location, Job job)
-            throws IOException {
-        FileInputFormat.setInputPaths(job, location);
-    }
+   @Override
+   public void prepareToRead(RecordReader reader, PigSplit split)
+   {
+      in = reader;
+   }
+
+   @Override
+   public void setLocation(String location, Job job)
+   throws IOException
+   {
+      FileInputFormat.setInputPaths(job, location);
+   }
 }
+
+// @Test public void testRepeatQueryParams() throws IOException {
+// String url = "http://localhost/foo?a=123&a=456nx=y nhttp://localhost/bar?a=761&b=hi";
+// QuerystringLoader loader = new QuerystringLoader("a", "b");
+// InputStream in = new ByteArrayInputStream(url.getBytes());
+// loader.bindTo(null, new BufferedPositionedInputStream(in), 0, url.length());
+// Tuple tuple = loader.getNext(); assertEquals("123", (String) tuple.get(0));
+// assertNull(tuple.get(1)); tuple = loader.getNext();
+// assertEquals(2, tuple.size());
+// assertNull(tuple.get(0));
+// assertNull(tuple.get(1));
+// tuple = loader.getNext();
+// assertEquals("761", (String) tuple.get(0));
+// assertEquals("hi", (String) tuple.get(1));
+// }

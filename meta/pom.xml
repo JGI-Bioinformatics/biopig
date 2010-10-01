@@ -46,12 +46,12 @@
     <artifactId>meta</artifactId>
     <packaging>jar</packaging>
     <name>meta</name>
-    <version>1.0-beta2</version>
+    <version>0.1.0</version>
 
     <parent>
         <groupId>gov.jgi.gentech</groupId>
         <artifactId>pipeline</artifactId>
-        <version>1.0-beta2</version>
+        <version>0.1.0</version>
     </parent>
 
     <dependencies>
@@ -59,25 +59,25 @@
         <dependency>
             <groupId>gov.jgi.gentech</groupId>
             <artifactId>pipelinelibrary</artifactId>
-            <version>1.0-beta2</version>
+            <version>0.1.0</version>
         </dependency>
 
         <dependency>
             <groupId>gov.jgi.gentech</groupId>
             <artifactId>blastHadoopApp</artifactId>
-            <version>1.0-beta2</version>
+            <version>0.1.0</version>
         </dependency>
 
         <dependency>
             <groupId>gov.jgi.gentech</groupId>
             <artifactId>contigkmerHadoopApp</artifactId>
-            <version>1.0-beta2</version>
+            <version>0.1.0</version>
         </dependency>
 
         <dependency>
             <groupId>gov.jgi.gentech</groupId>
             <artifactId>dereplicateHadoopApp</artifactId>
-            <version>1.0-beta2</version>
+            <version>0.1.0</version>
         </dependency>
 
         <dependency>

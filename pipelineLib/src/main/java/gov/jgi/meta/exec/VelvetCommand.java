@@ -229,7 +229,8 @@ public class VelvetCommand implements CommandLineProgram {
         super.finalize();
     }
 
-
+    public File getTmpDir() { return tmpDirFile; }
+   
     /**
      * given a list of sequences, creates a db for use with cap3
      *

@@ -39,6 +39,7 @@
 
 package gov.jgi.meta.exec;
 
+import gov.jgi.meta.MetaUtils;
 import gov.jgi.meta.hadoop.input.FastaBlockLineReader;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -59,6 +60,7 @@ import java.util.*;
  * Use this by creating a new BlastCommand object, then running exec. IE:
  *    blastCmd = new BlastCommand(context.getConfiguration());
  *    s = blastCmd.exec(value, geneDBFilePath);
+ *    blastCmd.cleanUp();
  *
  * value is a MAP<STRING, STRING> of <readids, sequences> and geneDBFilePath
  * is a file path in hdfs.  this object creates local files, then does a
@@ -139,8 +141,7 @@ public class BlastCommand {
     */
    public BlastCommand() throws IOException
    {
-      // look in configuration file to determine default values
-      tmpDirFile = createTempDir();
+      tmpDirFile = MetaUtils.createTempDir(tmpDir);
    }
 
 
@@ -196,9 +197,10 @@ public class BlastCommand {
        * if all is good, create a working space inside tmpDir
        */
 
-      tmpDirFile = createTempDir();
+      tmpDirFile = MetaUtils.createTempDir(tmpDir);
    }
 
+   public File getTmpDir () { return tmpDirFile; }
 
    private int checkFileExists(String filePath) throws IOException
    {
@@ -226,7 +228,6 @@ public class BlastCommand {
        */
       this.cleanup();
 
-
       super.finalize();
    }
 
@@ -240,12 +241,13 @@ public class BlastCommand {
       {
          if (tmpDirFile != null)
          {
-            recursiveDelete(tmpDirFile);
+            MetaUtils.recursiveDelete(tmpDirFile);
             tmpDirFile = null;
          }
       }
    }
 
+  
 
    /**
     * given a list of sequences, creates a db for use with blast using
@@ -258,7 +260,6 @@ public class BlastCommand {
     */
    private String execFormatDB(Map<String, String> seqList) throws IOException, InterruptedException
    {
-      File           tmpdir;
       BufferedWriter out;
 
       log.debug("blastcmd: formating the sequence db using formatdb");
@@ -267,7 +268,6 @@ public class BlastCommand {
        * open temp file
        */
       log.debug("blastcmd: using temp directory " + tmpDirFile.getPath());
-
       out = new BufferedWriter(new FileWriter(tmpDirFile.getPath() + "/seqfile"));
 
       /*
@@ -292,7 +292,6 @@ public class BlastCommand {
       /*
        * execute formatdb command
        */
-      // TODO: formatdb should be parameterized as well!
 
       List<String> commands = new ArrayList<String>();
       File         seqFile  = new File(tmpDirFile, "seqfile");
@@ -382,7 +381,7 @@ public class BlastCommand {
 
       double ecutoff = (10.0 * databasesize / effectiveSize);
       ecutoff = 0;    // don't do this for now
-      commands.add(commandPath + " " + commandLine + " -z " + effectiveSize + " -e " + ecutoff + " -d " + seqDir + " -i " + localCazyEC);
+      commands.add("cd " + tmpDirFile.getPath() + "; " + commandPath + " " + commandLine + " -z " + effectiveSize + " -e " + ecutoff + " -d " + seqDir + " -i " + localCazyEC);
 
       // TODO: remove the try statement to throw exception in case of failure
 
@@ -414,105 +413,4 @@ public class BlastCommand {
       return(s);
    }
 
-
-   /**
-    * Create a new temporary directory. Use something like
-    * {@link #recursiveDelete(File)} to clean this directory up since it isn't
-    * deleted automatically
-    *
-    * @return the new directory
-    * @throws IOException if there is an error creating the temporary directory
-    */
-   public File createTempDir() throws IOException
-   {
-      final File sysTempDir = new File(tmpDir);
-      File       newTempDir;
-      final int  maxAttempts  = 9;
-      int        attemptCount = 0;
-
-      do
-      {
-         attemptCount++;
-         if (attemptCount > maxAttempts)
-         {
-            throw new IOException(
-               "The highly improbable has occurred! Failed to " +
-               "create a unique temporary directory after " +
-               maxAttempts + " attempts.");
-         }
-         String dirName = UUID.randomUUID().toString();
-         newTempDir = new File(sysTempDir, dirName);
-      } while (newTempDir.exists());
-
-      if (newTempDir.mkdirs())
-      {
-         newTempDir.setExecutable(true, false);
-         newTempDir.setReadable(true, false);
-         newTempDir.setWritable(true, false);
-         return(newTempDir);
-      }
-      else
-      {
-         throw new IOException(
-            "Failed to create temp dir named " +
-            newTempDir.getAbsolutePath());
-      }
-   }
-
-
-   /**
-    * Recursively delete file or directory
-    *
-    * @param fileOrDir the file or dir to delete
-    * @return true iff all files are successfully deleted
-    */
-   public boolean recursiveDelete(File fileOrDir)
-   {
-      if (fileOrDir.isDirectory())
-      {
-         // recursively delete contents
-         for (File innerFile : fileOrDir.listFiles())
-         {
-            if (!recursiveDelete(innerFile))
-            {
-               return(false);
-            }
-         }
-      }
-
-      return(fileOrDir.delete());
-   }
-
-
-   public static void main(String[] args) throws Exception
-   {
-      Configuration conf = new Configuration();
-
-      conf.addResource("blast-test-conf.xml");
-      String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
-
-      /*
-       * process arguments
-       */
-
-      if (otherArgs.length != 2)
-      {
-         System.err.println("Usage: blast <seqfilepath> <ecfilepath>");
-         System.exit(2);
-      }
-
-
-      Map<String, String> l = new HashMap<String, String>();
-      Set<String>         r;
-
-      Text                 t       = new Text();
-      FileInputStream      fstream = new FileInputStream(otherArgs[0]);
-      FastaBlockLineReader in      = new FastaBlockLineReader(fstream);
-      int bytes = in.readLine(t, l);
-
-      BlastCommand b = new BlastCommand();
-      r = b.exec(l, otherArgs[1]);
-
-      System.out.println("matches = " + r);
-   }
 }

@@ -45,7 +45,7 @@
     <groupId>gov.jgi.gentech</groupId>
     <artifactId>pipelinelibrary</artifactId>
     <packaging>jar</packaging>
-    <version>1.0-beta2</version>
+    <version>0.1.0</version>
     <name>pipelineLib</name>
     <description>java library for for accessing and using cassandra data model</description>
     <url></url>
@@ -56,9 +56,14 @@
     <parent>
         <groupId>gov.jgi.gentech</groupId>
         <artifactId>pipeline</artifactId>
-        <version>1.0-beta2</version>
+        <version>0.1.0</version>
     </parent>
     <dependencies>
+	<dependency>
+	    <groupId>org.apache</groupId>
+	    <artifactId>pig</artifactId>
+	    <version>0.7.0</version>
+	</dependency>
         <dependency>
             <groupId>log4j</groupId>
             <artifactId>log4j</artifactId>
