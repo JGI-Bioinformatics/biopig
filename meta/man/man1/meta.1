@@ -9,7 +9,7 @@
 .TH META 1 "Joint Genomics Institute Metagenomics Software" Linux "Commandline Tools"
 .\" section NAME
 .SH NAME
-meta \- commandline tool for launching metagenomics analysis on a local hadoop cluster.
+meta \- commandline wrapper for launching metagenomics analysis on a local hadoop cluster.
 .SH SYNOPSIS
 .B meta [-d] [-? | --help]
 .I command
@@ -17,46 +17,310 @@ meta \- commandline tool for launching metagenomics analysis on a local hadoop c
 .B
 .SH DESCRIPTION
 .B meta
-commandline tool provides a convienient wrapper for launching hadoop applications specific for gene-centric metagenomics
-pipeline.
-.SH OPTIONS
+commandline tool provides a convenient wrapper for launching the Hadoop applications for gene-centric data
+analysis.   The commands can be executed directly using
+
+.I hadoop jar application_jar application_options
+
+where
+.I application_jar
+corresponds to a command in the meta wrapper script and
+.I application_options
+corresponds to the command options.
+
+The meta wrapper is meant to provide more convenience and customization.  For example, it determines the location
+of the jars, etc.  But honestly, the current version requires groovy, and is a little difficult to setup itself.
+Future versions will be written in shell script to make it easier still.
+
+
+These applications all require access to a hadoop cluster, currently only the
+.B titanium
+cluster is available with
+hadoop and hence users must have accounts and run these commands from that machine.  These apps also run on
+.B magellan
+, however there's no standard install there, and you must install the software yourself for now.
+
+File inputs and outputs are generally interpreted to be HDFS paths, although if the HDFS path does not exist, it will
+default to using a local file.  In the latter case, performance will be affected as hdfs partitions and replicates the
+datablocks in the cluster to make them local reads for processing.
+
+Finally, note that future versions of the pipeline will be provides using a enhanced version of
+.B PIG
+, which is a
+data processing query language that builds hadoop applications from the user's pig scripts.  Pig is much
+more flexible at the cost of some performance.  Stay tuned... you can follow this project by joining the
+source code repository at
+
+.B http://codaset.com/kbhatia/meta/
+
+or by following the JGI Twitter feed at
+
+.B http://twitter.com/JGISoftware
+
+Any questions or comments can directed to kbhatia@lbl.gov
+
+.SH GENERAL OPTIONS
 .IP "-? | --help"
 print usage and exit.
 .IP -d
 debug mode, print additional messages to stdout.
-.SH COMMANDS
-.IP contigkmer
-initializes the system
-.IP blaster
-makes connection and quits (useful to make sure connection information is correct).
-.IP dereplicate
-lists the users or projects stored in the gama server (optionly limit by 
 
-.SH CONFIGURATION
-Set
-.I $META_HOME
-to point to the location of the meta software. And Set
-.I $HADOOP_CLASSPATH
-to point to
-.I $META_HOME/conf
-The conf directory should have various site-specific application properties or setting, such as the location
-of various executables, the number of maps to partition the job into, the amount of memory etc.  These settings
-also provide defaults for various program options.  You can override these settings and options by adding
-properties in your
+.SH COMMAND-SPECIFIC OPTIONS
+
+Command execution options (eg. kmer size, num errors, etc) are set as defaults in the cluster configuration
+directory (not modifiable by users), but can be overriden in a per-user configurations file,
 .I ~/.meta-prefs
-text file. 
-gama libraries in the groovy CLASSPATH or in 
-.I ~/.groovy/lib/
-in particular needs gamalib, cog-jglobus, cryptix-asn1, cryptix32, puretls,
-cryptix, jce-jdk13-125.
-.SH PREFERENCES
-Parameters can be specified in a per-site configuration file, or a per-user preferences file
-.I ~/.meta-prefs
-that is loaded on startup.  The per-user configuration will override the values in the per-site
-configuration.  In most cases, you won't need to have a per-user preferences.
+.  For each command described in detail below, are the options that it reads from the per-user configuration.
+Options can also be specified on the commandline with the
+.I -Doption=value
+syntax.  Options on the commandline override the options specified in the per-user configuration.
+
+.IP per-cluster configuration
+
+The cluster configuration includes all the default options for each command and command path locations for
+external executables.  The per-cluster configurations for each application are stored in
+
+.I $(META_HOME)/conf/<applicationname>-<version>-conf.xml
+
+Hadoop specific parameters can also be specified here.
+
+.IP per-user configuration
+
+All the hadoop applications look for a per-user configuration file in
+.I $(HOME)/.meta-prefs
+that contain properties and values in the following form:
+
+\.ft C
+blast.commandline=-m 8 -p tblastn -b 1000000 -a 10
+\.ft
+
+.IP per-commandline configuration
+
+Finally, properties can be specified on the commandline using the following notation
+
+\.ft C
+% meta -Dblast.commandline="-m8 -p tblastn -b 1000000 -a 10" ...
+\.ft
+
+.SH USER SETUP
+
+The easiest way to setup the applications for execution is to source a bash script that will set the
+necessary environment variables, configure groovy interpreter, and add the necessary executables to your
+classpath.
+
+\.ft C
+% source /jgi/tools/groups/gentech/DEFAULT/meta/bin/setup.sh
+\.ft
+
+See the install file or readme for more details.
+
+.SH GENEBLASTER reads database outputdir
+
+The geneblaster hadoop application takes as input a (large) sequence fasta file representing the
+.I reads
+and a (small) gene
+.I database
+, such as CAZY enzyme families, in a protein sequence format.  The application uses
+.B tblastn
+to find all sequences in the reads that are similar to each gene sequence in the database.  Then
+for each gene sequence that had any match, it uses
+.B blat
+against the reads to find any similar sequences to those matching the gene.  After this step, the program has
+for each gene in the database, a set of sequences in the reads that have some similarity (or similarity to its
+read pair).  Then, for each gene, it assembles using either
+.B cap3
+or
+.B velvet
+the sequences to produce a set set of contigs.
 
 .SS General Hadoop Parameters:
 
+.IP mapred.min.split.size
+defines the minimum size in bytes of each input split. used to control the maximum
+number of map tasks.  (eg if file size is 100 bytes and min is 10, then maximum number
+of mappers is 10).
+
+.IP mapred.max.split.size
+defines the maximum size in bytes of each input split.  used to control the minimum
+number of map tasks.
+
+.IP mapred.child.java.opts
+defines the java options for each compute task.  If you want to set the java heap size, use
+value of "-Xmx2000m" which gives each map task 2GB of heap.  The cluster setup should be sufficient,
+but you can adjust if needbe.
+
+.SS Blast Execution Parameters:
+
+.IP blast.commandline
+The commandline options for blast, defaults to "-m 8 -p tblastn -b 1000000 -a 10".
+.IP blast.commandpath
+The full path to the executable for blast, most likely "/jgi/tools/bin/blastall".
+.IP blast.tmpdir
+The full path to the tmp directory to use for blast, defaults to "/tmp/blast", however on titanium, the cluster
+defaults reset this to "/ifs/scratch/kbhatia/blast" because the titanium compute nodes have a very small /tmp.
+.IP blast.cleanup
+For debugging purposes, you can set this to false and examine the tmp directory to get the actual blast inputs
+and outputs.
+.IP blast.readsarepaired
+defaults to true.  When true, it optimizes matches to either read pair.
+
+.SS formatdb
+
+.IP formatdb.commandpath
+The full commandpath to formatdb executable, defaults to whatever is in the user's path.
+.IP formatdb.commandline
+defaults to "-o T -p F".
+
+.SS BLAT
+
+.IP blat.commandline
+The commandline for blat executable, defaults to "-out=blast8".
+.IP blat.commandpath
+The full commandpath for blat, defaults to "/jgi/tools/bin/blat".
+.IP blat.tmpdir
+The temporary directory in which to run the blat executable, defaults to "/tmp/blat", however, on titanium, cluster
+configuration changes this to  "/ifs/scratch/kbhatia/tmp".
+.IP blat.cleanup
+For debugging purposes, you can set this to false and examine the tmp directory to get the actual blat inputs and
+outputs
+.IP blat.paired
+defaults to true.  When true, it optimizes matches to either read pair.
+
+.SS ASSEMBLERS
+
+.IP assembler.command
+one of either "cap3" or "velvet"
+.IP assembler.tmpdir
+The temporary directory in which to run the blat executable, defaults to "/tmp/blat", however, on titanium, cluster
+configuration changes this to  "/ifs/scratch/kbhatia/tmp".
+.IP assembler.cleanup
+For debugging purposes, you can set this to false and examine the tmp directory to get the actual blat inputs and
+outputs
+.IP cap3.commandline
+commandline for cap3 execution, defaults to "-k 0".
+.IP cap3.commandpath
+full path to the cap3 executable, defaults to "/home/asczyrba/bin/cap3" (NOTE: yes this is bad!)
+.IP velveth.commandline
+default commandline for velveth execution, defaults to "21"
+.IP velveth.commandpath
+path to velveth executable, defaults to: "/jgi/tools/bin/velveth"
+.IP velvetg.commandline
+default commandline for velvetg execution, defaults to "" (null, no commandline options).
+.IP velvetg.commandpath
+path to velveth executable, defaults to: "/jgi/tools/bin/velvetg"
+
+.SS EXAMPLE
+
+\.ft C
+% meta geneblaster /user/kbhatia/data/30mb.fas /user/kbhatia/data/EC3.2.1.4.faa /user/kbhatia/geneblaster.out.1
+\.ft
+
+Once the job has started you can follow the progress from the hadoop web site: http://titanium/ . When complete, the
+outputs will be in the output directory you specified,
+
+\.ft C
+% hadoop fs -ls /user/kbhatia/geneblaster.out.1/
+\.ft
+
+Step1 has the raw output of the blast, step2 has the set of contigs resulting from the assemblies.
+
+.SH CONTIGX contigs reads outputdir numiterations
+
+ContigX takes as input an initial set of contigs that are to be extended,
+.I contigs
+, a (large) set of sequences
+.I reads
+, and the number of iterations to proceed,
+.I numiterations
+.  The applications indexes the kmers on ends of each contig, then searches the read database to find all reads that
+have even a single matching kmer.  Then for each contig, it assembles the contigs with the matched reads and returns
+the largest assembled contig from each assembly.  These new contigs represent the new set of contigs and the
+process is repeated until either contigs are no longer being extended or numiterations has passed.
+
+.SS main parameters:
+
+.IP contigkmer.numreducers
+The number of reducers to use.  should be at least the size of the cluster.  is typically set in the per-cluster
+configuration.
+
+.IP contigendlength
+The number of basepairs on either end of each contig to index.  defaults to 100.
+
+.IP numerrors
+number of errors to allow: leave as default for now!  defaults to 0.
+
+.IP kmersize
+the kmer size to use for indexing, defaults to 50.
+
+.IP maxcontigsize
+if > 0, when the contig size goes above threshold, it is no longer extended.  
+
+.SS General Hadoop Parameters:
+
+.IP mapred.min.split.size
+defines the minimum size in bytes of each input split. used to control the maximum
+number of map tasks.  (eg if file size is 100 bytes and min is 10, then maximum number
+of mappers is 10).
+
+.IP mapred.max.split.size
+defines the maximum size in bytes of each input split.  used to control the minimum
+number of map tasks.
+
+.IP mapred.child.java.opts
+defines the java options for each compute task.  If you want to set the java heap size, use
+value of "-Xmx2000m" which gives each map task 2GB of heap.  The cluster setup should be sufficient,
+but you can adjust if needbe.
+
+.SS ASSEMBLERS
+
+.IP assembler.command
+one of either "cap3" or "velvet"
+.IP assembler.tmpdir
+The temporary directory in which to run the blat executable, defaults to "/tmp/blat", however, on titanium, cluster
+configuration changes this to  "/ifs/scratch/kbhatia/tmp".
+.IP assembler.cleanup
+For debugging purposes, you can set this to false and examine the tmp directory to get the actual blat inputs and
+outputs
+.IP cap3.commandline
+commandline for cap3 execution, defaults to "-k 0".
+.IP cap3.commandpath
+full path to the cap3 executable, defaults to "/home/asczyrba/bin/cap3" (NOTE: yes this is bad!)
+.IP velveth.commandline
+default commandline for velveth execution, defaults to "21"
+.IP velveth.commandpath
+path to velveth executable, defaults to: "/jgi/tools/bin/velveth"
+.IP velvetg.commandline
+default commandline for velvetg execution, defaults to "" (null, no commandline options).
+.IP velvetg.commandpath
+path to velveth executable, defaults to: "/jgi/tools/bin/velvetg"
+
+.SS EXAMPLE
+
+\.ft C
+% meta contigx /user/kbhatia/data/geneblaster.out.1/step2 /user/kbhatia/data/30mb.fas /user/kbhatia/contigx.out.1
+\.ft
+
+This will run the contig extension one time.  The output will look like:
+
+
+\.ft C
+kbhatia@titanium:~$ hadoop fs -ls /user/kbhatia/contigx.out.1
+
+Found 2 items
+
+-rw-r--r--   3 kbhatia supergroup      17259 2010-10-04 11:03 /user/kbhatia/contigx.out.1/contigs-1.fas
+
+drwxr-xr-x   - kbhatia supergroup          0 2010-10-04 11:03 /user/kbhatia/contigx.out.1/step1
+\.ft
+
+the file "contigs-1.fas" are the result of extending the inputs one iterations.  For each step, there will
+be a corresponding file "contigs-X.fas" that is the set of extended contigs after X steps.  The subdirectory
+stepX contigs the raw output from the hadoop application at step X.
+
+
+.SH DEREPLICATION reads outputdir
+
+.SS General Hadoop Parameters:
 
 .IP mapred.min.split.size
 defines the minimum size in bytes of each input split. used to control the maximum
@@ -102,76 +366,8 @@ number of map tasks.
 .IP velvetg.commandline
 .IP velvetg.commandpath
 
-the full hostname of the gama server, overridden with the 
-.B -h
-commandline option.
-.IP gama2.logindn
-the DN of the admin account on the ldap server running on the gama host, 
-overridden with the 
-.B -u 
-commandline option.
-.IP gama2.loginpasswd
-the password of the admin account on the ldap server, overridden with the
-.B -p 
-commandline option.
-.IP gama2.defaultProject
-the name of the default project (to make commandline commands a little easier)
-.IP gama2.myproxyhostDN 
-is the DN of the myproxy server certificate.  This is required to connect to
-the myproxy server.  
-.P
-log4j properties can also be set here.  Examples include:
-.IP log4j.logger.com.lila.gama2.Gama=debug,stdout
-provides more details of what's going on when commands are executed.
-.IP log4j.logger.edu.sdsc.gama2.gamalib.impl.GamaUserManager=debug,stdout
-even more details specific to user management.
+.SS EXAMPLE
 
-.SH LOGGING
-Additional logging information can be specified using the log4j properties
-specified in
-.B${HOME}/.meta-prefs
-Here are the defaults:
-.sp
-.RS 4
-.nf
-\.ft C
-# Set root logger level to DEBUG and its only appender to A1.
-log4j.rootLogger=info, A1
-
-# A1 is set to be a ConsoleAppender.
-log4j.appender.A1=org.apache.log4j.ConsoleAppender
-
-# A1 uses PatternLayout.
-log4j.appender.A1.layout=org.apache.log4j.PatternLayout
-log4j.appender.A1.layout.ConversionPattern=%-4r [%t] %-5p %c %x - %m%n
-\.ft
-
-Additional logging can be added using:
-.sp
-.RS 4
-.nf
-\.ft C
-log4j.meta=debug  # print debug information regarding the application wrapper
-log4j.logger.org.jgi.meta.contigkmer=debug
-     # debug information for the contigkmer application
-log4j.logger.org.jgi.meta.hadoop.input.FastaLineReader=debug
-     # information on hadoop input reader for fasta files
-log4j.logger.gov.jgi.meta.hadoop.map.BlastMapperGroupByGene=debug
-\.ft
-
-.SH EXAMPLES
-The following are common examples:
-.sp
-.RS 4
-.nf
-\.ft C
-# Create a new project,
-% gama create project NEES "http://www\.neesit\.org/"
-
-# create a new site under the NEES project,
-% gama create site ucsd -P NEES "{'description': 'the site at UCSD'}"
-
-\.ft
 
 .SH DIAGNOSTICS
 error conditions written to output.  if error occurs, command returns 1, otherwise returns 0
