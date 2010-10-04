@@ -32,6 +32,29 @@ export MANPATH=${META_HOME}/man:${MANPATH}
 export JAVA_OPTS=" -Dmeta.home=${META_HOME}"
 export HADOOP_CLASSPATH=${META_HOME}/lib:${META_HOME}/conf
 
+
+# check to see if groovy is in the path already
+
+which groovy > /dev/null
+
+if [ $? -eq 0 ]; then
+
+   echo "found groovy in the path, skipping"
+
+else
+
+    for x in  /jgi/tools/lang/groovy /opt/local/groovy /usr/local/groovy ${HOME}/groovy ${HOME}/local/groovy
+     do
+        if [ -f $x ]; then
+            echo "found groovy at $x";
+            break;
+        fi
+        echo "no groovy found!  make sure you have groovy in your path"
+     done
+fi
+
+
+
 #
 # check groovy-startup file
 # 

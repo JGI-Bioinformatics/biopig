@@ -52,16 +52,9 @@ Logger log = Logger.getLogger("meta")
  */
 
 commandList = [
-        new loadCommand(),
-        new scanCommand(),
-        new loadHashCommand(),
         new blastCommand(),
-        new blatCommand(),
-        new assemblerCommand(),
         new dereplicateCommand(),
-        new contigkmerCommand(),
-        new faDiffCommand(),
-        new statCommand(),
+        new contigkmerCommand()
 //        new fastqToFastaCommand()
 ];
 
