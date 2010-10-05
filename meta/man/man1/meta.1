@@ -15,6 +15,26 @@ meta \- commandline wrapper for launching metagenomics analysis on a local hadoo
 .I command
 .I command_options
 .B
+
+.B meta
+geneblaster
+.I reads
+.I database
+.I outputdir
+.B
+
+.B meta contigx
+.I contigs
+.I reads
+.I outputdir
+.I numiterations
+.B
+
+.B meta dereplication
+.I reads
+.I outputdir
+.B
+
 .SH DESCRIPTION
 .B meta
 commandline tool provides a convenient wrapper for launching the Hadoop applications for gene-centric data
@@ -320,6 +340,46 @@ stepX contigs the raw output from the hadoop application at step X.
 
 .SH DEREPLICATION reads outputdir
 
+Dereplication groups a set of sequences based on self-similarity and computes the consensus sequence for each group.
+Current sequencing technologies can produce exact and near-exact copies of a sequence in a dataset and it is often
+desirable to reduce the copies before more detailed analysis.
+
+This dereplication algorithm uses map-reduce to compute similarity hashes and aggregate similar sequences.  It is
+ideally suited for exact duplications (editdistance = 0) over a very large set of reads,
+but can work small number of errors as well.  The intermediate
+datasized grow exponentially with the number of errors, so don't go wild.
+
+The
+.I reads
+file must be the hdfs path to a paired end reads. and the
+.I outputdir
+is the hdfs path for output to be stored int.  The application works in 4 rounds, the output of each round is
+stored in
+.I outputdir/step0 outputdir/step1 outputdir/step2 outputdir/step3
+.
+
+The final output is of the form:
+\.ft C
+>10.-1036608916 numberOfReads=10
+
+ccacgaaatatcacacagtctgtgcaggctattctgcggctttcagtcttttgtgc...
+\.ft
+
+The header line includes a unique group id (don't read any meaning into this), and the number of reads that were
+combined.  To generate the consensus sequence for each group, the base pair with the maximum count for each position
+is generated.
+
+
+.SS Common Application Parameters:
+
+.IP dereplicate.numreducers
+sets the number of reducers, set to the minimum of number of nodes in the cluster and the number of map tasks
+generated (filesize/134MB).
+
+.IP dereplicate.editdistance
+set to 0 for exact matches, 1
+
+
 .SS General Hadoop Parameters:
 
 .IP mapred.min.split.size
@@ -331,42 +391,31 @@ of mappers is 10).
 defines the maximum size in bytes of each input split.  used to control the minimum
 number of map tasks.
 
-.SS Blast Execution Parameters:
-.IP blast.commandline
-.IP blast.commandpath
-.IP blast.tmpdir
-.IP blast.cleanup
-.IP blast.effectivedbsize
-.IP blast.genedbfilepath
-.IP blast.readsarepaired
-
-.SS formatdb
-
-.IP formatdb.commandpath
-.IP formatdb.commandline
-
-.SS BLAT
-
-.IP blat.commandline
-.IP blat.commandpath
-.IP blat.tmpdir
-.IP blat.cleanup
-.IP blat.skipexecution
-.IP blat.paired
-
-.SS ASSEMBLERS
-
-.IP assembler.command
-.IP assembler.tmpdir
-.IP assembler.cleanup
-.IP cap3.commandline
-.IP cap3.commandpath
-.IP velveth.commandline
-.IP velveth.commandpath
-.IP velvetg.commandline
-.IP velvetg.commandpath
-
 .SS EXAMPLE
+
+\.ft C
+% meta dereplication /user/kbhatia/data/30mb.fas /user/kbhatia/dereplication.out
+\.ft
+
+This will run the dereplication algorithm on 30mb.fas assuming that it is paired.  The output will look
+like:
+
+\.ft C
+kbhatia@titanium:~$ hadoop fs -ls /user/kbhatia/dereplication.out
+
+Found 4 items
+
+-rw-r--r--   3 kbhatia supergroup          0 2010-10-04 11:03 /user/kbhatia/dereplication.out/step0
+
+-rw-r--r--   3 kbhatia supergroup          0 2010-10-04 11:03 /user/kbhatia/dereplication.out/step1
+
+-rw-r--r--   3 kbhatia supergroup          0 2010-10-04 11:03 /user/kbhatia/dereplication.out/step2
+
+-rw-r--r--   3 kbhatia supergroup          0 2010-10-04 11:03 /user/kbhatia/dereplication.out/step3
+
+\.ft
+
+The final output will be in step3/part-r-*.
 
 
 .SH DIAGNOSTICS
@@ -375,6 +424,7 @@ error conditions written to output.  if error occurs, command returns 1, otherwi
 none (yet! :-)
 
 .SH AUTHOR
-Karan Bhatia (karan dot bhatia at gmail dot com)
+Karan Bhatia (kbhatia at lbl.gov )
 .SH "SEE ALSO"
-.BR groovysh (1)
+.BR groovy (1)
+.BR hadoop (1)

@@ -282,7 +282,7 @@ public class Dereplicate {
 //            log.info("examining node: " + keyStr);
          if (rns.findHash(keyStr))
          {
-            log.info("examining node: " + keyStr + " found!");
+            //log.info("examining node: " + keyStr + " found!");
             context.setStatus("writing output with size " + rns.length);
             int    i     = 0;
             String cname = rns.canonicalName(keyStr);
@@ -292,7 +292,7 @@ public class Dereplicate {
                context.setStatus("ReadNode " + i + " in " + cname);
                context.write(r, new Text(cname));
             }
-            log.info("size = " + i);
+            //log.info("size = " + i);
          }
       }
    }
