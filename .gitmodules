@@ -4,3 +4,6 @@
 [submodule "pig"]
 	path = pig
 	url = git://git.apache.org/pig.git
+[submodule "cc2010"]
+	path = cc2010
+	url = git@codaset.com:kbhatia/cc2010.git
