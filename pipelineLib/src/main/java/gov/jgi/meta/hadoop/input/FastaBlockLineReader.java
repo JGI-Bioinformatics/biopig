@@ -184,7 +184,7 @@ public class FastaBlockLineReader {
                 }
             }
 
-        } while (buffer[bufferPosn++] != '>' || (totalBytesRead + bufferPosn - startPosn) < maxBytesToConsume);
+        } while (buffer[bufferPosn++] != '>' || (totalBytesRead + bufferPosn - startPosn) <= maxBytesToConsume);
 
         if (!eof) {
             bufferPosn--;  // make sure we leave bufferPosn pointing to the next record

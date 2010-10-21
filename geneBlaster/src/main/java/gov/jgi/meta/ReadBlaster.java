@@ -141,6 +141,17 @@ public class ReadBlaster {
         FileSystem fs = FileSystem.get(conf);
         Path filenamePath = new Path(otherArgs[0]);
         long databaseFileSize = fs.getFileStatus(filenamePath).getLen();
+
+        /*
+         set the parallelism
+          */
+         int parallel = conf.getInt("meta.parallel.min", 0);
+         if (parallel > 0) {
+             conf.setLong("mapred.max.split.size", databaseFileSize/parallel);
+             conf.setInt("blast.numreducers", parallel);
+             conf.setInt("blat.numreducers", parallel);
+         }
+
         //long databaseFileSize = new File(otherArgs[0]).length(); // the overall file size
 
     /*    try {
@@ -177,6 +188,7 @@ public class ReadBlaster {
                 "--- application properties ---",
                 "application.name",
                 "application.version",
+                "meta.parallel.min",
                 "--- system properties ---",
                 "mapred.min.split.size",
                 "mapred.max.split.size",
@@ -188,6 +200,7 @@ public class ReadBlaster {
                 "blast.effectivedbsize",
                 "blast.genedbfilepath",
                 "blast.readsarepaired",
+                "blast.numreducers",
                 "--- formatdb ---",
                 "formatdb.commandpath",
                 "formatdb.commandline",
@@ -198,6 +211,7 @@ public class ReadBlaster {
                 "blat.cleanup",
                 "blat.skipexecution",
                 "blat.paired",
+                "blat.numreducers",
                 "--- assembly ---",
                 "assembler.command",
                 "assembler.tmpdir",
@@ -211,6 +225,7 @@ public class ReadBlaster {
         };
 
         MetaUtils.printConfiguration(conf, log, allProperties);
+
 
         /*
         setup blast configuration parameters
@@ -231,7 +246,7 @@ public class ReadBlaster {
             job.setOutputKeyClass(Text.class);
             job.setOutputValueClass(Text.class);
             //job.setOutputFormatClass(SequenceFileOutputFormat.class);
-            job.setNumReduceTasks(1); // force there to be only 1 to get a single output file
+            job.setNumReduceTasks(conf.getInt("blast.numreducers", 1));
 
             FileInputFormat.addInputPath(job, new Path(otherArgs[0]));
             FileOutputFormat.setOutputPath(job, new Path(otherArgs[2]+"/step1"));
@@ -248,7 +263,7 @@ public class ReadBlaster {
             fs.delete(new Path(otherArgs[2]+"/step2"), true);
         }
         if (!abort && !fs.exists(new Path(otherArgs[2]+"/step2"))) {
-            conf.set("blat.blastoutputfile", otherArgs[2]+"/step1/part-r-00000");
+            conf.set("blat.blastoutputfile", otherArgs[2]+"/step1");
             Job jobBlat = new Job(conf, System.getProperty("application.name")+"-"+System.getProperty("application.version")+"-step2");
             jobBlat.setJarByClass(ReadBlaster.class);
             jobBlat.setInputFormatClass(FastaBlockInputFormat.class);

@@ -40,6 +40,7 @@
 package gov.jgi.meta.exec;
 
 import com.devdaily.system.SystemCommandExecutor;
+import gov.jgi.meta.MetaUtils;
 import gov.jgi.meta.hadoop.input.FastaBlockLineReader;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -285,10 +286,10 @@ public class BlatCommand {
 
 
     /**
-     * execute the blast command and return a list of sequence ids that match
+     * execute the blat command and return a list of sequence ids that match
      *
      * @param seqDatabase      is the key/value map of sequences that act as reference keyed by name
-     * @param seqQueryFilepath is the full path of the cazy database to search against the reference
+     * @param seqQueryFilepath is the path the the blast output results
      * @return a list of sequence ids in the reference that match the cazy database
      */
     public Set<String> exec(Map<String, String> seqDatabase, String seqQueryFilepath, Mapper.Context context) throws IOException, InterruptedException {
@@ -316,34 +317,35 @@ public class BlatCommand {
         Configuration conf = new Configuration();
         FileSystem fs = FileSystem.get(conf);
 
-        Path filenamePath = new Path(seqQueryFilepath);
 
-        if (!fs.exists(filenamePath)) {
-            throw new IOException("file not found: " + seqQueryFilepath);
+        for (Path filenamePath :  MetaUtils.findAllPaths(new Path(seqQueryFilepath))) {
+            if (!fs.exists(filenamePath)) {
+                throw new IOException("file not found: " + seqQueryFilepath);
+            }
+
+            FSDataInputStream in = fs.open(filenamePath);
+            BufferedReader bufRead
+                    = new BufferedReader(new InputStreamReader(in));
+
+            /*
+            Filter FileReader through a Buffered read to read a line at a time
+            */
+
+            String line = bufRead.readLine();    // String that holds current file line
+
+            /*
+            read the line into key/value with key being the first column, value is all the
+            remaining columns
+            */
+            while (line != null) {
+                numGroups++;
+                String[] a = line.split("\t", 2);
+                l.put(a[0], a[1]);
+                numReads += a[1].split("\t").length;
+                line = bufRead.readLine();
+            }
+            bufRead.close();
         }
-
-        FSDataInputStream in = fs.open(filenamePath);
-        BufferedReader bufRead
-                = new BufferedReader(new InputStreamReader(in));
-
-        /*
-        Filter FileReader through a Buffered read to read a line at a time
-        */
-
-        String line = bufRead.readLine();    // String that holds current file line
-
-        /*
-       read the line into key/value with key being the first column, value is all the
-       remaining columns
-        */
-        while (line != null) {
-            numGroups++;
-            String[] a = line.split("\t", 2);
-            l.put(a[0], a[1]);
-            numReads += a[1].split("\t").length;
-            line = bufRead.readLine();
-        }
-        bufRead.close();
 
         if (context != null) context.getCounter("blat.input", "NUMBER_OF_INPUT_READS").increment(numReads);
         if (context != null) context.getCounter("blat.input", "NUMBER_OF_INPUT_GROUPS").increment(numGroups);

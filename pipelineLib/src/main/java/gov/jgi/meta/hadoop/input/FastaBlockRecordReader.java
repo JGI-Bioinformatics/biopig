@@ -120,8 +120,10 @@ public class FastaBlockRecordReader extends RecordReader<Text, Map<String,String
     }
     if (value == null) {
       value = new HashMap<String,String>();
-
+    } else {
+        value.clear();
     }
+
     int newSize = 0;
     while (pos < end) {
       key.set(Long.toString(pos));
