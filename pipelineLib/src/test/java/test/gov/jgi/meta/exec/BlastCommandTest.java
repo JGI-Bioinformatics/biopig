@@ -65,6 +65,75 @@ public class BlastCommandTest extends TestCase {
        Assert.assertTrue(r.size() > 0);
    }
 
+    public void testBlastUseEffectiveSize()
+   {
+      Configuration conf = new Configuration();
+
+      conf.addResource("test-conf.xml");
+      conf.setBoolean("blast.useeffectivesize", true);
+       conf.setLong("blast.effectivedatabasesize", 1000000L);
+
+      /*
+       * process arguments
+       */
+
+      Map<String, String> l = new HashMap<String, String>();
+      Set<String> r = null;
+
+       try {
+      Text t       = new Text();
+      FileInputStream fstream = new FileInputStream("target/test-classes/1M.fas");
+      FastaBlockLineReader in      = new FastaBlockLineReader(fstream);
+      int bytes = in.readLine(t, l);
+
+      BlastCommand b = new BlastCommand(conf);
+      r = b.exec(l, "target/test-classes/EC3.2.1.4.faa");
+      Assert.assertTrue(b.commandString.toString().indexOf("-z 1000000") > 0);
+           
+      b.cleanup();
+
+       } catch (Exception e) {
+           Assert.fail(e.toString());
+       }
+       // print last 10 lines of output
+       Assert.assertTrue(r.size() > 0);
+   }
+
+    public void testBlastUseScaledEValue()
+   {
+      Configuration conf = new Configuration();
+
+      conf.addResource("test-conf.xml");
+       conf.setBoolean("blast.usescaledevalue", true);
+       conf.setFloat("blast.useevalue", 100.0F);
+       conf.setLong("blast.effectivedatabasesize", 10000000L);
+
+      /*
+       * process arguments
+       */
+
+      Map<String, String> l = new HashMap<String, String>();
+      Set<String> r = null;
+
+       try {
+      Text t       = new Text();
+      FileInputStream fstream = new FileInputStream("target/test-classes/1M.fas");
+      FastaBlockLineReader in      = new FastaBlockLineReader(fstream);
+      int bytes = in.readLine(t, l);
+
+      BlastCommand b = new BlastCommand(conf);
+      r = b.exec(l, "target/test-classes/EC3.2.1.4.faa");
+      Assert.assertTrue(b.commandString.toString().indexOf("-e 10.48") > 0);
+      b.cleanup();
+
+       } catch (Exception e) {
+           Assert.fail(e.toString());
+       }
+       // print last 10 lines of output
+       Assert.assertTrue(r.size() > 0);
+   }
+
+
     public void testMakeSureTempFilesAreCleanedUp() {
 
         File s = null;

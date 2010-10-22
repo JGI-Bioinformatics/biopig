@@ -108,6 +108,9 @@ public class BlastCommand {
    String tmpDir     = DEFAULTTMPDIR;
    File   tmpDirFile = null;
 
+
+   public StringBuffer commandString = null;
+
    /**
     * the contents of the stdout after executing the command
     */
@@ -135,6 +138,10 @@ public class BlastCommand {
    long effectiveSize = 0;
 
    long databasesize = 0;
+
+   Boolean useScaledEValue = false;
+   Boolean useEffectiveSize = false;
+   float useEValue = 10;
 
    /**
     * new blast command based on default parameters
@@ -184,7 +191,11 @@ public class BlastCommand {
       }
 
       docleanup     = config.getBoolean("blast.cleanup", true);
+
       effectiveSize = config.getLong("blast.effectivedatabasesize", 0);
+      useScaledEValue = config.getBoolean("blast.usescaledevalue", false);
+      useEffectiveSize = config.getBoolean("blast.useeffectivesize", false);
+      useEValue = config.getFloat("blast.useevalue", 10F);
 
       /*
        * do sanity check to make sure all paths exist
@@ -379,9 +390,20 @@ public class BlastCommand {
       commands.add("/bin/sh");
       commands.add("-c");
 
-      double ecutoff = (10.0 * databasesize / effectiveSize);
-      ecutoff = 0;    // don't do this for now
-      commands.add("cd " + tmpDirFile.getPath() + "; " + commandPath + " " + commandLine + " -z " + effectiveSize + " -e " + ecutoff + " -d " + seqDir + " -i " + localCazyEC);
+      commandString = new StringBuffer();
+
+       commandString.append("cd " + tmpDirFile.getPath() + "; " + commandPath + " " + commandLine);
+       if (this.useEffectiveSize) {
+           commandString.append(" -z " + effectiveSize);
+       }
+       double ecutoff = this.useEValue;
+       if (this.useScaledEValue) {
+           ecutoff = (ecutoff * databasesize / effectiveSize);
+       }
+       commandString.append(" -e " + ecutoff);
+       commandString.append(" -d " + seqDir + " -i " + localCazyEC);
+
+      commands.add(commandString.toString());
 
       // TODO: remove the try statement to throw exception in case of failure
 

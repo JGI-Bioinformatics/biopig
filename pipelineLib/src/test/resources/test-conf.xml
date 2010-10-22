@@ -18,6 +18,11 @@
     -->
 
     <property>
+        <name>mapred.child.java.opts</name>
+        <value>-Xmx1G</value>
+    </property>
+
+    <property>
         <name>blast.commandpath</name>
         <value>blastall</value>
     </property>
@@ -39,7 +44,27 @@
         <value>cap3</value>
     </property>
 
-    
+    <property>
+        <name>assembler.command</name>
+        <value>cap3</value>
+    </property>
+
+    <property>
+         <name>cap3.commandpath</name>
+        <value>/Users/dev/local/bin/cap3</value>
+    </property>
+
+    <property>
+         <name>velvetg.commandpath</name>
+        <value>/Users/dev/local/bin/velvetg</value>
+    </property>
+
+    <property>
+         <name>velveth.commandpath</name>
+        <value>/Users/dev/local/bin/velveth</value>
+    </property>
+
+
     <!--
     <property>
         <name>formatdb.commandline</name>

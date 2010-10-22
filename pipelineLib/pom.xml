@@ -173,7 +173,14 @@
 
                 </configuration>
             </plugin>
-
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId> 
+                <configuration>
+                    <argLine>-Xmx1050m -XX:MaxPermSize=128M</argLine>
+                </configuration>
+            </plugin>
+           
         </plugins>
     </build>
 </project>

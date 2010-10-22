@@ -126,7 +126,7 @@ public class BlatCommand {
         commandPath = DEFAULTCOMMANDPATH;
         tmpDir = DEFAULTTMPDIR;
 
-        tmpDirFile = createTempDir();
+        tmpDirFile = MetaUtils.createTempDir(tmpDir);
 
     }
 
@@ -173,7 +173,7 @@ public class BlatCommand {
         if all is good, create a working space inside tmpDir
          */
 
-        tmpDirFile = createTempDir();
+        tmpDirFile = MetaUtils.createTempDir(tmpDir);
 
     }
 
@@ -183,7 +183,7 @@ public class BlatCommand {
     public void cleanup() {
         
         if (tmpDirFile != null) {
-            if (doCleanup) recursiveDelete(tmpDirFile);
+            if (doCleanup) MetaUtils.recursiveDelete(tmpDirFile);
             tmpDirFile = null;
         }
     }
@@ -531,58 +531,7 @@ public class BlatCommand {
     }
 
 
-    /**
-     * Create a new temporary directory. Use something like
-     * {@link #recursiveDelete(java.io.File)} to clean this directory up since it isn't
-     * deleted automatically
-     *
-     * @return the new directory
-     * @throws java.io.IOException if there is an error creating the temporary directory
-     */
-    public File createTempDir() throws IOException {
-        final File sysTempDir = new File(tmpDir);
-        File newTempDir;
-        final int maxAttempts = 9;
-        int attemptCount = 0;
-        do {
-            attemptCount++;
-            if (attemptCount > maxAttempts) {
-                throw new IOException(
-                        "The highly improbable has occurred! Failed to " +
-                                "create a unique temporary directory after " +
-                                maxAttempts + " attempts.");
-            }
-            String dirName = UUID.randomUUID().toString();
-            newTempDir = new File(sysTempDir, dirName);
-        } while (newTempDir.exists());
-
-        if (newTempDir.mkdirs()) {
-            return newTempDir;
-        } else {
-            throw new IOException(
-                    "Failed to create temp dir named " +
-                            newTempDir.getAbsolutePath());
-        }
-    }
-
-    /**
-     * Recursively delete file or directory
-     *
-     * @param fileOrDir the file or dir to delete
-     * @return true iff all files are successfully deleted
-     */
-    public boolean recursiveDelete(File fileOrDir) {
-        if (fileOrDir.isDirectory()) {
-            // recursively delete contents
-            for (File innerFile : fileOrDir.listFiles()) {
-                if (!recursiveDelete(innerFile)) {
-                    return false;
-                }
-            }
-        }
-
-        return fileOrDir.delete();
-    }
+ 
 
     public static void main(String[] args) throws Exception {
 
