@@ -351,12 +351,9 @@ public class MetaUtils {
         if (fileOrDir.isDirectory()) {
             // recursively delete contents
             for (File innerFile : fileOrDir.listFiles()) {
-                if (!recursiveDelete(innerFile)) {
-                    return false;
-                }
+                recursiveDelete(innerFile);
             }
         }
-
         return fileOrDir.delete();
     }
 

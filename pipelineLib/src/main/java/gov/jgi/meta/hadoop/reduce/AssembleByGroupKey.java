@@ -81,8 +81,8 @@ public class AssembleByGroupKey extends Reducer<Text, Text, Text, Text> {
     */
    protected void setup(Context context) throws IOException
    {
-      log.debug("initializing reducer class for job: " + context.getJobName());
-      log.debug("\tinitializing reducer on host: " + InetAddress.getLocalHost().getHostName());
+      log.info("initializing reducer class for job: " + context.getJobName());
+      log.info("\tinitializing reducer on host: " + InetAddress.getLocalHost().getHostName());
 
       String assembler = context.getConfiguration().get("assembler.command", "velvet");
       assemblerKeepTopHitOnly           = context.getConfiguration().getBoolean("assembler.keeptophit", false);
@@ -102,7 +102,19 @@ public class AssembleByGroupKey extends Reducer<Text, Text, Text, Text> {
       {
          throw new IOException("no assembler command provided");
       }
+       log.info("done with setup");
    }
+
+
+    protected void finalize() throws Throwable {
+         /*
+         delete the tmp files if they exist
+          */
+         cleanup(null);
+
+         super.finalize();
+     }
+
 
    /**
     * free resource after mapper has finished, ie close socket to cassandra server
@@ -111,7 +123,11 @@ public class AssembleByGroupKey extends Reducer<Text, Text, Text, Text> {
     */
    protected void cleanup(Context context)
    {
-      if (assemblerCmd != null) { assemblerCmd.cleanup(); }
+       log.info("cleaning up");
+      if (assemblerCmd != null) {
+          assemblerCmd.cleanup();
+          assemblerCmd = null;
+      }
    }
 
    /**
@@ -124,8 +140,8 @@ public class AssembleByGroupKey extends Reducer<Text, Text, Text, Text> {
 
 //            context.getCounter(AssemblyCounters.NUMBER_OF_GROUPS).increment(1);
 
-      log.debug("running reducer class for job: " + context.getJobName());
-      log.debug("\trunning reducer on host: " + InetAddress.getLocalHost().getHostName());
+      log.info("running reducer class for job: " + context.getJobName());
+      log.info("\trunning reducer on host: " + InetAddress.getLocalHost().getHostName());
 
       /*
        * execute the blast command
@@ -179,8 +195,6 @@ public class AssembleByGroupKey extends Reducer<Text, Text, Text, Text> {
       s = new TreeMap<String, String>(bvc);
       s.putAll(tmpmap);
 
-
-      if (s == null) { return; }
 
       /*
        * assember must have been successful

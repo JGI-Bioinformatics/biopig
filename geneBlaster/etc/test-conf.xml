@@ -75,7 +75,7 @@
 
     <property>
         <name>assembler.command</name>
-        <value>cap3</value>
+        <value>velvet</value>
     </property>
 
     

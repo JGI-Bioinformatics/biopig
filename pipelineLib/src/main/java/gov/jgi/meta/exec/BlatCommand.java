@@ -459,9 +459,9 @@ public class BlatCommand {
             stdout = commandExecutor.getStandardOutputFromCommand().toString();
             stderr = commandExecutor.getStandardErrorFromCommand().toString();
 
-            log.info("exit = " + exitValue);
-            log.info("stdout = " + stdout);
-            log.info("stderr = " + stderr);
+            log.debug("exit = " + exitValue);
+            log.debug("stdout = " + stdout);
+            log.debug("stderr = " + stderr);
 
 
             /*
@@ -469,7 +469,7 @@ public class BlatCommand {
             */
 
 
-                log.info("reading outputfile: " + tmpDirFile.getPath() + "/blat.output");
+                log.debug("reading outputfile: " + tmpDirFile.getPath() + "/blat.output");
 
                 FileReader input = new FileReader(tmpDirFile.getPath() + "/blat.output");
 
@@ -499,7 +499,7 @@ public class BlatCommand {
 
                 bufRead2.close();
 
-                log.info("done reading file");
+                log.debug("done reading file");
 
             /*
             should clean up - note: files get overwritten, so don't worry about it. :-)

@@ -164,6 +164,7 @@ public class BlastCommand {
     */
    public BlastCommand(Configuration config) throws IOException
    {
+       log.info("initializing");
       String c;
 
       log.info("initializing new blast command");
@@ -209,6 +210,8 @@ public class BlastCommand {
        */
 
       tmpDirFile = MetaUtils.createTempDir(tmpDir);
+
+       log.info("done initializing: tmp dir = " + tmpDirFile);
    }
 
    public File getTmpDir () { return tmpDirFile; }
@@ -248,6 +251,7 @@ public class BlastCommand {
     */
    public void cleanup()
    {
+       log.info("cleaning up");
       if (this.docleanup)
       {
          if (tmpDirFile != null)
@@ -256,6 +260,7 @@ public class BlastCommand {
             tmpDirFile = null;
          }
       }
+       log.info("finished cleaning up");
    }
 
   
@@ -271,6 +276,7 @@ public class BlastCommand {
     */
    private String execFormatDB(Map<String, String> seqList) throws IOException, InterruptedException
    {
+       log.info("running formatdb");
       BufferedWriter out;
 
       log.debug("blastcmd: formating the sequence db using formatdb");
@@ -310,7 +316,7 @@ public class BlastCommand {
       commands.add("-c");
       commands.add("export TMPDIR=" + tmpDirFile.getPath() + "; cd " + tmpDirFile.getPath() + ";" + formatdbCommandPath + " " + formatdbCommandLine + " -i " + seqFile.getPath() + " -n " + "seqfile");
 
-      log.debug("blastcmd: formatdbcommand = " + commands);
+      log.info("blastcmd: formatdbcommand = " + commands);
 
       SystemCommandExecutor commandExecutor = new SystemCommandExecutor(commands);
       int r = commandExecutor.executeCommand();
@@ -318,6 +324,8 @@ public class BlastCommand {
       log.debug("return value = " + r);
       log.debug("stdout = " + commandExecutor.getStandardOutputFromCommand().toString());
       log.debug("stderr = " + commandExecutor.getStandardErrorFromCommand().toString());
+
+       log.info("done with formatdb, exit value = " + r);
 
       return(seqFile.getPath());
    }
@@ -332,6 +340,8 @@ public class BlastCommand {
     */
    private String copyDBFile(String dfsPath) throws IOException
    {
+       log.info("copiing database to file");
+
       Configuration conf = new Configuration();
       FileSystem    fs   = FileSystem.get(conf);
 
@@ -360,6 +370,7 @@ public class BlastCommand {
       in.close();
       out.close();
 
+       log.info("done with data copy");
       return(localFile.getPath());
    }
 
@@ -375,6 +386,7 @@ public class BlastCommand {
     */
    public Set<String> exec(Map<String, String> seqMap, String cazyEC) throws IOException, InterruptedException
    {
+       log.info("starting exec");
       String seqDir      = execFormatDB(seqMap);
       String localCazyEC = copyDBFile(cazyEC);
 
@@ -403,11 +415,12 @@ public class BlastCommand {
        commandString.append(" -e " + ecutoff);
        commandString.append(" -d " + seqDir + " -i " + localCazyEC);
 
+       log.info("command = " + commandString.toString());
+
       commands.add(commandString.toString());
 
       // TODO: remove the try statement to throw exception in case of failure
 
-         log.debug("command = " + commands);
          SystemCommandExecutor commandExecutor = new SystemCommandExecutor(commands);
          exitValue = commandExecutor.executeCommand();
 
@@ -432,6 +445,7 @@ public class BlastCommand {
 
       s.addAll(Arrays.asList(lines));
 
+       log.info("done with exec, exit value = " + exitValue);
       return(s);
    }
 

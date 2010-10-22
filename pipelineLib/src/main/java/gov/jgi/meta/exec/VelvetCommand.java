@@ -143,6 +143,7 @@ public class VelvetCommand implements CommandLineProgram {
      * new blast command based on default parameters
      */
     public VelvetCommand() throws IOException {
+        log.info("initializing");
         // look in configuration file to determine default values
         velveth_commandLine = DEFAULT_VELVETH_COMMANDLINE;
         velvetg_commandLine = DEFAULT_VELVETG_COMMANDLINE;
@@ -164,7 +165,7 @@ public class VelvetCommand implements CommandLineProgram {
      *               for commandline options and paths
      */
     public VelvetCommand(Configuration config) throws IOException {
-
+        log.info("initializing");
         String c;
 
         if ((c = config.get("velveth.commandline")) != null) {
@@ -222,7 +223,7 @@ public class VelvetCommand implements CommandLineProgram {
         /*
         delete the tmp files if they exist
          */
-        log.info("deleting tmp file: " + tmpDirFile.getPath());
+
 
         cleanup();
 
@@ -274,10 +275,14 @@ public class VelvetCommand implements CommandLineProgram {
 
 
     public void cleanup() {
-
+        log.info("cleaning up " + tmpDirFile.getPath());
         if (this.doCleanup) {
             if (tmpDirFile != null) {
-                MetaUtils.recursiveDelete(tmpDirFile);
+                Boolean r;
+                r = MetaUtils.recursiveDelete(new File(tmpDirFile.getPath() + "/sillyDirectory"));
+                if (!r) log.info("unable to delete " + tmpDirFile.getPath() + "/sillyDirectory");
+                r = MetaUtils.recursiveDelete(tmpDirFile);
+                if (!r) log.info("unable to delete " + tmpDirFile.getPath());                
                 tmpDirFile = null;
             }
         }
@@ -332,7 +337,7 @@ public class VelvetCommand implements CommandLineProgram {
         commands.add(velveth_commandPath + " " + tmpDirFile.getPath() + "/sillyDirectory " +
                 velveth_commandLine + " " + seqFilepath + " ; " +
                 velvetg_commandPath + " " + tmpDirFile.getPath() + "/sillyDirectory " +
-                velvetg_commandLine);
+                velvetg_commandLine + "; chmod 777 "  + tmpDirFile.getPath() + "/sillyDirectory");
 
         log.info("command = " + commands);
 
@@ -367,7 +372,12 @@ public class VelvetCommand implements CommandLineProgram {
             FileInputStream fstream = new FileInputStream(tmpDirFile.getPath()+"/sillyDirectory/contigs.fa");
             FastaBlockLineReader in = new FastaBlockLineReader(fstream);
             int bytes = in.readLine(t, s);
-
+        in.close();
+        in = null;
+        fstream.close();
+        fstream = null;
+        System.gc();
+        
         return s;
     }
 

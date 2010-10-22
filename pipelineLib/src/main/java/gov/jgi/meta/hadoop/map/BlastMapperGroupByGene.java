@@ -55,27 +55,23 @@ import java.util.Set;
 
 public class BlastMapperGroupByGene
 extends Mapper<Object, Map<String, String>, Text, Text> {
-   static Logger log            = Logger.getLogger(BlastMapperGroupByGene.class );
+   Logger log;
    BlastCommand  blastCmd       = null;
-   BlatCommand   blatCmd        = null;
    String        geneDBFilePath = null;
    Boolean       isPaired       = true;
 
    protected void setup(Context context) throws IOException, InterruptedException
    {
       //MetaUtils.configureLog4j();
-      if (context.getConfiguration().getBoolean("debug", false)) {
-          System.out.println("setting logger to debug");
-          log.setLevel(Level.DEBUG);
-      }
+      log = Logger.getLogger(BlastMapperGroupByGene.class );
+      log.info("setting up");
 
       blastCmd = new BlastCommand(context.getConfiguration());
-      blatCmd  = new BlatCommand(context.getConfiguration());
 
       geneDBFilePath = context.getConfiguration().get("blast.genedbfilepath");
       isPaired       = context.getConfiguration().getBoolean("blast.readsarepaired", true);
 
-      if ((blastCmd == null) || (blatCmd == null))
+      if ((blastCmd == null))
       {
          throw new IOException("unable to create commandline executables");
       }
@@ -90,20 +86,27 @@ extends Mapper<Object, Map<String, String>, Text, Text> {
          throw new IOException("file (" + geneDBFilePath + ") does not exist or is not a regular file");
       }
 
+      log.info("setup complete");
 
    }
 
 
    protected void cleanup(Context context) throws IOException
    {
-      if (blastCmd != null) { blastCmd.cleanup(); }
-      if (blatCmd != null) { blatCmd.cleanup(); }
+      log.info("cleaning up");
+      if (blastCmd != null) {
+          blastCmd.cleanup();
+          blastCmd = null;
+      }
       geneDBFilePath = null;
+      log.info("cleanup complete");
    }
 
 
    public void map(Object key, Map<String, String> value, Context context) throws IOException, InterruptedException
    {
+      log.info("map started");
+
       context.getCounter("map", "NUMBER_OF_READS").increment(value.size());
 
       /*
@@ -147,7 +150,7 @@ extends Mapper<Object, Map<String, String>, Text, Text> {
           * blast returns the stdout, line by line.  the output is split by tab and
           * the first column is the id of the gene, second column is the read id
           */
-         System.out.println("blast output line = " + k);
+         //System.out.println("blast output line = " + k);
 
          String[] a = k.split("\t");
 
@@ -165,5 +168,7 @@ extends Mapper<Object, Map<String, String>, Text, Text> {
             context.write(new Text(a[0]), new Text(a[1]));
          }
       }
+      log.info("map complete");
    }
+
 }

@@ -75,12 +75,20 @@ extends Mapper<Object, Map<String, String>, Text, Text> {
    protected void setup(Context context)
    throws IOException, InterruptedException
    {
-      log.debug("initializing map task for job: " + context.getJobName());
-      log.debug("initializing maptask on host: " + InetAddress.getLocalHost().getHostName());
+      log.info("initializing map task for job: " + context.getJobName());
+      log.info("initializing maptask on host: " + InetAddress.getLocalHost().getHostName());
 
       blatCmd = new BlatCommand(context.getConfiguration());
    }
 
+    protected void finalize() throws Throwable {
+         /*
+         delete the tmp files if they exist
+          */
+         cleanup(null);
+
+         super.finalize();
+     }
 
    /**
     * free resource after mapper has finished, ie close socket to cassandra server
@@ -89,10 +97,11 @@ extends Mapper<Object, Map<String, String>, Text, Text> {
     */
    protected void cleanup(Context context) throws IOException
    {
-      log.debug("deleting map task for job: " + context.getJobName() + " on host: " + InetAddress.getLocalHost().getHostName());
+      log.info("deleting map task for job: " + context.getJobName() + " on host: " + InetAddress.getLocalHost().getHostName());
       if (blatCmd != null)
       {
          blatCmd.cleanup();
+         blatCmd = null;
       }
    }
 
@@ -108,7 +117,7 @@ extends Mapper<Object, Map<String, String>, Text, Text> {
     */
    public void map(Object key, Map<String, String> value, Context context) throws IOException, InterruptedException
    {
-      log.debug("map task started for job: " + context.getJobName() + " on host: " + InetAddress.getLocalHost().getHostName());
+      log.info("map task started for job: " + context.getJobName() + " on host: " + InetAddress.getLocalHost().getHostName());
 
       String  blastOutputFilePath = context.getConfiguration().get("blat.blastoutputfile");
       Boolean skipExecution       = context.getConfiguration().getBoolean("blat.skipexecution", false);
@@ -136,12 +145,14 @@ extends Mapper<Object, Map<String, String>, Text, Text> {
           */
          log.error(e);
          context.getCounter("map.blat", "NUMBER_OF_ERROR_BLATCOMMANDS").increment(1);
+         this.cleanup(context); 
          throw new IOException(e);
       }
       if (s == null)
       {
          log.info("unable to retrieve results of blat execution");
          context.getCounter("map.blat", "NUMBER_OF_ERROR_BLATCOMMANDS").increment(1);
+         this.cleanup(context);
          throw new IOException("unable to retrieve blat execution results");
       }
 
