@@ -51,6 +51,7 @@ Logger log = Logger.getLogger("meta")
  * the set of commands that are configured
  */
 
+
 commandList = [
         new blastCommand(),
         new dereplicateCommand(),
@@ -76,10 +77,18 @@ commandList.each { it -> commandMap[it.name()] = it }
  * @param args is the commandline argment as list
  * @return map file of the form ['-d': true, '-x': 'value']
  */
-Map processArgs(Set flags, Set params, List args) {
+Map processArgs(Set flags, Set params, List<String> args) {
   boolean error = false;
   Map options = [:]
 
+  //
+  // first process any java options of the form -Dxxx=yyy
+  //
+  args.each {a ->
+    if (a ==~ /^-D[\S]+(=[\S]+$)*/ ) {
+      options["java"] = (options["java"] ? options["java"] + " " + a : a);
+    }
+  }
   //
   // process the flags first
   //

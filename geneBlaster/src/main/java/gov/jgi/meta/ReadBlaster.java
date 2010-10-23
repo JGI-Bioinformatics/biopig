@@ -171,7 +171,7 @@ public class ReadBlaster {
             System.exit(2);
         }*/
 
-        conf.setLong("blast.effectivedbsize", databaseFileSize);
+        conf.setLong("blast.effectivedatabasesize", databaseFileSize);
         conf.set("blast.genedbfilepath", otherArgs[1]);
 
         /*

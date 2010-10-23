@@ -381,7 +381,9 @@ public class BlatCommand {
 
             log.info("processing group " + k);
 
-            if (context != null) context.setStatus("Executing Blat " + numBlats + "/" + totalBlats);
+            if (context != null) {
+                context.setStatus("Executing Blat " + numBlats + "/" + totalBlats);
+            }
             /*
            create a new file in temp direectory
             */

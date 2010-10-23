@@ -106,6 +106,7 @@ class contigkmerCommand implements command {
       String numiterations = (args.size() == 4 ? "1" : args[4]);
 
       command.append(" " + jar )
+      command.append(" " + options["java"]);
       command.append(" " + args[1] + " " + args[2] + " " + args[3] + " " + numiterations)
 
       /*

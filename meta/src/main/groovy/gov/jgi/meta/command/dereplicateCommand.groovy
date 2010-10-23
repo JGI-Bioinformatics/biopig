@@ -105,6 +105,7 @@ class dereplicateCommand implements command {
       ).sort {it.lastModified() }.reverse()[0];
 
       command.append(" " + jar )
+      command.append(" " + options["java"]);
       command.append(" " + args[1] + " " + args[2])
 
       /*

@@ -142,31 +142,36 @@ extends Mapper<Object, Map<String, String>, Text, Text> {
       context.getCounter("blast", "NUMBER_OF_SUCCESSFUL_BLASTCOMMANDS").increment(1);
       context.getCounter("blast", "NUMBER_OF_MATCHED_READS_AFTER_BLAST").increment(s.size());
 
-       log.debug("blast retrieved " + s.size() + " results");
+      log.info("blast retrieved " + s.size() + " results");
 
-      for (String k : s)
-      {
-         /*
+      if (s.size() > 0) {
+          for (String k : s)
+          {
+              /*
           * blast returns the stdout, line by line.  the output is split by tab and
           * the first column is the id of the gene, second column is the read id
           */
          //System.out.println("blast output line = " + k);
 
-         String[] a = k.split("\t");
+              if (k.indexOf("\t") < 0) continue;
+              
+              String[] a = k.split("\t");
 
-         /*
+
+              /*
           * note that we strip out the readid direction.  that is, we don't care if the
           * read is a forward read (id/1) or backward (id/2).
           */
 
-         if (isPaired)
-         {
-            context.write(new Text(a[0]), new Text(a[1].split("/")[0]));
-         }
-         else
-         {
-            context.write(new Text(a[0]), new Text(a[1]));
-         }
+              if (isPaired)
+              {
+                  context.write(new Text(a[0]), new Text(a[1].split("/")[0]));
+              }
+              else
+              {
+                  context.write(new Text(a[0]), new Text(a[1]));
+              }
+          }
       }
       log.info("map complete");
    }

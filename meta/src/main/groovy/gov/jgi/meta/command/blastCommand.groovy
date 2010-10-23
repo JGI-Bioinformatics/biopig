@@ -114,6 +114,7 @@ class blastCommand implements command {
       ).sort {it.lastModified() }.reverse()[0];
 
       command.append(" " + jar + " gov.jgi.meta.ReadBlaster")
+      command.append(" " + options["java"]);
       command.append(" " + (args[1] ? args[1] : "") + " " + args[2] + " " + args[3])
 
       /*
