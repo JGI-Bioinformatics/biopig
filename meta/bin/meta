@@ -85,9 +85,10 @@ Map processArgs(Set flags, Set params, List<String> args) {
   // first process any java options of the form -Dxxx=yyy
   //
   newargs = [];
+  options["java"] = "";
   args.each {a ->
     if (a ==~ /^-D[\S]+(=.*)+$/ ) {
-      options["java"] = (options["java"] ? options["java"] + " " + a : a);
+      options["java"] = options["java"] + " " + a;
     } else {
       newargs.add(a);
     }
