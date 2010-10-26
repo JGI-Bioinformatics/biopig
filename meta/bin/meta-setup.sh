@@ -4,7 +4,22 @@
 # bash script to setup the meta environment
 #
 
-# the root of the Pig installation
+#
+# first check to see if java is setup, if not, use the jgi-specific location
+#
+if [! -n $JAVA_HOME ]; then
+    export JAVA_HOME=/jgi/tools/SUN/jdk/DEFAULT
+    export JDK_HOME=/jgi/tools/SUN/jdk/DEFAULT
+fi
+
+#
+# now do the same with groovy
+#
+if [! -n $JAVA_HOME ]; then
+   export GROOVY_HOME=/jgi/tools/lang/groovy/current/
+   export GROOVY_CONF=~/.groovy/groovy-starter.conf
+   export PATH=${PATH}:${GROOVY_HOME}/bin
+fi
 
 # resolve links - $0 may be a softlink
 this="${BASH_SOURCE-$0}"
@@ -24,7 +39,6 @@ script=`basename "$this"`
 bin=`unset CDPATH; cd "$bin"; pwd`
 this="$bin/$script"
 export META_HOME=`dirname "$this"`/..
-
 echo "setting META_HOME = ${META_HOME}"
 
 export PATH=${META_HOME}/bin:${PATH}
@@ -74,7 +88,8 @@ if [ -f "${HOME}/.groovy/groovy-starter.conf" ]; then
 else
 
     echo "creating ${HOME}/.groovy/groovy-starter.conf"
-    
+    mkdir ${HOME}/.groovy
+
     echo -e "# load required libraries
 load !{groovy.home}/lib/*.jar
 # load user specific libraries
