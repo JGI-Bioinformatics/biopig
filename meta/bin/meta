@@ -84,11 +84,16 @@ Map processArgs(Set flags, Set params, List<String> args) {
   //
   // first process any java options of the form -Dxxx=yyy
   //
+  newargs = [];
   args.each {a ->
-    if (a ==~ /^-D[\S]+(=[\S]+$)*/ ) {
+    if (a ==~ /^-D[\S]+(=.*)+$/ ) {
       options["java"] = (options["java"] ? options["java"] + " " + a : a);
+    } else {
+      newargs.add(a);
     }
   }
+  args = newargs;
+
   //
   // process the flags first
   //
@@ -166,6 +171,7 @@ commandList.each { c ->
 
 log.debug("flags = " + flags);
 log.debug("params = " + params);
+log.debug("largs = " + largs);
 
 def options = processArgs(flags, params, largs)
 

@@ -191,6 +191,14 @@ public class AssembleByGroupKey extends Reducer<Text, Text, Text, Text> {
       context.getCounter("reduce", "NUMBER_OF_UNIQUE_GROUPS").increment(1);
 
       Map<String, String> tmpmap = assemblerCmd.exec(groupId, map, context);
+
+      if (tmpmap.size() == 0) {
+         
+         log.info("assembler retrieved 0 results");
+         return;
+
+      }
+
       ValueComparator     bvc    = new ValueComparator(tmpmap);
       s = new TreeMap<String, String>(bvc);
       s.putAll(tmpmap);

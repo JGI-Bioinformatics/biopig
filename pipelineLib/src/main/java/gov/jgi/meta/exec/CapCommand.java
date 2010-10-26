@@ -234,7 +234,7 @@ public class CapCommand implements CommandLineProgram {
             /*
             return with fail
              */
-            return null;
+            throw new IOException("unable to find file: " + tmpDirFile+"/reads.fa");
         }
 
         if (context != null) context.setStatus("running cap3 with " + seqDatabase.size() + " reads");
@@ -275,7 +275,7 @@ public class CapCommand implements CommandLineProgram {
 
         } catch (Exception e) {
             log.error("unable to find outputfile:" + e);
-            return null;
+            throw new IOException(e);
         }
 
         return s;

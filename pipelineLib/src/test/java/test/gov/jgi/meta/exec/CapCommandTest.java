@@ -118,7 +118,28 @@ public class CapCommandTest extends TestCase {
         }
     }
 
-   
+
+    public void testExecNoContigs() throws Exception {
+
+     Configuration conf = new Configuration();
+     conf.addResource("test-conf.xml");
+
+     CapCommand assemblerCmd = new CapCommand(conf);
+
+     Map<String, String> value = MetaUtils.readSequences("target/test-classes/test2.fa");
+
+       try {
+
+          Map<String, String> tmpmap = assemblerCmd.exec("test", value, null);
+          assemblerCmd.cleanup();
+          Assert.assertTrue(tmpmap.size() == 0);
+
+       } catch (Exception e) {
+          Assert.fail(e.toString());
+       }
+
+
+    }
     public static Test suite() {
         return new TestSuite(CapCommandTest.class);
     }

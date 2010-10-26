@@ -1,0 +1,115 @@
+<?xml version="1.0" ?>
+
+<configuration>
+
+    <!-- titanium currently has 112 map slots and 112 reduce slots -->
+    <property>
+        <name>meta.parallel.min</name>
+        <value>112</value>
+    </property>
+
+    <property>
+        <name>blast.usescaledevalue</name>
+        <value>true</value>
+    </property>
+
+    <property>
+        <name>blast.useeffectivesize</name>
+        <value>true</value>
+    </property>
+
+    <property>
+        <name>mapred.min.split.size</name>
+        <value>5000</value>
+    </property>
+
+    <property>
+        <name>mapred.child.java.opts</name>
+        <value>-Xmx2000m</value>
+    </property>
+
+    <property>
+        <name>mapred.task.timeout</name>
+        <value>162000000</value>
+    </property>
+
+    <property>
+        <name>blast.commandline</name>
+        <value> -m 8 -p tblastn -b 1000000</value>
+    </property>
+
+    <property>
+        <name>blast.commandpath</name>
+        <value>/jgi/tools/bin/blastall</value>
+    </property>
+
+    <property>
+        <name>formatdb.commandpath</name>
+        <value>/jgi/tools/bin/formatdb</value>
+    </property>
+
+    <property>
+        <name>formatdb.commandline</name>
+        <value>-o T -p F -s</value>
+    </property>
+
+    <!-- path to a temporary directory in which to do all the work
+      default is "/tmp/blast"
+    -->
+    <property>
+        <name>blast.tmpdir</name>
+        <value>/ifs/scratch/kbhatia/tmp</value>
+    </property>
+
+    <property>
+        <name>blast.cleanup</name>
+        <value>true</value>
+    </property>
+
+    <property>
+        <name>blat.tmpdir</name>
+        <value>/ifs/scratch/kbhatia/tmp</value>
+    </property>
+
+    <property>
+        <name>blat.cleanup</name>
+        <value>true</value>
+    </property>
+
+    <property>
+        <name>blat.skipexecution</name>
+        <value>false</value>
+    </property>
+
+    <property>
+        <name>blat.paired</name>
+        <value>true</value>
+    </property>
+
+    <property>
+        <name>assembler.tmpdir</name>
+        <value>/ifs/scratch/kbhatia/tmp</value>
+    </property>
+
+    <property>
+        <name>assembler.command</name>
+        <value>velvet</value>
+    </property>
+
+    <property>
+        <name>velveth.commandpath</name>
+        <value>/jgi/tools/bin/velveth</value>
+    </property>
+
+   <property>
+        <name>velvetg.commandpath</name>
+        <value>/jgi/tools/bin/velvetg</value>
+    </property>
+
+    <property>
+        <name>assembly.cleanup</name>
+        <value>true</value>
+    </property>
+
+</configuration>
+

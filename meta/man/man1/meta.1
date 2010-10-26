@@ -155,6 +155,11 @@ the sequences to produce a set set of contigs.
 
 .SS General Hadoop Parameters:
 
+.IP meta.parallel.min
+defines the degree of parallelization desired.  Based on this value and the size of the input files,
+.B meta
+sets the other hadoop parameters such that there are at least this many map and reduce tasks.
+
 .IP mapred.min.split.size
 defines the minimum size in bytes of each input split. used to control the maximum
 number of map tasks.  (eg if file size is 100 bytes and min is 10, then maximum number
@@ -162,7 +167,9 @@ of mappers is 10).
 
 .IP mapred.max.split.size
 defines the maximum size in bytes of each input split.  used to control the minimum
-number of map tasks.
+number of map tasks.  (use
+.I meta.parallel.min
+instead)
 
 .IP mapred.child.java.opts
 defines the java options for each compute task.  If you want to set the java heap size, use
@@ -183,6 +190,19 @@ For debugging purposes, you can set this to false and examine the tmp directory 
 and outputs.
 .IP blast.readsarepaired
 defaults to true.  When true, it optimizes matches to either read pair.
+.IP blast.usescaledevalue
+defaults to false.  Since
+.B meta
+chops up the sequence database into many chunks, setting this to true will scale the e-value as the fraction
+of the entire database.  For example, if the degree of parallelism is 10, then each blast execution will have
+a database of 1/10th the full database, hence the e-value will be scaled by 1/10.
+.IP blast.useevalue
+defaults to 10.  use this e-value instead of the default.  if scaling is turned on, this value will get scaled
+as described above.
+.IP blast.useeffectivesize
+defaults to false.  if true, adds a
+.I -z <effectivesize>
+to the blast commandline where the effective size is the full size of the database (not just the chunk being processed).
 
 .SS formatdb
 

@@ -122,7 +122,7 @@ extends Mapper<Object, Map<String, String>, Text, Text> {
       String  blastOutputFilePath = context.getConfiguration().get("blat.blastoutputfile");
       Boolean skipExecution       = context.getConfiguration().getBoolean("blat.skipexecution", false);
 
-      context.getCounter("map", "NUMBER_OF_READS").increment(value.size());
+         context.getCounter("map", "NUMBER_OF_READS").increment(value.size());
 
       /*
        * execute the blast command

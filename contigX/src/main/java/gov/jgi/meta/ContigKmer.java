@@ -494,7 +494,9 @@ public class ContigKmer {
          "assembler.readsizelimit",
          "assembler.removeidenticalsequences",
          "assembler.filterbysizespecial",
-         "assembler.command"
+         "assembler.command",
+         "cap3.commandline",
+         "cap3.commandpath",
       };
 
       MetaUtils.printConfiguration(conf, log, optionalProperties);
