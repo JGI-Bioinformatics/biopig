@@ -266,16 +266,24 @@ public class CapCommand implements CommandLineProgram {
             now parse the output and clean up
             */
 
+       FileInputStream fstream = null;
+       FastaBlockLineReader in = null;
+
         try {
 
             Text t = new Text();
-            FileInputStream fstream = new FileInputStream(tmpDirFile.getPath()+"/reads.fa.cap.contigs");
-            FastaBlockLineReader in = new FastaBlockLineReader(fstream);
+            fstream = new FileInputStream(tmpDirFile.getPath()+"/reads.fa.cap.contigs");
+            in = new FastaBlockLineReader(fstream);
             int bytes = in.readLine(t, s);
+
 
         } catch (Exception e) {
             log.error("unable to find outputfile:" + e);
             throw new IOException(e);
+        } finally {
+           if (fstream != null) fstream.close();
+           if (in != null) in.close();
+           System.gc();
         }
 
         return s;

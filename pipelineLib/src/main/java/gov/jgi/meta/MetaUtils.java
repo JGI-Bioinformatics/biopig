@@ -175,8 +175,10 @@ public class MetaUtils {
     }
 
     public static int countSequences(String contigFileName) throws IOException {
+       return countSequences(contigFileName, new Configuration());
+    }
 
-        Configuration conf = new Configuration();
+    public static int countSequences(String contigFileName, Configuration conf) throws IOException {
         FileSystem fs = FileSystem.get(conf);
         Path filenamePath = new Path(contigFileName);
         int count = 0;

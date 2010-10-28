@@ -79,6 +79,7 @@ public class ContigKmer {
       int numErrors;
       int maxContigSize;
 
+
       /**
        * reads all contigs from given file or directory and indexs them based on their kmers
        *
@@ -91,6 +92,8 @@ public class ContigKmer {
          FileSystem    fs           = FileSystem.get(conf);
          Path          filenamePath = new Path(contigFileName);
 
+         log.info("reading and indexing the contigs");
+
          if (!fs.exists(filenamePath))
          {
             throw new IOException("file not found: " + contigFileName);
@@ -100,12 +103,11 @@ public class ContigKmer {
          contigKmersFront = new HashMap < String, Set < String >> ();
          contigKmersRear  = new HashMap < String, Set < String >> ();
 
-
          /*
           * the contigs may be in multiple files (ala hadoop method), so lets
           * find all files in the directory if necessary
           */
-         context.setStatus("reading contig file(s)");
+
          for (Path f : MetaUtils.findAllPaths(filenamePath))
          {
             /*
@@ -120,12 +122,12 @@ public class ContigKmer {
 
             fblr.readLine(key, tmpcontigs, Integer.MAX_VALUE, (int)length);
             in.close();
+            log.info("read " + tmpcontigs.size() + " contigs, indexing with kmersize=" + kmerSize);
 
             /*
              * add the contigs from this file to the overall total
              */
             contigs.putAll(tmpcontigs);
-
 
             /*
              * now index the contigs in this file
@@ -160,6 +162,7 @@ public class ContigKmer {
                                        contigName);
                }
             }
+            log.info("done indexing");
          }
          //context.setStatus("calculating neighbors");
 
@@ -261,10 +264,9 @@ public class ContigKmer {
        * @throws IOException          if any file related error occures
        * @throws InterruptedException
        */
-      protected void setup(Context context)
-      throws IOException, InterruptedException
+      protected void setup(Context context)       throws IOException, InterruptedException
       {
-         context.setStatus("running map-setup");
+         log.info("running map-setup");
 
          /*
           * read parameters from the map context
@@ -279,6 +281,7 @@ public class ContigKmer {
           * read and index the contigs
           */
          readContigs(context, contigFileName);
+         log.info("done with setup");
       }
 
 
@@ -287,8 +290,6 @@ public class ContigKmer {
          String   sequence = s.seqString();
          Text     seqText  = new Text(seqid.toString() + "&" + sequence);
          ReadNode rn       = new ReadNode(seqid.toString(), "", sequence);
-
-         context.setStatus("indexing sequence ");
 
          if (!sequence.matches("[atgcn]*"))
          {
@@ -301,8 +302,6 @@ public class ContigKmer {
           */
          int         seqsize = sequence.length();
          Set<String> l       = new HashSet<String>();
-
-         //for (int i = 0; i <= seqsize - kmerSize; i++) {
 
          /*
           * first do the front
@@ -345,6 +344,9 @@ public class ContigKmer {
          /*
           * finally, output all the contigs that match this sequence.
           */
+         if (l.size() > 0) {
+            context.getCounter("contigkmer", "NUMBER_OF_READS_THAT_HIT_ANY_CONTIGS").increment(1);
+         }
 
          for (String contigMatch : l)
          {
@@ -364,62 +366,6 @@ public class ContigKmer {
           }
          return contigSet;
       }
-   }
-
-
-   public static class ContigKmerReducer extends Reducer<Text, ReadNode, Text, Text> {
-      Logger log = Logger.getLogger(this.getClass());
-
-      public void reduce(Text key, Iterable<ReadNode> values, Context context)
-      throws InterruptedException, IOException
-      {
-         String keyStr = key.toString();
-
-         HashMap<String, ReadNode> hs = new HashMap<String, ReadNode>();
-         for (ReadNode v : values)
-         {
-            if (hs.containsKey(v.sequence))
-            {
-               hs.get(v.sequence).count++;
-            }
-            else
-            {
-               hs.put(v.sequence, new ReadNode(v));
-            }
-         }
-
-         for (ReadNode s : hs.values())
-         {
-            context.write(new Text(">" + keyStr + "&" + s.id + " count=" + s.count), new Text("\n" + s.sequence));
-         }
-      }
-   }
-
-
-   static String findNewFiles(String inputDirectory, String outputDirectory) throws IOException
-   {
-      Configuration conf       = new Configuration();
-      FileSystem    fs         = FileSystem.get(conf);
-      Path          inputPath  = new Path(inputDirectory);
-      Path          outputPath = new Path(outputDirectory);
-
-      if (!fs.exists(inputPath) || !fs.getFileStatus(inputPath).isDir())
-      {
-         throw new IOException("directory not found: " + inputDirectory);
-      }
-
-      FileStatus[] fsArray = fs.listStatus(inputPath);
-      for (FileStatus file : fsArray)
-      {
-         if (file.getPath().getName().endsWith(".lock")) { continue; }
-         String output   = outputDirectory + "/" + file.getPath().getName() + ".out";
-         String lockfile = file.getPath() + ".lock";
-         if (!fs.exists(new Path(output)) && !fs.exists(new Path(lockfile)))
-         {
-            return(file.getPath().getName());
-         }
-      }
-      return(null);
    }
 
 

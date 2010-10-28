@@ -133,8 +133,7 @@ public class AssembleByGroupKey extends Reducer<Text, Text, Text, Text> {
    /**
     * main reduce step, simply string concatenates all values of a particular key with tab as seperator
     */
-   public void reduce(Text key, Iterable<Text> values, Context context)
-   throws InterruptedException, IOException
+   public void reduce(Text key, Iterable<Text> values, Context context)   throws InterruptedException, IOException
    {
 //            Text reads = new Text();
 

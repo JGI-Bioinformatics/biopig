@@ -368,16 +368,23 @@ public class VelvetCommand implements CommandLineProgram {
             now parse the output and clean up
          */
 
-            Text t = new Text();
-            FileInputStream fstream = new FileInputStream(tmpDirFile.getPath()+"/sillyDirectory/contigs.fa");
-            FastaBlockLineReader in = new FastaBlockLineReader(fstream);
-            int bytes = in.readLine(t, s);
-        in.close();
-        in = null;
-        fstream.close();
-        fstream = null;
-        System.gc();
-        
+       FileInputStream fstream = null;
+       FastaBlockLineReader in = null;
+
+       try {
+          Text t = new Text();
+          fstream = new FileInputStream(tmpDirFile.getPath()+"/sillyDirectory/contigs.fa");
+          in = new FastaBlockLineReader(fstream);
+          int bytes = in.readLine(t, s);
+       } catch (Exception e) {
+          log.error("unable to find outputfile:" + e);
+           throw new IOException(e);
+       } finally {
+          if (fstream != null) fstream.close();
+          if (in != null) in.close();
+          System.gc();
+       }
+
         return s;
     }
 

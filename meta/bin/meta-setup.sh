@@ -7,7 +7,8 @@
 #
 # first check to see if java is setup, if not, use the jgi-specific location
 #
-if [! -n $JAVA_HOME ]; then
+if [ -n $JAVA_HOME ]; then
+    echo "configuring java ..."
     export JAVA_HOME=/jgi/tools/SUN/jdk/DEFAULT
     export JDK_HOME=/jgi/tools/SUN/jdk/DEFAULT
 fi
@@ -15,7 +16,8 @@ fi
 #
 # now do the same with groovy
 #
-if [! -n $JAVA_HOME ]; then
+if [ -n $GROOVY_HOME ]; then
+   echo "setting up groovy ..."
    export GROOVY_HOME=/jgi/tools/lang/groovy/current/
    export GROOVY_CONF=~/.groovy/groovy-starter.conf
    export PATH=${PATH}:${GROOVY_HOME}/bin
