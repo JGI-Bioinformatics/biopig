@@ -148,6 +148,73 @@ public class ContigKmerTest extends TestCase {
       reader.close();
    }
 
+
+   public void offtestWithVelvet() throws Exception {
+      Configuration conf2 = new Configuration();
+
+      String[] otherArgs = MetaUtils.loadConfiguration(conf2, "test-config.xml", null);
+      conf2.set("assembler.command", "velvet");
+      Job job = new Job(conf2, "contigkmertestwithcap3");
+
+      Path inputContigsFileOrDir = new Path("target/test-classes/start_76l_o50.fa");
+      Map<String, String> results = new TreeMap<String, String>();
+      results.putAll(MetaUtils.readSequences("target/test-classes/shredded_76l_o50.fa"));
+      int numContigs = results.size();
+      int iteration = 0;
+      int numberOfIterations = 1;
+      do {
+         iteration++;
+         System.out.println(" *******   iteration " + iteration + "   ********");
+
+         // check to see if output already exists.
+
+         Path outputContigFileName = new Path(output, "contigs-" + iteration + ".fas");
+         Path outputContigDirName = new Path(output, "step" + iteration);
+
+         conf2.set("contigfilename", inputContigsFileOrDir.toString());
+
+         Job job0 = new Job(conf2, "configkmer: " + "iteration " + iteration + ", file = " + inputContigsFileOrDir);
+         job0.setJarByClass(ContigKmer.class);
+         job0.setInputFormatClass(FastaInputFormat.class);
+         job0.setMapperClass(ContigKmer.ContigKmerMapper.class);
+         //job.setCombinerClass(IntSumReducer.class);
+         job0.setReducerClass(AssembleByGroupKey.class);
+         //job0.setReducerClass(IdentityReducerGroupByKey.class);
+         job0.setOutputKeyClass(Text.class);
+         job0.setOutputValueClass(Text.class);
+         job0.setNumReduceTasks(conf.getInt("contigkmer.numreducers", 1));
+
+         FileInputFormat.addInputPath(job0, new Path("target/test-classes/shredded_76l_o50.fa"));      // this is the reads file
+         FileOutputFormat.setOutputPath(job0, outputContigDirName);
+
+         job0.waitForCompletion(true);
+
+         numContigs = countSequences(outputContigDirName.toString());
+         Map<String, String> tmpresults = readSequences(outputContigDirName.toString());
+         for (String k : tmpresults.keySet()) {
+            String[] a = k.split("-", 2);
+            results.put(a[0], tmpresults.get(k));
+         }
+
+         try {
+            sequenceToFile(results, outputContigFileName.toString());
+         }
+         catch (IOException e) {
+            System.out.println(e);
+            System.out.println("continuing");
+         }
+
+         inputContigsFileOrDir = outputContigDirName;
+      } while (iteration < numberOfIterations && numContigs > 0);
+
+      Path outputFile = new Path(output, "contigs-1.fas");
+      InputStream is = getFileSystem().open(outputFile);
+      BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+      String x = reader.readLine();
+      Assert.assertEquals(">ref_NC_001133_(0..76) length=107", x);
+      reader.close();
+   }
+
    protected FileSystem getFileSystem() throws IOException {
       return (dfsCluster.getFileSystem());
    }
