@@ -43,34 +43,26 @@ package gov.jgi.meta;
 import gov.jgi.meta.hadoop.input.FastaBlockLineReader;
 import gov.jgi.meta.hadoop.input.FastaInputFormat;
 import gov.jgi.meta.hadoop.reduce.AssembleByGroupKey;
-import gov.jgi.meta.hadoop.reduce.IdentityReducerGroupByKey;
-import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
-import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
-import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
-import org.apache.hadoop.util.GenericOptionsParser;
 import org.apache.log4j.Logger;
 import org.biojava.bio.seq.Sequence;
 
 import java.io.*;
-import java.net.InetAddress;
 import java.util.*;
 
 
 public class ContigKmer {
    public static class ContigKmerMapper
    extends Mapper<Text, Sequence, Text, Text> {
-      Logger              log = Logger.getLogger(this.getClass());
+      Logger log = Logger.getLogger(this.getClass());
       Map<String, String> contigs;
       Map < String, Set < String >> contigKmersFront;
       Map < String, Set < String >> contigKmersRear;
@@ -83,6 +75,7 @@ public class ContigKmer {
       /**
        * reads all contigs from given file or directory and indexs them based on their kmers
        *
+       * @param context the job context or null
        * @param contigFileName - the file or directory where the contigs are stored
        * @throws IOException if some file error comes up
        */
@@ -113,15 +106,16 @@ public class ContigKmer {
             /*
              * open file and read the contigs
              */
-            FSDataInputStream       in         = fs.open(f);
-            FastaBlockLineReader    fblr       = new FastaBlockLineReader(in);
-            Text                    key        = new Text();
-            long                    length     = fs.getFileStatus(f).getLen();
+            FSDataInputStream    in            = fs.open(f);
+            FastaBlockLineReader fblr          = new FastaBlockLineReader(in);
+            Text key                           = new Text();
+            long length                        = fs.getFileStatus(f).getLen();
             HashMap<String, String> tmpcontigs = new HashMap<String, String>();
-
 
             fblr.readLine(key, tmpcontigs, Integer.MAX_VALUE, (int)length);
             in.close();
+            fblr.close();
+
             log.info("read " + tmpcontigs.size() + " contigs, indexing with kmersize=" + kmerSize);
 
             /*
@@ -138,8 +132,9 @@ public class ContigKmer {
                int    seqLength      = contigSequence.length();
 
 
-               if (maxContigSize > 0 && seqLength > maxContigSize) {
-                   continue;
+               if ((maxContigSize > 0) && (seqLength > maxContigSize))
+               {
+                  continue;
                }
 
                /*
@@ -164,74 +159,8 @@ public class ContigKmer {
             }
             log.info("done indexing");
          }
-         //context.setStatus("calculating neighbors");
-
-         /*
-          * now do the neighbor calculation
-          */
-
-         if (0 > 0)
-         {
-
-            int n = contigKmersFront.size();
-            String[] contigKmersArray = contigKmersFront.keySet().toArray(new String[n]);
-            context.setStatus("pairwise comparison of " + n + "kmers");
-
-            for (int i = 0; i < n; i++)
-            {
-               String kmer1 = contigKmersArray[i];
-
-               for (int j = 0; j < i; j++)
-               {
-                  String kmer2 = contigKmersArray[j];
-
-                  if (calculateHammingDistance(kmer1, kmer2) < numErrors)
-                  {
-                     Set<String> kmer1Set = new HashSet<String>(contigKmersFront.get(kmer1));
-
-                     contigKmersFront.get(kmer1).addAll(contigKmersFront.get(kmer2));
-                     contigKmersFront.get(kmer2).addAll(kmer1Set);
-                  }
-               }
-            }
-
-            n = contigKmersRear.size();
-            contigKmersArray = contigKmersRear.keySet().toArray(new String[n]);
-            context.setStatus("2: pairwise comparison of " + n + "kmers");
-             
-            for (int i = 0; i < n; i++)
-            {
-               String kmer1 = contigKmersArray[i];
-
-               for (int j = 0; j < i; j++)
-               {
-                  String kmer2 = contigKmersArray[j];
-
-                  if (calculateHammingDistance(kmer1, kmer2) < numErrors)
-                  {
-                     Set<String> kmer1Set = new HashSet<String>(contigKmersRear.get(kmer1));
-
-                     contigKmersRear.get(kmer1).addAll(contigKmersRear.get(kmer2));
-                     contigKmersRear.get(kmer2).addAll(kmer1Set);
-                  }
-               }
-            }
-         }
+         if (context != null) { context.setStatus("calculating neighbors"); }
       }
-
-
-      private static int calculateHammingDistance(String s1, String s2)
-      {
-         int sum = 0;
-
-         for (int i = 0; i < s1.length(); i++)
-         {
-            if (s1.charAt(i) != s2.charAt(i)) { sum++; }
-         }
-
-         return(sum);
-      }
-
 
       private static void addContigToKmerIndex(Map < String, Set < String >> index, Set<String> kmerSet, String contigName)
       {
@@ -240,7 +169,6 @@ public class ContigKmer {
             addContigToKmerIndex(index, kmer, contigName);
          }
       }
-
 
       private static void addContigToKmerIndex(Map < String, Set < String >> index, String kmer, String contigName)
       {
@@ -255,7 +183,6 @@ public class ContigKmer {
             index.put(kmer, l);
          }
       }
-
 
       /**
        * initialize the map process by reading the contigs and execution parameters
@@ -276,14 +203,13 @@ public class ContigKmer {
          contigEndLength = context.getConfiguration().getInt("contigendlength", 100);
          numErrors       = context.getConfiguration().getInt("numerrors", 0);
          maxContigSize   = context.getConfiguration().getInt("maxcontigsize", 0);
-          
+
          /*
           * read and index the contigs
           */
          readContigs(context, contigFileName);
          log.info("done with setup");
       }
-
 
       public void map(Text seqid, Sequence s, Context context) throws IOException, InterruptedException
       {
@@ -344,7 +270,8 @@ public class ContigKmer {
          /*
           * finally, output all the contigs that match this sequence.
           */
-         if (l.size() > 0) {
+         if (l.size() > 0)
+         {
             context.getCounter("contigkmer", "NUMBER_OF_READS_THAT_HIT_ANY_CONTIGS").increment(1);
          }
 
@@ -355,16 +282,16 @@ public class ContigKmer {
          }
       }
 
-
       private Set<String> findMatch(Map < String, Set < String >> index, String kmer, int distance)
       {
-          Set<String> kmerSet = MetaUtils.generateAllNeighbors2(kmer, distance);
-          Set<String> contigSet = new HashSet<String>();
+         Set<String> kmerSet   = MetaUtils.generateAllNeighbors2(kmer, distance);
+         Set<String> contigSet = new HashSet<String>();
 
-          for (String k : kmerSet) {
-              if (index.get(k) != null) contigSet.addAll(index.get(k));
-          }
-         return contigSet;
+         for (String k : kmerSet)
+         {
+            if (index.get(k) != null) { contigSet.addAll(index.get(k)); }
+         }
+         return(contigSet);
       }
    }
 
@@ -381,7 +308,6 @@ public class ContigKmer {
 
       return(fs.exists(outputDirectoryPath));    // && fs.exists(resultFilePath));
    }
-
 
    /**
     * starts off the hadoop application
@@ -451,8 +377,8 @@ public class ContigKmer {
       int iteration  = 0;
       int numContigs = 0;
 
-      String              inputContigsFileOrDir = otherArgs[0];
-      Map<String, String> results = new TreeMap<String, String>();
+      String inputContigsFileOrDir = otherArgs[0];
+      Map<String, String> results  = new TreeMap<String, String>();
       results.putAll(MetaUtils.readSequences(otherArgs[0]));
 
 

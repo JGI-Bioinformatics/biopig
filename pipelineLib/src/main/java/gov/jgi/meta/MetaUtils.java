@@ -43,8 +43,6 @@ import gov.jgi.meta.hadoop.input.FastaBlockLineReader;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.*;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.file.tfile.ByteArray;
-import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.util.GenericOptionsParser;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PropertyConfigurator;
@@ -63,436 +61,593 @@ import java.util.*;
  */
 public class MetaUtils {
 
-    public static String[] loadConfiguration(Configuration conf, String[] args) {
+   /**
+    * parses commandline args and configures the hadoop job configuration with defaults loaded from
+    * either cluster defaults file ($(META_HOME)/conf/<app>-conf.xml), user defaults (~/.meta-prefs)
+    * or commandline args (with -D<parameter>=<value>).  The <app> by default is of the form:
+    * <application.name>HadoopApp-conf.xml
+    *
+    * @param conf the job configuration to add the defaults to
+    * @param args the commandline args
+    * @return modifies conf with appropriate defaults
+    */
+   public static String[] loadConfiguration(Configuration conf, String[] args)
+   {
+      return(loadConfiguration(conf, null, args));
+   }
 
-        return loadConfiguration(conf, null, args);
+   /**
+    * same as {@link #loadConfiguration(Configuration, String[]) loadConfiguration()} but loads from
+    * a specified file instead of the default filename.
+    *
+    * @param conf the job configuration to add the defaults to
+    * @param configurationFileName the cluster defaults file to load
+    * @param args the commandline args
+    * @return modifies conf
+    */
+   public static String[] loadConfiguration(Configuration conf, String configurationFileName, String[] args)
+   {
+      /*
+       * first load the configuration from the build properties (typically packaged in the jar)
+       */
+      System.out.println("loading build.properties ...");
+      try {
+         Properties buildProperties = new Properties();
+         buildProperties.load(MetaUtils.class .getResourceAsStream("/build.properties"));
+         for (Enumeration e = buildProperties.propertyNames(); e.hasMoreElements();)
+         {
+            String k = (String)e.nextElement();
+            System.out.println("setting " + k + " to " + buildProperties.getProperty(k));
+            System.setProperty(k, buildProperties.getProperty(k));
+            conf.set(k, buildProperties.getProperty(k));
+         }
+      } catch (Exception e) {
+         System.out.println("unable to find build.properties ... skipping");
+      }
 
-    }
-
-    public static String[] loadConfiguration(Configuration conf, String configurationFileName, String[] args) {
-        /*
-        first load the configuration from the build properties (typically packaged in the jar)
-         */
-        System.out.println("loading build.properties ...");
-        try {
-            Properties buildProperties = new Properties();
-            buildProperties.load(MetaUtils.class.getResourceAsStream("/build.properties"));
-            for (Enumeration e = buildProperties.propertyNames(); e.hasMoreElements();) {
-                String k = (String) e.nextElement();
-                System.out.println("setting " + k + " to " + buildProperties.getProperty(k));
-                System.setProperty(k, buildProperties.getProperty(k));
-                conf.set(k, buildProperties.getProperty(k));
-            }
-
-        } catch (Exception e) {
-            System.out.println("unable to find build.properties ... skipping");
-        }
-
-        /*
-        override properties with the deployment descriptor
-         */
-        if (configurationFileName == null) {
-            String appName = System.getProperty("application.name");
-            String appVersion = System.getProperty("application.version");
-            configurationFileName = appName + "-" + appVersion + "-conf.xml";
-        }
-        System.out.println("loading application configuration from " + configurationFileName);
-        try {
-
-            URL u = ClassLoader.getSystemResource(configurationFileName);
-            if (u == null) {
-               System.err.println("unable to find " + configurationFileName + " ... skipping");
-            } else {
-            conf.addResource(configurationFileName);
-            }
-        } catch (Exception e) {
+      /*
+       * override properties with the deployment descriptor
+       */
+      if (configurationFileName == null)
+      {
+         String appName    = System.getProperty("application.name");
+         String appVersion = System.getProperty("application.version");
+         configurationFileName = appName + "-" + appVersion + "-conf.xml";
+      }
+      System.out.println("loading application configuration from " + configurationFileName);
+      try {
+         URL u = ClassLoader.getSystemResource(configurationFileName);
+         if (u == null)
+         {
             System.err.println("unable to find " + configurationFileName + " ... skipping");
-        }
+         }
+         else
+         {
+            conf.addResource(configurationFileName);
+         }
+      } catch (Exception e) {
+         System.err.println("unable to find " + configurationFileName + " ... skipping");
+      }
 
-        /*
-        override properties from user's preferences defined in ~/.meta-prefs
-         */
+      /*
+       * override properties from user's preferences defined in ~/.meta-prefs
+       */
 
-        try {
-            java.io.FileInputStream fis = new java.io.FileInputStream(new java.io.File(System.getenv("HOME") + "/.meta-prefs"));
-            Properties props = new Properties();
-            props.load(fis);
-            System.out.println("loading preferences from ~/.meta-prefs");
-            for (Enumeration e = props.propertyNames(); e.hasMoreElements();) {
-                String k = (String) e.nextElement();
-                System.out.println("overriding property: " + k);
-                conf.set(k, props.getProperty(k));
+      try {
+         java.io.FileInputStream fis = new java.io.FileInputStream(new java.io.File(System.getenv("HOME") + "/.meta-prefs"));
+         Properties props            = new Properties();
+         props.load(fis);
+         System.out.println("loading preferences from ~/.meta-prefs");
+         for (Enumeration e = props.propertyNames(); e.hasMoreElements();)
+         {
+            String k = (String)e.nextElement();
+            System.out.println("overriding property: " + k);
+            conf.set(k, props.getProperty(k));
+         }
+      } catch (Exception e) {
+         System.out.println("unable to find ~/.meta-prefs ... skipping");
+      }
+
+      /*
+       * finally, allow user to override from commandline
+       */
+      return(new GenericOptionsParser(conf, args).getRemainingArgs());
+   }
+
+   /**
+    * prints out the configuration properties
+    * @param conf the job configuration holding parameter values
+    * @param log the logger to use to print the information
+    * @param allProperties a string array with the set of properties to print
+    */
+   public static void printConfiguration(Configuration conf, Logger log, String[] allProperties)
+   {
+      for (String option : allProperties)
+      {
+         if (option.startsWith("---"))
+         {
+            log.info(option);
+            continue;
+         }
+         String c = conf.get(option);
+         if (c != null)
+         {
+            log.info("\toption " + option + ":\t" + c);
+         }
+      }
+   }
+
+   /**
+    * same as {@link #printConfiguration(Configuration, Logger, String[]) printConfiguration(Configuration, Logger, String[])}
+    * but prints to stdout.
+    * @param conf the job configuration holding the values
+    * @param allProperties a string array of values
+    */
+   public static void printConfiguration(Configuration conf, String[] allProperties)
+    {
+       for (String option : allProperties)
+       {
+          if (option.startsWith("---"))
+          {
+             System.out.println(option);
+             continue;
+          }
+          String c = conf.get(option);
+          if (c != null)
+          {
+             System.out.println("\toption " + option + ":\t" + c);
+          }
+       }
+    }
+
+   /**
+    * find all files from a given root.
+    * @param p is the root on which to search
+    * @return a set of file paths
+    * @throws IOException if filesystem can't find file or has other io problems
+    */
+   public static Set<Path> findAllPaths(Path p) throws IOException
+   {
+      Configuration conf = new Configuration();
+      FileSystem    fs   = FileSystem.get(conf);
+
+      HashSet<Path> s = new HashSet<Path>();
+
+      if (fs.getFileStatus(p).isDir())
+      {
+         for (FileStatus f : fs.listStatus(p))
+         {
+            if (!f.isDir())
+            {
+               s.add(f.getPath());
             }
-        } catch (Exception e) {
-            System.out.println("unable to find ~/.meta-prefs ... skipping");
-        }
+         }
+      }
+      else
+      {
+         s.add(p);
+      }
 
-        /*
-        finally, allow user to override from commandline
-         */
-        return new GenericOptionsParser(conf, args).getRemainingArgs();
+      return(s);
+   }
 
-    }
+   /**
+    * counts the number of sequences in fasta format found in given file or directory
+    * @param contigFileName the file or directory name
+    * @return an integer count of the number of sequences found
+    * @throws IOException if filesystem has error
+    */
+   public static int countSequences(String contigFileName) throws IOException
+   {
+      return(countSequences(contigFileName, new Configuration()));
+   }
 
+   /**
+    * see @{link #countSequences(String) countSequences(String)}
+    * @param contigFileName the file or directory name
+    * @param conf the hadoop configuration object specifiing filesystem
+    * @return an integer count of number of sequences found
+    * @throws IOException if filesystem has error
+    */
+   public static int countSequences(String contigFileName, Configuration conf) throws IOException
+   {
+      FileSystem fs           = FileSystem.get(conf);
+      Path       filenamePath = new Path(contigFileName);
+      int        count        = 0;
 
-    public static void printConfiguration(Configuration conf, Logger log, String[] allProperties) {
+      if (!fs.exists(filenamePath))
+      {
+         throw new IOException("file not found: " + contigFileName);
+      }
 
-        for (String option : allProperties) {
+      for (Path f : findAllPaths(filenamePath))
+      {
+         FSDataInputStream    in   = fs.open(f);
+         FastaBlockLineReader fblr = new FastaBlockLineReader(in);
 
-            if (option.startsWith("---")) {
-                log.info(option);
-                continue;
-            }
-            String c = conf.get(option);
-            if (c != null) {
-                log.info("\toption " + option + ":\t" + c);
-            }
-        }
-    }
+         Text key    = new Text();
+         long length = fs.getFileStatus(f).getLen();
+         HashMap<String, String> tmpcontigs = new HashMap<String, String>();
+         fblr.readLine(key, tmpcontigs, Integer.MAX_VALUE, (int)length);
+         count += tmpcontigs.size();
+         in.close();
+      }
 
-    public static Set<Path> findAllPaths(Path p) throws IOException {
-        Configuration conf = new Configuration();
-        FileSystem fs = FileSystem.get(conf);
-        HashSet<Path> s = new HashSet<Path>();
+      return(count);
+   }
 
-        if (fs.getFileStatus(p).isDir()) {
+   /**
+    * reads a fasta file and returns a map with id and sequence contents
+    * @param contigFileName the file or file path of the fasta file
+    * @return map containing sequences keyed by sequence id
+    * @throws IOException if file exists
+    */
+   public static Map<String, String> readSequences(String contigFileName) throws IOException
+   {
+      Configuration conf         = new Configuration();
+      FileSystem    fs           = FileSystem.get(conf);
+      Path          filenamePath = new Path(contigFileName);
 
-            for (FileStatus f : fs.listStatus(p)) {
+      Map<String, String> results = new HashMap<String, String>();
 
-                if (!f.isDir()) {
-                    s.add(f.getPath());
-                }
+      if (!fs.exists(filenamePath))
+      {
+         throw new IOException("file not found: " + contigFileName);
+      }
 
-            }
+      for (Path f : findAllPaths(filenamePath))
+      {
+         FSDataInputStream    in   = fs.open(f);
+         FastaBlockLineReader fblr = new FastaBlockLineReader(in);
 
-        } else {
+         Text key    = new Text();
+         long length = fs.getFileStatus(f).getLen();
+         HashMap<String, String> tmpcontigs = new HashMap<String, String>();
+         fblr.readLine(key, tmpcontigs, Integer.MAX_VALUE, (int)length);
+         results.putAll(tmpcontigs);
+         in.close();
+         fblr.close();
+      }
 
-            s.add(p);
+      return(results);
+   }
 
-        }
+   /**
+    * writes sequences from map to fasta file
+    *
+    * @param seqList is the map of sequences indexed by sequence id
+    * @param filename the name/path of the file to create
+    * @return the full path of the location of the fasta file
+    * @throws IOException if file already exists
+    */
+   public static String sequenceToFile(Map<String, String> seqList, String filename) throws IOException
+   {
+      Configuration conf = new Configuration();
+      FileSystem    fs   = FileSystem.get(conf);
+      Path          fp   = new Path(filename);
 
-        return s;
-    }
+      if (fs.exists(fp))
+      {
+         throw new IOException("file " + filename + " already exists");
+      }
 
-    public static int countSequences(String contigFileName) throws IOException {
-       return countSequences(contigFileName, new Configuration());
-    }
+      FSDataOutputStream out = fs.create(fp);
 
-    public static int countSequences(String contigFileName, Configuration conf) throws IOException {
-        FileSystem fs = FileSystem.get(conf);
-        Path filenamePath = new Path(contigFileName);
-        int count = 0;
+      /*
+       * write out the sequences to file
+       */
+      for (String key : seqList.keySet())
+      {
+         assert(seqList.get(key) != null);
+         out.writeBytes(">" + key + " length=" + seqList.get(key).length() + "\n");
+         out.writeBytes(seqList.get(key) + "\n");
+      }
 
-        if (!fs.exists(filenamePath)) {
-            throw new IOException("file not found: " + contigFileName);
-        }
-
-        for (Path f : findAllPaths(filenamePath)) {
-
-            FSDataInputStream in = fs.open(f);
-            FastaBlockLineReader fblr = new FastaBlockLineReader(in);
-
-            Text key = new Text();
-            long length = fs.getFileStatus(f).getLen();
-            HashMap<String, String> tmpcontigs = new HashMap<String, String>();
-            fblr.readLine(key, tmpcontigs, Integer.MAX_VALUE, (int) length);
-            count += tmpcontigs.size();
-            in.close();
-        }
-
-        return count;
-    }
-
-    public static Map<String, String> readSequences(String contigFileName) throws IOException {
-
-        Configuration conf = new Configuration();
-        FileSystem fs = FileSystem.get(conf);
-        Path filenamePath = new Path(contigFileName);
-        Map<String, String> results = new HashMap<String, String>();
-
-        if (!fs.exists(filenamePath)) {
-            throw new IOException("file not found: " + contigFileName);
-        }
-
-        for (Path f : findAllPaths(filenamePath)) {
-
-            FSDataInputStream in = fs.open(f);
-            FastaBlockLineReader fblr = new FastaBlockLineReader(in);
-
-            Text key = new Text();
-            long length = fs.getFileStatus(f).getLen();
-            HashMap<String, String> tmpcontigs = new HashMap<String, String>();
-            fblr.readLine(key, tmpcontigs, Integer.MAX_VALUE, (int) length);
-            results.putAll(tmpcontigs);
-            in.close();
-        }
-
-        return results;
-    }
-
-
-    /**
-     * given a list of sequences, creates a db for use with cap3
-     *
-     * @param seqList is the list of sequences to create the database with
-     * @return the full path of the location of the database
-     */
-    public static String sequenceToFile(Map<String, String> seqList, String filename) throws IOException {
-
-        Configuration conf = new Configuration();
-        FileSystem fs = FileSystem.get(conf);
-        Path fp = new Path(filename);
-
-        if (fs.exists(fp)) {
-            throw new IOException("file " + filename + " already exists");
-        }
-
-        FSDataOutputStream out = fs.create(fp);
-        /*
-        write out the sequences to file
-        */
-        for (String key : seqList.keySet()) {
-            assert (seqList.get(key) != null);
-            out.writeBytes(">" + key + " length=" + seqList.get(key).length() + "\n");
-            out.writeBytes(seqList.get(key) + "\n");
-        }
-
-        /*
-       close temp file
-        */
-        out.close();
+      /*
+       * close temp file
+       */
+      out.close();
 
 
-        return fp.toString();
-    }
+      return(fp.toString());
+   }
 
+      /**
+    * given a map of sequences indexed by sequence id, write out a fasta file to local file system.
+    * files are created with rwx bits set to 777.
+    *
+    * @param seqList is the list of sequences to create the database with
+    * @param dirName the directory path in which to create the file
+    * @param tmpFileName the file name to create
+    * @return the full path of the location of the database
+    * @throws IOException if error occures in file creation
+    */
+   public static String sequenceToLocalFile(Map<String, String> seqList, String dirName, String tmpFileName) throws IOException
+   {
+      return sequenceToLocalFile(seqList, new Path(dirName, tmpFileName).toString());
+   }
+   /**
+    * given a map of sequences indexed by sequence id, write out a fasta file to local file system.
+    * files are created with rwx bits set to 777.
+    *
+    * @param seqList is the list of sequences to create the database with
+    * @param tmpFileName the file name/path to create
+    * @return the full path of the location of the database
+    * @throws IOException if error occures in file creation
+    */
+   public static String sequenceToLocalFile(Map<String, String> seqList, String tmpFileName) throws IOException
+   {
+      BufferedWriter out;
+      File           seqFile = null;
 
-    /**
-     * given a list of sequences, creates a db for use with cap3
-     *
-     * @param seqList is the list of sequences to create the database with
-     * @return the full path of the location of the database
-     */
-    public static String sequenceToLocalFile(Map<String, String> seqList, String tmpFileName) throws IOException {
+      /*
+       * open temp file
+       */
+      seqFile = new File(tmpFileName);
 
-        BufferedWriter out;
-        File seqFile = null;
+      if (! ( seqFile.setExecutable(true, false) &&
+              seqFile.setReadable(true, false) &&
+              seqFile.setWritable(true, false) ) ) {
+         throw new IOException("unable to set RWX bits to 777");
+      }
+      out = new BufferedWriter(new FileWriter(seqFile.getPath()));
 
-        /*
-        open temp file
-         */
-        seqFile = new File(tmpFileName);
-        seqFile.setExecutable(true, false);
-        seqFile.setReadable(true, false);
-        seqFile.setWritable(true, false);
-        out = new BufferedWriter(new FileWriter(seqFile.getPath()));
+      /*
+       * write out the sequences to file
+       */
+      for (String key : seqList.keySet())
+      {
+         assert(seqList.get(key) != null);
+         out.write(">" + key + "\n");
+         out.write(seqList.get(key) + "\n");
+      }
 
-        /*
-        write out the sequences to file
-        */
-        for (String key : seqList.keySet()) {
-            assert (seqList.get(key) != null);
-            out.write(">" + key + "\n");
-            out.write(seqList.get(key) + "\n");
-        }
+      /*
+       * close temp file
+       */
+      out.close();
 
-        /*
-       close temp file
-        */
-        out.close();
+      return(seqFile.getPath());
+   }
 
-        return seqFile.getPath();
-    }
+   /**
+    * Create a new temporary directory. Use something like
+    * {@link #recursiveDelete(java.io.File)} to clean this directory up since it isn't
+    * deleted automatically
+    *
+    * @param tmpDir is the directory underwhich to create the tmp dir
+    * @return the new directory
+    * @throws java.io.IOException if there is an error creating the temporary directory
+    */
+   public static File createTempDir(String tmpDir) throws IOException
+   {
+      final File sysTempDir = new File(tmpDir);
+      File       newTempDir;
+      final int  maxAttempts  = 9;
+      int        attemptCount = 0;
 
-
-    /**
-     * Create a new temporary directory. Use something like
-     * {@link #recursiveDelete(java.io.File)} to clean this directory up since it isn't
-     * deleted automatically
-     *
-     * @return the new directory
-     * @throws java.io.IOException if there is an error creating the temporary directory
-     */
-    public static File createTempDir(String tmpDir) throws IOException {
-        final File sysTempDir = new File(tmpDir);
-        File newTempDir;
-        final int maxAttempts = 9;
-        int attemptCount = 0;
-        do {
-            attemptCount++;
-            if (attemptCount > maxAttempts) {
-                throw new IOException(
-                        "The highly improbable has occurred! Failed to " +
-                                "create a unique temporary directory after " +
-                                maxAttempts + " attempts.");
-            }
-            String dirName = UUID.randomUUID().toString();
-            newTempDir = new File(sysTempDir, dirName);
-        } while (newTempDir.exists());
-
-        if (newTempDir.mkdirs()) {
-            newTempDir.setExecutable(true, false);
-            newTempDir.setReadable(true, false);
-            newTempDir.setWritable(true, false);
-
-            return newTempDir;
-        } else {
+      do
+      {
+         attemptCount++;
+         if (attemptCount > maxAttempts)
+         {
             throw new IOException(
-                    "Failed to create temp dir named " +
-                            newTempDir.getAbsolutePath());
-        }
-    }
+               "The highly improbable has occurred! Failed to " +
+               "create a unique temporary directory after " +
+               maxAttempts + " attempts.");
+         }
+         String dirName = UUID.randomUUID().toString();
+         newTempDir = new File(sysTempDir, dirName);
+      } while (newTempDir.exists());
 
-    /**
-     * Recursively delete file or directory
-     *
-     * @param fileOrDir the file or dir to delete
-     * @return true iff all files are successfully deleted
-     */
-    public static boolean recursiveDelete(File fileOrDir) {
-        if (fileOrDir.isDirectory()) {
-            // recursively delete contents
-            for (File innerFile : fileOrDir.listFiles()) {
-                if (!recursiveDelete(innerFile)) {
-                    fileOrDir.deleteOnExit();
-                    return false;
-                }
+      if (newTempDir.mkdirs())
+      {
+         if (! ( newTempDir.setExecutable(true, false) &&
+                 newTempDir.setReadable(true, false) &&
+                 newTempDir.setWritable(true, false) ) ) {
+            throw new IOException("unable to set RWX bits to 777");
+         }
+         return(newTempDir);
+      }
+      else
+      {
+         throw new IOException("Failed to create temp dir named " + newTempDir.getAbsolutePath());
+      }
+   }
+
+   /**
+    * Recursively delete file or directory
+    *
+    * @param fileOrDir the file or dir to delete
+    * @return true iff all files are successfully deleted
+    */
+   public static boolean recursiveDelete(File fileOrDir)
+   {
+      if (fileOrDir.isDirectory())
+      {
+         // recursively delete contents
+         for (File innerFile : fileOrDir.listFiles())
+         {
+            if (!recursiveDelete(innerFile))
+            {
+               fileOrDir.deleteOnExit();
+               return(false);
             }
-        }
-        if (!fileOrDir.delete()) {
-            fileOrDir.deleteOnExit();
-            return false;
-        }
-        return true;
-    }
+         }
+      }
+      if (!fileOrDir.delete())
+      {
+         fileOrDir.deleteOnExit();
+         return(false);
+      }
+      return(true);
+   }
 
 
-    public static String reverseComplement(String s) {
-            StringBuffer sb = new StringBuffer();
-            for (int i = 0; i < s.length(); i++) {
-                if (s.charAt(i) == 'a') sb.append("t");
-                else if (s.charAt(i) == 't') sb.append("a");
-                else if (s.charAt(i) == 'g') sb.append("c");
-                else if (s.charAt(i) == 'c') sb.append("g");
-                else if (s.charAt(i) == 'n') sb.append("n");
+   /**
+    * given a sequence, return the reverse complement
+    * @param s sequence
+    * @return its reverse complement
+    */
+   public static String reverseComplement(String s)
+   {
+      StringBuffer sb = new StringBuffer();
+
+      for (int i = 0; i < s.length(); i++)
+      {
+         if (s.charAt(i) == 'a') { sb.append("t"); }
+         else if (s.charAt(i) == 't') { sb.append("a"); }
+         else if (s.charAt(i) == 'g') { sb.append("c"); }
+         else if (s.charAt(i) == 'c') { sb.append("g"); }
+         else if (s.charAt(i) == 'n') { sb.append("n"); }
+      }
+      return(sb.reverse().toString());
+   }
+
+   /**
+    * find all sequences that are within distance edit distance
+    * @param start sequence to start with
+    * @param distance edit distance
+    * @return set of sequences that are within distance including start sequence
+    */
+   public static Set<String> generateAllNeighbors(String start, int distance)
+   {
+      Set<String> neighbors = generateAllNeighbors(start, distance, new HashSet());
+      neighbors.add(start);
+      return(neighbors);
+   }
+
+   public static Set<String> generateAllNeighbors2(String start, int distance)
+   {
+      Set<String> r = new HashSet<String>();
+
+      if (distance == 0)
+      {
+         r.add(start);
+         return(r);
+      }
+      else if (distance == 1)
+      {
+         return(generateHammingDistanceOne(start));
+      }
+      else if (distance == 2)
+      {
+         return(generateHammingDistanceTwo(start));
+      }
+      else
+      {
+         // throw exception;
+      }
+      return(r);
+   }
+
+   private static Set<String> generateHammingDistanceOne(String start)
+   {
+      char[] bases = { 'a', 't', 'g', 'c', 'n' };
+      Set<String> r = new HashSet<String>();
+
+      for (int i = 0; i < start.length(); i++)
+      {
+         for (char basePair : bases)
+         {
+            if (start.charAt(i) == basePair) { continue; }
+            String n = stringReplaceIth(start, i, basePair);
+            if (r.contains(n)) { continue; }
+            r.add(n);
+         }
+      }
+      return(r);
+   }
+
+   private static Set<String> generateHammingDistanceTwo(String start)
+   {
+      byte[] b     = start.getBytes();
+      byte[] bases = { 'a', 't', 'g', 'c', 'n' };
+      Set<String> r = new HashSet<String>();
+
+      for (int i = 0; i < start.length() - 1; i++)
+      {
+         for (int j = i + 1; j < start.length(); j++)
+         {
+            byte ii = b[i];
+            byte jj = b[j];
+            for (byte basePair1 : bases)
+            {
+               for (byte basePair2 : bases)
+               {
+                  b[i] = basePair1;
+                  b[j] = basePair2;
+                  r.add(b.toString());
+               }
             }
-            return sb.reverse().toString();
-        }
+            b[i] = ii;
+            b[j] = jj;
+         }
+      }
+      return(r);
+   }
 
-    public static Set<String> generateAllNeighbors(String start, int distance) {
+   public static Set<String> generateAllNeighbors(String start, int distance, Set x)
+   {
+      char [] bases = { 'a', 't', 'g', 'c', 'n' };
+      Set<String> s = new HashSet<String>();
 
-        Set<String> neighbors = generateAllNeighbors(start, distance, new HashSet());
-        neighbors.add(start);
-        return neighbors;
+      //s.add(start);
+      if (distance == 0)
+      {
+         return(s);
+      }
+
+      for (int i = 0; i < start.length(); i++)
+      {
+         for (char basePair : bases)
+         {
+            if (start.charAt(i) == basePair) { continue; }
+            String n = stringReplaceIth(start, i, basePair);
+            if (x.contains(n)) { continue; }
+
+            s.add(n);
+            s.addAll(generateAllNeighbors(n, distance - 1, s));
+         }
+      }
+
+      return(s);
+   }
 
 
-    }
+   /**
+    * replace the i'th character of string s with character c
+    * @param s the string
+    * @param i the index of the string to replace
+    * @param c the character to replace
+    * @return the new string
+    * @throws IndexOutOfBoundsException if necessary
+    */
+   public static String stringReplaceIth(String s, int i, char c) throws IndexOutOfBoundsException
+   {
+      if (i >= s.length()) {
+         throw new IndexOutOfBoundsException("index " + i + " greater than length of " + s);
+      }
 
-    public static Set<String> generateAllNeighbors2(String start, int distance) {
+      return(s.substring(0, i) + c + s.substring(i + 1));
+   }
 
-        Set<String> r = new HashSet<String>();
+   public static void configureLog4j()
+   {
+      // configure the log4j system for hadoop map jobs
 
-        if (distance == 0) {
-            r.add(start);
-            return r;
+      String log4jConfigurationFile = System.getProperty("log4j.properties");
 
-        } else if (distance == 1) {
-            return(generateHammingDistanceOne(start));
+      System.out.println("configuring log4j using: " + log4jConfigurationFile);
 
-        } else if (distance == 2) {
-            return(generateHammingDistanceTwo(start));
-
-        } else {
-            // throw exception;
-        }
-        return r;
-    }
-
-    private static Set<String> generateHammingDistanceOne(String start) {
-        char[] bases = {'a', 't', 'g', 'c', 'n'};
-        Set<String> r = new HashSet<String>();
-
-        for (int i = 0; i < start.length(); i++) {
-
-            for (char basePair : bases) {
-                if (start.charAt(i) == basePair) continue;
-                String n = stringReplaceIth(start, i, basePair);
-                if (r.contains(n)) continue;
-                r.add(n);
-            }
-
-        }
-        return r;
-    }
-
-    private static Set<String> generateHammingDistanceTwo(String start) {
-        byte[] b = start.getBytes();
-        byte[] bases = {'a', 't', 'g', 'c', 'n'};
-        Set<String> r = new HashSet<String>();
-
-        for (int i = 0; i < start.length()-1; i++) {
-            for (int j = i+1; j < start.length(); j++) {
-                byte ii = b[i];
-                byte jj = b[j];
-                for (byte basePair1 : bases) {
-                    for (byte basePair2 : bases) {
-                        b[i] = basePair1;
-                        b[j] = basePair2;
-                        r.add(b.toString());
-                    }
-                }
-                b[i] = ii;
-                b[j] = jj;
-            }
-        }
-        return r;
-    }
-
-    public static Set<String> generateAllNeighbors(String start, int distance, Set x) {
-
-        char [] bases = {'a', 't', 'g', 'c', 'n'};                
-        Set<String> s = new HashSet<String>();
-
-        //s.add(start);
-        if (distance == 0) {
-            return s;
-        }
-
-        for (int i = 0; i < start.length(); i++) {
-
-            for (char basePair : bases) {
-                if (start.charAt(i) == basePair) continue;
-                String n = stringReplaceIth(start, i, basePair);
-                if (x.contains(n)) continue;
-
-                s.add(n);
-                s.addAll(generateAllNeighbors(n, distance-1, s));
-            }
-
-        }
-
-        return s;
-    }
-
-    public static String stringReplaceIth(String s, int i, char c) {
-
-        return s.substring(0,i) + c + s.substring(i+1);
-
-    }
-
-    public static void configureLog4j() {
-        // configure the log4j system for hadoop map jobs
-
-        String log4jConfigurationFile = System.getProperty("log4j.properties");
-        System.out.println("configuring log4j using: " + log4jConfigurationFile);
-
-        URL u = ClassLoader.getSystemResource(log4jConfigurationFile);
-        if (u == null) {
-               System.err.println("unable to find " + log4jConfigurationFile + " ... skipping");
-        } else {
-            PropertyConfigurator.configure(log4jConfigurationFile);
-        }
-
-    }
-
+      URL u = ClassLoader.getSystemResource(log4jConfigurationFile);
+      if (u == null)
+      {
+         System.err.println("unable to find " + log4jConfigurationFile + " ... skipping");
+      }
+      else
+      {
+         PropertyConfigurator.configure(log4jConfigurationFile);
+      }
+   }
 }

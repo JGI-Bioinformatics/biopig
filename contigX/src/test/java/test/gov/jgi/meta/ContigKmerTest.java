@@ -31,16 +31,18 @@ import java.util.*;
  */
 public class ContigKmerTest extends TestCase {
    private MiniDFSCluster dfsCluster = null;
-   private MiniMRCluster mrCluster = null;
-   Configuration conf;
+   private MiniMRCluster  mrCluster  = null;
+   Configuration          conf;
 
    Path output;
 
-   public ContigKmerTest(String name) {
+   public ContigKmerTest(String name)
+   {
       super(name);
    }
 
-   public void setUp() throws Exception {
+   public void setUp() throws Exception
+   {
       super.setUp();
 
       // make sure the log folder exists,
@@ -49,7 +51,7 @@ public class ContigKmerTest extends TestCase {
 
       System.setProperty("hadoop.log.dir", "test-logs");
       System.setProperty("javax.xml.parsers.SAXParserFactory",
-              "com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl");
+                         "com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl");
 
       conf = new Configuration();
 
@@ -60,17 +62,19 @@ public class ContigKmerTest extends TestCase {
       mrCluster = new MiniMRCluster(1, getFileSystem().getUri().toString(), 1);
 
       output = new Path(getFileSystem().getWorkingDirectory(), "output");
-
    }
 
-   public void tearDown() throws Exception {
+   public void tearDown() throws Exception
+   {
       super.tearDown();
 
-      if (dfsCluster != null) {
+      if (dfsCluster != null)
+      {
          dfsCluster.shutdown();
          dfsCluster = null;
       }
-      if (mrCluster != null) {
+      if (mrCluster != null)
+      {
          mrCluster.shutdown();
          mrCluster = null;
       }
@@ -82,39 +86,41 @@ public class ContigKmerTest extends TestCase {
    /**
     * Method: main(String[] args)
     */
-   public void testWithCap3() throws Exception {
+   public void testWithCap3() throws Exception
+   {
       Configuration conf2 = new Configuration();
 
       String[] otherArgs = MetaUtils.loadConfiguration(conf2, "test-config.xml", null);
 
       Job job = new Job(conf2, "contigkmertestwithcap3");
 
-      Path inputContigsFileOrDir = new Path("target/test-classes/start_76l_o50.fa");
+      Path inputContigsFileOrDir  = new Path("target/test-classes/start_76l_o50.fa");
       Map<String, String> results = new TreeMap<String, String>();
       results.putAll(MetaUtils.readSequences("target/test-classes/shredded_76l_o50.fa"));
-      int numContigs = results.size();
-      int iteration = 0;
+      int numContigs         = results.size();
+      int iteration          = 0;
       int numberOfIterations = 1;
-      do {
+      do
+      {
          iteration++;
          System.out.println(" *******   iteration " + iteration + "   ********");
 
          // check to see if output already exists.
 
          Path outputContigFileName = new Path(output, "contigs-" + iteration + ".fas");
-         Path outputContigDirName = new Path(output, "step" + iteration);
+         Path outputContigDirName  = new Path(output, "step" + iteration);
 
          conf2.set("contigfilename", inputContigsFileOrDir.toString());
 
          Job job0 = new Job(conf2, "configkmer: " + "iteration " + iteration + ", file = " + inputContigsFileOrDir);
-         job0.setJarByClass(ContigKmer.class);
-         job0.setInputFormatClass(FastaInputFormat.class);
-         job0.setMapperClass(ContigKmer.ContigKmerMapper.class);
+         job0.setJarByClass(ContigKmer.class );
+         job0.setInputFormatClass(FastaInputFormat.class );
+         job0.setMapperClass(ContigKmer.ContigKmerMapper.class );
          //job.setCombinerClass(IntSumReducer.class);
-         job0.setReducerClass(AssembleByGroupKey.class);
+         job0.setReducerClass(AssembleByGroupKey.class );
          //job0.setReducerClass(IdentityReducerGroupByKey.class);
-         job0.setOutputKeyClass(Text.class);
-         job0.setOutputValueClass(Text.class);
+         job0.setOutputKeyClass(Text.class );
+         job0.setOutputValueClass(Text.class );
          job0.setNumReduceTasks(conf.getInt("contigkmer.numreducers", 1));
 
          FileInputFormat.addInputPath(job0, new Path("target/test-classes/shredded_76l_o50.fa"));      // this is the reads file
@@ -124,7 +130,8 @@ public class ContigKmerTest extends TestCase {
 
          numContigs = countSequences(outputContigDirName.toString());
          Map<String, String> tmpresults = readSequences(outputContigDirName.toString());
-         for (String k : tmpresults.keySet()) {
+         for (String k : tmpresults.keySet())
+         {
             String[] a = k.split("-", 2);
             results.put(a[0], tmpresults.get(k));
          }
@@ -140,48 +147,49 @@ public class ContigKmerTest extends TestCase {
          inputContigsFileOrDir = outputContigDirName;
       } while (iteration < numberOfIterations && numContigs > 0);
 
-      Path outputFile = new Path(output, "contigs-1.fas");
-      InputStream is = getFileSystem().open(outputFile);
-      BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-      String x = reader.readLine();
+      Path           outputFile = new Path(output, "contigs-1.fas");
+      InputStream    is         = getFileSystem().open(outputFile);
+      BufferedReader reader     = new BufferedReader(new InputStreamReader(is));
+      String         x          = reader.readLine();
       Assert.assertEquals(">ref_NC_001133_(0..76) length=107", x);
       reader.close();
    }
 
-
-   public void offtestWithVelvet() throws Exception {
+   public void offtestWithVelvet() throws Exception
+   {
       Configuration conf2 = new Configuration();
 
       String[] otherArgs = MetaUtils.loadConfiguration(conf2, "test-config.xml", null);
       conf2.set("assembler.command", "velvet");
       Job job = new Job(conf2, "contigkmertestwithcap3");
 
-      Path inputContigsFileOrDir = new Path("target/test-classes/start_76l_o50.fa");
+      Path inputContigsFileOrDir  = new Path("target/test-classes/start_76l_o50.fa");
       Map<String, String> results = new TreeMap<String, String>();
       results.putAll(MetaUtils.readSequences("target/test-classes/shredded_76l_o50.fa"));
-      int numContigs = results.size();
-      int iteration = 0;
+      int numContigs         = results.size();
+      int iteration          = 0;
       int numberOfIterations = 1;
-      do {
+      do
+      {
          iteration++;
          System.out.println(" *******   iteration " + iteration + "   ********");
 
          // check to see if output already exists.
 
          Path outputContigFileName = new Path(output, "contigs-" + iteration + ".fas");
-         Path outputContigDirName = new Path(output, "step" + iteration);
+         Path outputContigDirName  = new Path(output, "step" + iteration);
 
          conf2.set("contigfilename", inputContigsFileOrDir.toString());
 
          Job job0 = new Job(conf2, "configkmer: " + "iteration " + iteration + ", file = " + inputContigsFileOrDir);
-         job0.setJarByClass(ContigKmer.class);
-         job0.setInputFormatClass(FastaInputFormat.class);
-         job0.setMapperClass(ContigKmer.ContigKmerMapper.class);
+         job0.setJarByClass(ContigKmer.class );
+         job0.setInputFormatClass(FastaInputFormat.class );
+         job0.setMapperClass(ContigKmer.ContigKmerMapper.class );
          //job.setCombinerClass(IntSumReducer.class);
-         job0.setReducerClass(AssembleByGroupKey.class);
+         job0.setReducerClass(AssembleByGroupKey.class );
          //job0.setReducerClass(IdentityReducerGroupByKey.class);
-         job0.setOutputKeyClass(Text.class);
-         job0.setOutputValueClass(Text.class);
+         job0.setOutputKeyClass(Text.class );
+         job0.setOutputValueClass(Text.class );
          job0.setNumReduceTasks(conf.getInt("contigkmer.numreducers", 1));
 
          FileInputFormat.addInputPath(job0, new Path("target/test-classes/shredded_76l_o50.fa"));      // this is the reads file
@@ -191,7 +199,8 @@ public class ContigKmerTest extends TestCase {
 
          numContigs = countSequences(outputContigDirName.toString());
          Map<String, String> tmpresults = readSequences(outputContigDirName.toString());
-         for (String k : tmpresults.keySet()) {
+         for (String k : tmpresults.keySet())
+         {
             String[] a = k.split("-", 2);
             results.put(a[0], tmpresults.get(k));
          }
@@ -207,140 +216,151 @@ public class ContigKmerTest extends TestCase {
          inputContigsFileOrDir = outputContigDirName;
       } while (iteration < numberOfIterations && numContigs > 0);
 
-      Path outputFile = new Path(output, "contigs-1.fas");
-      InputStream is = getFileSystem().open(outputFile);
-      BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-      String x = reader.readLine();
+      Path           outputFile = new Path(output, "contigs-1.fas");
+      InputStream    is         = getFileSystem().open(outputFile);
+      BufferedReader reader     = new BufferedReader(new InputStreamReader(is));
+      String         x          = reader.readLine();
       Assert.assertEquals(">ref_NC_001133_(0..76) length=107", x);
       reader.close();
    }
 
-   protected FileSystem getFileSystem() throws IOException {
-      return (dfsCluster.getFileSystem());
+   protected FileSystem getFileSystem() throws IOException
+   {
+      return(dfsCluster.getFileSystem());
    }
 
-   private String sequenceToFile(Map<String, String> seqList, String filename) throws IOException {
-
-
+   private String sequenceToFile(Map<String, String> seqList, String filename) throws IOException
+   {
       FileSystem fs = getFileSystem();
-      Path fp = new Path(filename);
+      Path       fp = new Path(filename);
 
-      if (fs.exists(fp)) {
+      if (fs.exists(fp))
+      {
          throw new IOException("file " + filename + " already exists");
       }
 
       FSDataOutputStream out = fs.create(fp);
+
       /*
-      write out the sequences to file
-      */
-      for (String key : seqList.keySet()) {
-         assert (seqList.get(key) != null);
+       * write out the sequences to file
+       */
+      for (String key : seqList.keySet())
+      {
+         assert(seqList.get(key) != null);
          out.writeBytes(">" + key + " length=" + seqList.get(key).length() + "\n");
          out.writeBytes(seqList.get(key) + "\n");
       }
 
       /*
-     close temp file
-      */
+       * close temp file
+       */
       out.close();
 
 
-      return fp.toString();
+      return(fp.toString());
    }
 
-   private Map<String, String> readSequences(String contigFileName) throws IOException {
+   private Map<String, String> readSequences(String contigFileName) throws IOException
+   {
+      FileSystem fs           = getFileSystem();
+      Path       filenamePath = new Path(contigFileName);
 
-
-      FileSystem fs = getFileSystem();
-      Path filenamePath = new Path(contigFileName);
       Map<String, String> results = new HashMap<String, String>();
 
-      if (!fs.exists(filenamePath)) {
+      if (!fs.exists(filenamePath))
+      {
          throw new IOException("file not found: " + contigFileName);
       }
 
-      for (Path f : findAllPaths(filenamePath)) {
-
-         FSDataInputStream in = fs.open(f);
+      for (Path f : findAllPaths(filenamePath))
+      {
+         FSDataInputStream    in   = fs.open(f);
          FastaBlockLineReader fblr = new FastaBlockLineReader(in);
 
-         Text key = new Text();
+         Text key    = new Text();
          long length = fs.getFileStatus(f).getLen();
          HashMap<String, String> tmpcontigs = new HashMap<String, String>();
-         fblr.readLine(key, tmpcontigs, Integer.MAX_VALUE, (int) length);
+         fblr.readLine(key, tmpcontigs, Integer.MAX_VALUE, (int)length);
          results.putAll(tmpcontigs);
          in.close();
       }
 
-      return results;
+      return(results);
    }
 
-   private int countSequences(String contigFileName) throws IOException {
-      FileSystem fs = getFileSystem();
-      Path filenamePath = new Path(contigFileName);
-      int count = 0;
+   private int countSequences(String contigFileName) throws IOException
+   {
+      FileSystem fs           = getFileSystem();
+      Path       filenamePath = new Path(contigFileName);
+      int        count        = 0;
 
-      if (!fs.exists(filenamePath)) {
+      if (!fs.exists(filenamePath))
+      {
          throw new IOException("file not found: " + contigFileName);
       }
 
-      for (Path f : findAllPaths(filenamePath)) {
-
-         FSDataInputStream in = fs.open(f);
+      for (Path f : findAllPaths(filenamePath))
+      {
+         FSDataInputStream    in   = fs.open(f);
          FastaBlockLineReader fblr = new FastaBlockLineReader(in);
 
-         Text key = new Text();
+         Text key    = new Text();
          long length = fs.getFileStatus(f).getLen();
          HashMap<String, String> tmpcontigs = new HashMap<String, String>();
-         fblr.readLine(key, tmpcontigs, Integer.MAX_VALUE, (int) length);
+         fblr.readLine(key, tmpcontigs, Integer.MAX_VALUE, (int)length);
          count += tmpcontigs.size();
          in.close();
       }
 
-      return count;
+      return(count);
    }
 
-   private Set<Path> findAllPaths(Path p) throws IOException {
-
+   private Set<Path> findAllPaths(Path p) throws IOException
+   {
       FileSystem fs = getFileSystem();
+
       HashSet<Path> s = new HashSet<Path>();
 
-      if (fs.getFileStatus(p).isDir()) {
-
-         for (FileStatus f : fs.listStatus(p)) {
-
-            if (!f.isDir()) {
+      if (fs.getFileStatus(p).isDir())
+      {
+         for (FileStatus f : fs.listStatus(p))
+         {
+            if (!f.isDir())
+            {
                s.add(f.getPath());
             }
-
          }
-
-      } else {
-
+      }
+      else
+      {
          s.add(p);
-
       }
 
-      return s;
+      return(s);
    }
 
-
-   static public boolean deleteDirectory(File path) {
-      if (path.exists()) {
+   static public boolean deleteDirectory(File path)
+   {
+      if (path.exists())
+      {
          File[] files = path.listFiles();
-         for (int i = 0; i < files.length; i++) {
-            if (files[i].isDirectory()) {
+         for (int i = 0; i < files.length; i++)
+         {
+            if (files[i].isDirectory())
+            {
                deleteDirectory(files[i]);
-            } else {
+            }
+            else
+            {
                files[i].delete();
             }
          }
       }
-      return (path.delete());
+      return(path.delete());
    }
 
-
-   public static Test suite() {
-      return new TestSuite(ContigKmerTest.class);
+   public static Test suite()
+   {
+      return(new TestSuite(ContigKmerTest.class ));
    }
 }
