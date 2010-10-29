@@ -155,13 +155,13 @@ public class ContigKmerTest extends TestCase {
       reader.close();
    }
 
-   public void offtestWithVelvet() throws Exception
+   public void testWithMinimus() throws Exception
    {
       Configuration conf2 = new Configuration();
 
       String[] otherArgs = MetaUtils.loadConfiguration(conf2, "test-config.xml", null);
-      conf2.set("assembler.command", "velvet");
-      Job job = new Job(conf2, "contigkmertestwithcap3");
+      conf2.set("assembler.command", "minimus");
+      Job job = new Job(conf2, "contigkmertestwithminimus");
 
       Path inputContigsFileOrDir  = new Path("target/test-classes/start_76l_o50.fa");
       Map<String, String> results = new TreeMap<String, String>();

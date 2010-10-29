@@ -41,6 +41,7 @@ package gov.jgi.meta.hadoop.reduce;
 
 import gov.jgi.meta.exec.CapCommand;
 import gov.jgi.meta.exec.CommandLineProgram;
+import gov.jgi.meta.exec.MinimusCommand;
 import gov.jgi.meta.exec.VelvetCommand;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
@@ -97,6 +98,10 @@ public class AssembleByGroupKey extends Reducer<Text, Text, Text, Text> {
       else if ("velvet".equals(assembler))
       {
          assemblerCmd = new VelvetCommand(context.getConfiguration());
+      }
+      else if ("minimus".equals(assembler))
+      {
+         assemblerCmd = new MinimusCommand(context.getConfiguration());
       }
       else
       {

@@ -32,12 +32,10 @@
         <value>formatdb</value>
     </property>
 
-
     <property>
         <name>blat.commandpath</name>
         <value>blat</value>
     </property>
-
 
     <property>
         <name>assembler.command</name>
@@ -46,7 +44,17 @@
 
     <property>
          <name>cap3.commandpath</name>
-        <value>/jgi/tools/assemblers/CAP3/cap3</value>
+        <value>cap3</value>
+    </property>
+
+    <property>
+        <name>minimus.commandpath</name>
+        <value>/house/homedirs/j/jfroula/Tools/General/minimus2.pl</value>
+    </property>
+    
+    <property>
+        <name>minimus.commandline</name>
+        <value> -p 99 -o 16 -t 5</value>
     </property>
 
     <property>

@@ -66,6 +66,16 @@
     </property>
 
     <property>
+        <name>minimus.commandpath</name>
+        <value>/house/homedirs/j/jfroula/Tools/General/minimus2.pl</value>
+    </property>
+
+    <property>
+        <name>minimus.commandline</name>
+        <value> -p 99 -o 16 -t 5</value>
+    </property>
+    
+    <property>
         <name>velveth.commandpath</name>
         <value>/jgi/tools/bin/velveth</value>
     </property>

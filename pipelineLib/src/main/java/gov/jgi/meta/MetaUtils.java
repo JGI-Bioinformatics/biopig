@@ -384,12 +384,6 @@ public class MetaUtils {
        * open temp file
        */
       seqFile = new File(tmpFileName);
-
-      if (! ( seqFile.setExecutable(true, false) &&
-              seqFile.setReadable(true, false) &&
-              seqFile.setWritable(true, false) ) ) {
-         throw new IOException("unable to set RWX bits to 777");
-      }
       out = new BufferedWriter(new FileWriter(seqFile.getPath()));
 
       /*
@@ -406,6 +400,13 @@ public class MetaUtils {
        * close temp file
        */
       out.close();
+
+
+      if (!(seqFile.setExecutable(true, false) &&
+              seqFile.setReadable(true, false) &&
+              seqFile.setWritable(true, false))) {
+         throw new IOException("unable to set RWX bits to 777");
+      }
 
       return(seqFile.getPath());
    }

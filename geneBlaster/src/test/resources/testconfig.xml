@@ -66,7 +66,7 @@
 
     <property>
         <name>blat.commandpath</name>
-        <value>/Users/dev/local/bin/blat</value>
+        <value>/jgi/tools/bin/blat</value>
     </property>
     
 
@@ -159,17 +159,17 @@
 
     <property>
          <name>cap3.commandpath</name>
-        <value>/Users/dev/local/bin/cap3</value>
+        <value>cap3</value>
     </property>
 
     <property>
         <name>velvetg.commandpath</name>
-        <value>/Users/dev/local/bin/velvetg</value>
+        <value>velvetg</value>
     </property>
 
     <property>
          <name>velveth.commandpath</name>
-         <value>/Users/dev/local/bin/velveth</value>
+         <value>velveth</value>
      </property>
 
 
