@@ -97,6 +97,31 @@ public class MinimusCommandTest extends TestCase {
 
    }
 
+
+      public void testExecNoContigsReturned() throws Exception {
+
+      Configuration conf = new Configuration();
+      conf.addResource("test-conf.xml");
+      conf.set("assembler.command", "minimus");
+
+      MinimusCommand assemblerCmd = new MinimusCommand(conf);
+
+      Map<String, String> value = MetaUtils.readSequences("target/test-classes/no-overlap.fa");
+
+      try {
+
+         Map<String, String> tmpmap = assemblerCmd.exec("test", value, null);
+         assemblerCmd.cleanup();
+         Assert.assertTrue(tmpmap.size() == 0);
+
+      } catch (Exception e) {
+         Assert.fail(e.toString());
+      }
+
+   }
+
+
+
    public void testMakeSureTempFilesAreCleanedUp() {
 
       File s = null;

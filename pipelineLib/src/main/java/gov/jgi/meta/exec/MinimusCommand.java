@@ -284,7 +284,8 @@ public class MinimusCommand implements CommandLineProgram {
          int bytes = in.readLine(t, s);
       } catch (Exception e) {
          log.error("unable to find outputfile:" + e);
-         throw new IOException(e);
+          /* could be because no contigs found */
+         /* throw new IOException(e); */
       } finally {
          if (fstream != null) { fstream.close(); }
          if (in != null) { in.close(); }

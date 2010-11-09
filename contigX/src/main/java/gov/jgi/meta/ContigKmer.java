@@ -92,7 +92,7 @@ public class ContigKmer {
             throw new IOException("file not found: " + contigFileName);
          }
 
-         contigs          = new HashMap<String, String>();
+         contigs          = new HashMap <String, String>();
          contigKmersFront = new HashMap < String, Set < String >> ();
          contigKmersRear  = new HashMap < String, Set < String >> ();
 
@@ -369,6 +369,8 @@ public class ContigKmer {
          "assembler.command",
          "cap3.commandline",
          "cap3.commandpath",
+         "minimus.commandline",
+         "minimus.commandpath"
       };
 
       MetaUtils.printConfiguration(conf, log, optionalProperties);
