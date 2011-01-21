@@ -37,43 +37,44 @@
  * sublicense such enhancements or derivative works thereof, in binary and source code form.
  */
 
-package gov.jgi.meta.hadoop.input;
+package gov.jgi.meta.pig.eval;
 
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.compress.CompressionCodec;
-import org.apache.hadoop.io.compress.CompressionCodecFactory;
-import org.apache.hadoop.mapreduce.InputSplit;
-import org.apache.hadoop.mapreduce.JobContext;
-import org.apache.hadoop.mapreduce.RecordReader;
-import org.apache.hadoop.mapreduce.TaskAttemptContext;
-import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import gov.jgi.meta.sequence.SequenceString;
+import org.apache.commons.lang.StringUtils;
+import org.apache.pig.EvalFunc;
+import org.apache.pig.backend.executionengine.ExecException;
+import org.apache.pig.data.*;
+import org.apache.pig.impl.logicalLayer.schema.Schema;
+
+import java.io.IOException;
+import java.util.Iterator;
 
 
-/** An {@link FastaInputFormat} is for fasta text files.  Files are broken
- * records seperated by ">" eg:
- * >756:1:1:1074:20235/1
- * TGCAGCTCAACANCGTCGGCTACGACNNCACCNNNGAGCGCATCGGCTNCNNNANNNCCTNNNNNNNNCGGGAGGT
- * >756:1:1:1074:20235/2
- * TCGTCGCTGAAGCCTTCTTCCACCTTGGCGTTGAACGCCTCCATGTCCAGTGGAGTCCCCTGGACCCCGCGCCCGC
- *
- * the identifier is from after the ">" till new line, and the sequence is
- * the following line till the next ">"
+/**
+ * string.LOWER implements eval function to convert a string to lower case
+ * Example:
+ *      register pigudfs.jar;
+ *      A = load 'mydata' as (name);
+ *      B = foreach A generate string.LOWER(name);
+ *      dump B;
  */
-public class FastaInputFormat extends FileInputFormat<Text, Text> {
+public class UnpackSequence extends EvalFunc<String> {
 
-  @Override
-  public RecordReader<Text, Text>
-    createRecordReader(InputSplit split,
-                       TaskAttemptContext context) {
-    return new FastaRecordReader();
-  }
-
-  @Override
-  protected boolean isSplitable(JobContext context, Path file) {
-    CompressionCodec codec =
-      new CompressionCodecFactory(context.getConfiguration()).getCodec(file);
-    return codec == null;
-  }
-
+    /**
+     * Method invoked on every tuple during foreach evaluation
+     * @param input tuple; assumed to be a sequence tuple of the form (id, direction, sequence)
+     * @exception java.io.IOException
+     */
+    public String exec(Tuple input) throws IOException {
+        String s = (String) input.get(0);
+        if (s != null) {
+            return SequenceString.byteArrayToSequence(s.getBytes());
+        } else {
+            return null;
+        }
+    }
+    @Override
+    public Schema outputSchema(Schema input) {
+        return new Schema(new Schema.FieldSchema(null, DataType.CHARARRAY));
+    }
 }

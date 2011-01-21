@@ -39,23 +39,26 @@ public class SequenceStringTest extends TestCase {
        String s = "attgc";
        String s2 = "attgca";
        String s3 = "ggccaat";
+        byte[] b = {(byte) 38, (byte) 237};
 
-       Byte[] ss = SequenceString.sequenceToByteArray(s);
-       Byte[] ss2 = SequenceString.sequenceToByteArray(s2);
-       Byte[] ss3 = SequenceString.sequenceToByteArray(s3);
+       byte[] ss = SequenceString.sequenceToByteArray(s);
+       byte[] ss2 = SequenceString.sequenceToByteArray(s2);
+       byte[] ss3 = SequenceString.sequenceToByteArray(s3);
 
        Assert.assertEquals("s: packing != unpacking", s, SequenceString.byteArrayToSequence(ss));
        Assert.assertEquals("s1: packing != unpacking", s2, SequenceString.byteArrayToSequence(ss2));
        Assert.assertEquals("s2: packing != unpacking", s3, SequenceString.byteArrayToSequence(ss3));
+
+       Assert.assertEquals("s: stringify is not what it should be", new String(b), new String(s));
 
     }
 
    public void testToString() throws Exception {
 
       String s = "attgc";
-      Byte[] b = {(byte) 6, (byte) 205};
+      byte[] b = {(byte) 38, (byte) 237};
 
-      Byte[] ss = SequenceString.sequenceToByteArray(s);
+      byte[] ss = SequenceString.sequenceToByteArray(s);
       Assert.assertArrayEquals("packing != unpacking", b, ss);
 
    }

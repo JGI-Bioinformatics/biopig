@@ -50,8 +50,6 @@ import java.util.HashMap;
  */
 public class SequenceString {
 
-   Byte[] bytes = null;
-
    static HashMap<String, Byte> hash = null;
    static HashMap<Byte, String> reverseHash = null;
 
@@ -64,14 +62,25 @@ public class SequenceString {
       }
    }
 
+    public static int numBases(byte[] seqarray)
+    {
+        int lastByte = seqarray.length - 1;
+        int lastByteNumBases = reverseHash.get(seqarray[lastByte]).length();
+        return (3 * lastByte + lastByteNumBases);
+    }
 
-   public static Byte[] sequenceToByteArray(String sequence)
+    public static byte[] subseq (byte[] seqarray, int start, int end)
+    {
+        return pack(byteArrayToSequence(seqarray).substring(start, end));
+    }
+
+   public static byte[] sequenceToByteArray(String sequence)
    {
       init();
       return pack(sequence);
 
    }
-   public static String byteArrayToSequence(Byte[] bytes)
+   public static String byteArrayToSequence(byte[] bytes)
    {
       init();
 
@@ -89,35 +98,35 @@ public class SequenceString {
       String[] alphabet = {"a", "t", "g", "c", "n"};
 
       for (byte i = 0; i < 5; i++) {
-         hash.put(alphabet[i], (byte) (128 + i ));
-         reverseHash.put((byte) (128 + i ), alphabet[i]);
+         hash.put(alphabet[i], (byte) (32 + 128 + i ));
+         reverseHash.put((byte) (32 + 128 + i ), alphabet[i]);
       }
 
       for (byte i = 0; i < 5; i++) {
          for (byte j = 0; j < 5; j++) {
-            hash.put(alphabet[i] + alphabet[j], (byte) (192 + i * 5 + j ));
-            reverseHash.put((byte) (192 + i * 5 + j ), alphabet[i] + alphabet[j]);
+            hash.put(alphabet[i] + alphabet[j], (byte) (32 + 192 + i * 5 + j ));
+            reverseHash.put((byte) (32 + 192 + i * 5 + j ), alphabet[i] + alphabet[j]);
          }
       }
 
       for (byte i = 0; i < 5; i++) {
          for (byte j = 0; j < 5; j++) {
             for (byte k = 0; k < 5; k++) {
-               hash.put(alphabet[i] + alphabet[j] + alphabet[k], (byte) (i * 25 + j * 5 + k));
-               reverseHash.put((byte) (i * 25 + j * 5 + k), alphabet[i] + alphabet[j] + alphabet[k]);
+               hash.put(alphabet[i] + alphabet[j] + alphabet[k], (byte) (32 + i * 25 + j * 5 + k));
+               reverseHash.put((byte) (32 + i * 25 + j * 5 + k), alphabet[i] + alphabet[j] + alphabet[k]);
             }
          }
       }
    }
 
-   private static Byte[] pack(String sequenceToPack)
+   private static byte[] pack(String sequenceToPack)
    {
       int numberOfBases = sequenceToPack.length();
       int numberOfFullBytes = numberOfBases/3;
       int overflow = (numberOfBases % 3 == 0 ? 0 : 1);
       int numberOfBytes = numberOfFullBytes + overflow;
 
-      Byte[] bytes = new Byte[numberOfBytes];
+      byte[] bytes = new byte[numberOfBytes];
 
       int i;
       for (i = 0; i < numberOfFullBytes; i++) {

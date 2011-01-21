@@ -23,16 +23,13 @@ import java.util.Set;
 import java.util.List;
 import java.util.ArrayList;
 
+import gov.jgi.meta.sequence.SequenceString;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.pig.EvalFunc;
 import org.apache.pig.FuncSpec;
-import org.apache.pig.data.DataBag;
-import org.apache.pig.data.DefaultBagFactory;
-import org.apache.pig.data.DefaultTupleFactory;
-import org.apache.pig.data.Tuple;
+import org.apache.pig.data.*;
 import org.apache.pig.impl.logicalLayer.schema.Schema;
-import org.apache.pig.data.DataType;
 import org.apache.pig.impl.logicalLayer.FrontendException;
 
 /**
@@ -52,18 +49,17 @@ public class KmerGenerator extends EvalFunc<DataBag> {
         if (input == null || input.size() == 0)
             return null;
         try{
-
+            TupleFactory tf = DefaultTupleFactory.getInstance();
             DataBag output = DefaultBagFactory.getInstance().newDefaultBag();
-            String seq = (String)input.get(0);
+            byte[] ba  = ((String) input.get(0)).getBytes();
             int kmerSize = (Integer) input.get(1);
+            int seqLength = SequenceString.numBases(ba);
 
-            LOG.info("generating kmers with k=" + kmerSize);
+            if (kmerSize > seqLength) return null;
 
-            Set<String> kmers = generateKmers(seq, kmerSize);
-            for (String kmer : kmers) {
-                Tuple t = DefaultTupleFactory.getInstance().newTuple(1);
-                //t.set(0, seqid);
-                t.set(0, kmer);
+            for (int i = 0; i < seqLength-kmerSize-1; i++) {
+                String kmer = new String(SequenceString.subseq(ba, i, i+kmerSize));
+                Tuple t = tf.newTuple(kmer);
                 output.add(t);
             }
             return output;
@@ -73,20 +69,33 @@ public class KmerGenerator extends EvalFunc<DataBag> {
         }
    }
 
+    @Override
+    public Schema outputSchema(Schema input) {
 
-    Set<String> generateKmers(String s, int window)
-    {
-       Set<String> set= new HashSet<String>();
+        try {
+            Schema.FieldSchema tokenFs = new Schema.FieldSchema("token",
+                    DataType.CHARARRAY);
+            Schema tupleSchema = new Schema(tokenFs);
 
-       int seqLength = s.length();
+            Schema.FieldSchema tupleFs;
+            tupleFs = new Schema.FieldSchema("tuple_of_tokens", tupleSchema,
+                    DataType.TUPLE);
 
-        if (window > seqLength) return set;
-        
-        for (int i = 0; i < seqLength-window-1; i++) {
-            set.add(s.substring(i, i+window));
+            Schema bagSchema = new Schema(tupleFs);
+            bagSchema.setTwoLevelAccessRequired(true);
+            Schema.FieldSchema bagFs = new Schema.FieldSchema(
+                        "bag_of_tokenTuples",bagSchema, DataType.BAG);
+
+            return new Schema(bagFs);
+
+
+
+        } catch (FrontendException e) {
+            // throwing RTE because
+            //above schema creation is not expected to throw an exception
+            // and also because superclass does not throw exception
+            throw new RuntimeException("Unable to compute TOKENIZE schema.");
         }
-
-        return set;
     }
 
 
