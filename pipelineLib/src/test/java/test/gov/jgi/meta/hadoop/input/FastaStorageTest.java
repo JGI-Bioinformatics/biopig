@@ -1,5 +1,6 @@
-package gov.jgi.meta.hadoop.input;
+package test.gov.jgi.meta.hadoop.input;
 
+import gov.jgi.meta.hadoop.input.Util;
 import gov.jgi.meta.pig.storage.FastaStorage;
 import junit.framework.Test;
 import junit.framework.TestSuite;
@@ -52,6 +53,21 @@ public class FastaStorageTest extends TestCase {
         assertEquals(Util.createTuple(new Long[] { new Long(10638) }), it.next());
         assertFalse(it.hasNext());
    }
+
+
+    public void testKmerGenerator() throws IOException
+     {
+
+          PigServer ps = new PigServer(ExecType.LOCAL);
+          String script = "a = load '/scratch/karan/1M.fas' using gov.jgi.meta.pig.storage.FastaStorage as (id: chararray, d: int, seq: chararray);\n" +
+                  "b = foreach a generate gov.jgi.meta.pig.eval.KmerGenerator(seq, 20);\n" +
+                  "c = foreach b generate COUNT($0);";
+
+          Util.registerMultiLineQuery(ps, script);
+          Iterator<Tuple> it = ps.openIterator("c");
+
+          assertEquals(Util.createTuple(new Long[] { new Long(57) }), it.next());
+     }
 
     public void testFastaStorageCompressedLoad() throws IOException
      {

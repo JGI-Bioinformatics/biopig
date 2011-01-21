@@ -39,6 +39,7 @@
 
 package gov.jgi.meta.hadoop.input;
 
+import gov.jgi.meta.sequence.SequenceString;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -263,6 +264,11 @@ public class FastaLineReader {
             j++; // skip the ">"
 
         } while (j < recordBlock.getLength());
+
+
+        byte[] strpacked = SequenceString.sequenceToByteArray(str.toString().toLowerCase());
+        str.clear();
+        str.append(strpacked, 0, strpacked.length);
 
         return totalBytesRead;
   }

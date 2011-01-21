@@ -20,16 +20,13 @@ package gov.jgi.meta.pig.eval;
 import java.io.IOException;
 import java.util.*;
 
+import gov.jgi.meta.sequence.SequenceString;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.pig.EvalFunc;
 import org.apache.pig.FuncSpec;
-import org.apache.pig.data.DataBag;
-import org.apache.pig.data.DefaultBagFactory;
-import org.apache.pig.data.DefaultTupleFactory;
-import org.apache.pig.data.Tuple;
+import org.apache.pig.data.*;
 import org.apache.pig.impl.logicalLayer.schema.Schema;
-import org.apache.pig.data.DataType;
 import org.apache.pig.impl.logicalLayer.FrontendException;
 
 /**
@@ -49,14 +46,14 @@ public class KmerGenerator extends EvalFunc<DataBag> {
         if (input == null || input.size() == 0)
             return null;
         try{
-
             DataBag output = DefaultBagFactory.getInstance().newDefaultBag();
-            String seq = (String)input.get(0);
+            byte[] ba  = ((String) input.get(0)).getBytes();
             int kmerSize = (Integer) input.get(1);
+            int seqLength = SequenceString.numBases(ba);
 
-            LOG.info("generating kmers with k=" + kmerSize);
+            if (kmerSize > seqLength) return null;
 
-            List<String> kmers = generateKmers(seq, kmerSize);
+            List<String> kmers = generateKmers(ba, kmerSize);
 
             LOG.info("generated " + kmers.size() + " kmers");
             
@@ -73,19 +70,44 @@ public class KmerGenerator extends EvalFunc<DataBag> {
         }
    }
 
+    @Override
+    public Schema outputSchema(Schema input) {
 
-    List<String> generateKmers(String s, int window)
+        try {
+            Schema.FieldSchema tokenFs = new Schema.FieldSchema("token",
+                    DataType.CHARARRAY);
+            Schema tupleSchema = new Schema(tokenFs);
+
+            Schema.FieldSchema tupleFs;
+            tupleFs = new Schema.FieldSchema("tuple_of_tokens", tupleSchema,
+                    DataType.TUPLE);
+
+            Schema bagSchema = new Schema(tupleFs);
+            bagSchema.setTwoLevelAccessRequired(true);
+            Schema.FieldSchema bagFs = new Schema.FieldSchema(
+                        "bag_of_tokenTuples",bagSchema, DataType.BAG);
+
+            return new Schema(bagFs);
+
+        } catch (FrontendException e) {
+            // throwing RTE because
+            //above schema creation is not expected to throw an exception
+            // and also because superclass does not throw exception
+            throw new RuntimeException("Unable to compute TOKENIZE schema.");
+        }
+    }
+   
+
+    List<String> generateKmers(byte[] ba, int window)
     {
-
-       
        List<String> set= new LinkedList<String>();
 
-       int seqLength = s.length();
+       int seqLength =  SequenceString.numBases(ba);
 
         if (window > seqLength) return set;
         String kmer;
         for (int i = 0; i <= seqLength-window; i++) {
-            kmer = (s.substring(i, i+window));
+            kmer = new String(SequenceString.subseq(ba, i, i+window));
             if (!kmer.contains("n")) {
                 set.add(kmer);
             }
@@ -93,7 +115,6 @@ public class KmerGenerator extends EvalFunc<DataBag> {
 
         return set;
     }
-
 
 }
                  

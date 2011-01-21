@@ -39,6 +39,7 @@
 
 package gov.jgi.meta.hadoop.input;
 
+import gov.jgi.meta.sequence.SequenceString;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -53,9 +54,6 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 
-import org.biojava.bio.seq.*;
-import org.biojava.bio.symbol.IllegalSymbolException;
-
 import java.io.IOException;
 
 
@@ -63,7 +61,7 @@ import java.io.IOException;
 /**
  * Treats keys as offset in file and value as line.
  */
-public class FastaRecordReader extends RecordReader<Text, Sequence> {
+public class FastaRecordReader extends RecordReader<Text, Text> {
   private static final Log LOG = LogFactory.getLog(FastaRecordReader.class);
 
   private CompressionCodecFactory compressionCodecs = null;
@@ -73,7 +71,7 @@ public class FastaRecordReader extends RecordReader<Text, Sequence> {
   private FastaLineReader in;
   private int maxLineLength;
   private Text key = null;
-  private Sequence value = null;
+  private Text value = null;
 
   public void initialize(InputSplit genericSplit,
                          TaskAttemptContext context) throws IOException {
@@ -128,11 +126,8 @@ public class FastaRecordReader extends RecordReader<Text, Sequence> {
                                      maxLineLength));
 //        LOG.info("newsize = " + newSize);
 
-      try {
-          value = DNATools.createDNASequence(txtvalue.toString(), key.toString());
-      } catch (IllegalSymbolException e) {
-          throw new IOException("parse error on key: " + key + "/" + txtvalue + ": " + e);
-      }
+        value = txtvalue;
+
         
       if (newSize == 0) {
         break;
@@ -161,7 +156,7 @@ public class FastaRecordReader extends RecordReader<Text, Sequence> {
   }
 
   @Override
-  public Sequence getCurrentValue() {
+  public Text getCurrentValue() {
     return value;
   }
 
