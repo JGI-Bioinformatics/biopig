@@ -18,10 +18,7 @@
 package gov.jgi.meta.pig.eval;
 
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.List;
-import java.util.ArrayList;
+import java.util.*;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -59,7 +56,10 @@ public class KmerGenerator extends EvalFunc<DataBag> {
 
             LOG.info("generating kmers with k=" + kmerSize);
 
-            Set<String> kmers = generateKmers(seq, kmerSize);
+            List<String> kmers = generateKmers(seq, kmerSize);
+
+            LOG.info("generated " + kmers.size() + " kmers");
+            
             for (String kmer : kmers) {
                 Tuple t = DefaultTupleFactory.getInstance().newTuple(1);
                 //t.set(0, seqid);
@@ -74,16 +74,21 @@ public class KmerGenerator extends EvalFunc<DataBag> {
    }
 
 
-    Set<String> generateKmers(String s, int window)
+    List<String> generateKmers(String s, int window)
     {
-       Set<String> set= new HashSet<String>();
+
+       
+       List<String> set= new LinkedList<String>();
 
        int seqLength = s.length();
 
         if (window > seqLength) return set;
-        
-        for (int i = 0; i < seqLength-window-1; i++) {
-            set.add(s.substring(i, i+window));
+        String kmer;
+        for (int i = 0; i <= seqLength-window; i++) {
+            kmer = (s.substring(i, i+window));
+            if (!kmer.contains("n")) {
+                set.add(kmer);
+            }
         }
 
         return set;
