@@ -39,6 +39,8 @@
 
 package gov.jgi.meta.sequence;
 
+import org.apache.hadoop.io.Text;
+
 import java.util.HashMap;
 
 /**
@@ -71,7 +73,18 @@ public class SequenceString {
 
     public static byte[] subseq (byte[] seqarray, int start, int end)
     {
-        return pack(byteArrayToSequence(seqarray).substring(start, end));
+        int startindex = start/3;
+        int overflow = ( ((end%3) == 0) ? 0 : 1);
+        int endindex = end/3 + overflow;
+
+        String unpackedSeqSegment = byteArrayToSequence(seqarray, startindex, endindex-startindex);
+        return pack(unpackedSeqSegment.substring(start%3, start%3+(end-start)));
+
+    }
+
+    public static boolean contains(String sequence, CharSequence c)
+    {
+        return byteArrayToSequence(sequence.getBytes()).contains(c);
     }
 
    public static byte[] sequenceToByteArray(String sequence)
@@ -92,6 +105,35 @@ public class SequenceString {
 
       return sb.toString();
    }
+
+    public static String byteArrayToSequence(byte[] bytes, int startindex, int length)
+    {
+       init();
+
+       StringBuffer sb = new StringBuffer();
+
+       for (int i = startindex; i < startindex+length; i++) {
+          sb.append(reverseHash.get(bytes[i]));
+       }
+
+       return sb.toString();
+    }
+
+    // because Text.bytes.length is not always the right length to use.
+public static String byteArrayToSequence(Text seq)
+   {
+      init();
+
+      StringBuffer sb = new StringBuffer();
+      byte[] ba = seq.getBytes();
+
+      for (int i = 0; i < seq.getLength() ; i++) {
+         sb.append(reverseHash.get(ba[i]));
+      }
+
+      return sb.toString();
+   }
+
 
    private static void initHash()
    {
@@ -128,17 +170,28 @@ public class SequenceString {
 
       byte[] bytes = new byte[numberOfBytes];
 
-      int i;
+      int i = 0;
+
+       try {
       for (i = 0; i < numberOfFullBytes; i++) {
 
          String subseq = sequenceToPack.substring(i*3, i*3+3);
+         if (subseq.matches(".*[^atgcn].*")) {
+             subseq = subseq.replaceAll("[^atgcn]", "n");
+         }
          bytes[i] = hash.get(subseq);
 
       }
+       } catch (Exception e) {
+           System.out.println("i = " + i);
+       }
 
       if (overflow > 0) {
          String subseq = sequenceToPack.substring(i*3, i*3 + numberOfBases % 3);
-         bytes[i] = hash.get(subseq);
+         if (subseq.matches("[^atgcn]")) {
+             subseq = subseq.replaceAll("[^atgcn]", "n");
+         }
+         bytes[i++] = hash.get(subseq);
       }
 
       // sanity check

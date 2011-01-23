@@ -47,7 +47,7 @@ public class KmerGenerator extends EvalFunc<DataBag> {
             return null;
         try{
             DataBag output = DefaultBagFactory.getInstance().newDefaultBag();
-            byte[] ba  = ((String) input.get(0)).getBytes();
+            byte[] ba  = ((DataByteArray) input.get(0)).get();
             int kmerSize = (Integer) input.get(1);
             int seqLength = SequenceString.numBases(ba);
 
@@ -55,7 +55,7 @@ public class KmerGenerator extends EvalFunc<DataBag> {
 
             List<String> kmers = generateKmers(ba, kmerSize);
 
-            LOG.info("generated " + kmers.size() + " kmers");
+ //           LOG.info("generated " + kmers.size() + " kmers");
             
             for (String kmer : kmers) {
                 Tuple t = DefaultTupleFactory.getInstance().newTuple(1);
@@ -75,7 +75,7 @@ public class KmerGenerator extends EvalFunc<DataBag> {
 
         try {
             Schema.FieldSchema tokenFs = new Schema.FieldSchema("token",
-                    DataType.CHARARRAY);
+                    DataType.BYTEARRAY);
             Schema tupleSchema = new Schema(tokenFs);
 
             Schema.FieldSchema tupleFs;
@@ -108,7 +108,7 @@ public class KmerGenerator extends EvalFunc<DataBag> {
         String kmer;
         for (int i = 0; i <= seqLength-window; i++) {
             kmer = new String(SequenceString.subseq(ba, i, i+window));
-            if (!kmer.contains("n")) {
+            if (kmer != null && !SequenceString.contains(kmer, "n")) {
                 set.add(kmer);
             }
         }

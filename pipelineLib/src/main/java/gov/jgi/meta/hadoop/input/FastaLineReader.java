@@ -246,6 +246,10 @@ public class FastaLineReader {
                         break;
                     }
                 }
+                byte[] ba = recordBlock.getBytes();
+                if (ba.length <= i || ba.length <= j - i - 1) {
+                    LOG.fatal("hmm... ba.length = " + ba.length + " i = " + i + " j-i-1 = " + (j-i-1));
+                }
                 str.append(recordBlock.getBytes(), i, j - i - 1);
 
                 while (j < recordBlock.getLength() && (recordBlock.charAt(j) == CR || recordBlock.charAt(j) == LF)) j++;
@@ -265,8 +269,10 @@ public class FastaLineReader {
 
         } while (j < recordBlock.getLength());
 
-
+//        LOG.info("");
+//        LOG.info("object key = " + key);
         byte[] strpacked = SequenceString.sequenceToByteArray(str.toString().toLowerCase());
+        
         str.clear();
         str.append(strpacked, 0, strpacked.length);
 

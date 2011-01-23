@@ -37,8 +37,8 @@ public class SequenceStringTest extends TestCase {
     public void testToSequence() throws Exception {
 
        String s = "attgc";
-       String s2 = "attgca";
-       String s3 = "ggccaat";
+       String s2 = "TGCAGCTCAACANCGTCGGCTACGACNNCACCNNNGAGCGCATCGGCTNCNNNANNNCCTNNNNNNNNCGGGAGGT".toLowerCase();
+       String s3 = "gmccaam";   // note the "m"  should be treated as an "n"
         byte[] b = {(byte) 38, (byte) 237};
 
        byte[] ss = SequenceString.sequenceToByteArray(s);
@@ -47,9 +47,10 @@ public class SequenceStringTest extends TestCase {
 
        Assert.assertEquals("s: packing != unpacking", s, SequenceString.byteArrayToSequence(ss));
        Assert.assertEquals("s1: packing != unpacking", s2, SequenceString.byteArrayToSequence(ss2));
-       Assert.assertEquals("s2: packing != unpacking", s3, SequenceString.byteArrayToSequence(ss3));
+        Assert.assertEquals("size of packed string not correct", s2.length(), SequenceString.numBases(ss2));
+       Assert.assertEquals("s2: packing != unpacking", "gnccaan", SequenceString.byteArrayToSequence(ss3));
 
-       Assert.assertEquals("s: stringify is not what it should be", new String(b), new String(s));
+       Assert.assertEquals("s: stringify is not what it should be", new String(b), new String(ss));
 
     }
 
@@ -64,7 +65,19 @@ public class SequenceStringTest extends TestCase {
    }
 
 
+   public void testUnpackPartial() throws Exception {
 
+      String s2 = "TGCAGCTCAACANCGTCGGCTACGACNNCACCNNNGAGCGCATCGGCTNCNNNANNNCCTNNNNNNNNCGGGAGGT".toLowerCase();
+
+      byte[] ss2 = SequenceString.sequenceToByteArray(s2);
+
+      Assert.assertEquals("s2: packing != unpacking", "tgc", SequenceString.byteArrayToSequence(SequenceString.subseq(ss2, 0, 3)));
+      Assert.assertEquals("s2: packing != unpacking", "tgcagc", SequenceString.byteArrayToSequence(SequenceString.subseq(ss2, 0, 6)));
+      Assert.assertEquals("s2: packing != unpacking", "tg", SequenceString.byteArrayToSequence(SequenceString.subseq(ss2, 0, 2)));
+      Assert.assertEquals("s2: packing != unpacking", "t", SequenceString.byteArrayToSequence(SequenceString.subseq(ss2, 0, 1)));
+      Assert.assertEquals("s2: packing != unpacking", "agc", SequenceString.byteArrayToSequence(SequenceString.subseq(ss2, 3, 6)));
+
+   }
 
 
 

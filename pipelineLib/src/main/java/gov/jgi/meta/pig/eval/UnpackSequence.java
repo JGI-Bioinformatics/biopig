@@ -66,15 +66,16 @@ public class UnpackSequence extends EvalFunc<String> {
      * @exception java.io.IOException
      */
     public String exec(Tuple input) throws IOException {
-        String s = (String) input.get(0);
-        if (s != null) {
-            return SequenceString.byteArrayToSequence(s.getBytes());
+        DataByteArray ba = (DataByteArray) input.get(0);
+        String seq  = SequenceString.byteArrayToSequence(ba.get());
+        if (seq != null) {
+            return seq;
         } else {
             return null;
         }
     }
     @Override
     public Schema outputSchema(Schema input) {
-        return new Schema(new Schema.FieldSchema(null, DataType.CHARARRAY));
+        return new Schema(new Schema.FieldSchema(null, DataType.BYTEARRAY));
     }
 }

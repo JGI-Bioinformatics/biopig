@@ -5,9 +5,12 @@ import gov.jgi.meta.pig.storage.FastaStorage;
 import junit.framework.Test;
 import junit.framework.TestSuite;
 import junit.framework.TestCase;
+import org.apache.hadoop.io.Text;
 import org.apache.pig.ExecType;
 import org.apache.pig.PigServer;
+import org.apache.pig.data.DataByteArray;
 import org.apache.pig.data.Tuple;
+import org.junit.Assert;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -40,10 +43,10 @@ public class FastaStorageTest extends TestCase {
 
 
   public void testFastaStorageLoad() throws IOException
-   {
+   {   
 
         PigServer ps = new PigServer(ExecType.LOCAL);
-        String script = "a = load 'target/test-classes/1M.fas' using gov.jgi.meta.pig.storage.FastaStorage as (id: chararray, d: int, seq: chararray);\n" +
+        String script = "a = load 'target/test-classes/1M.fas' using gov.jgi.meta.pig.storage.FastaStorage as (id: chararray, d: int, seq: bytearray);\n" +
                 "b = group a by '1';\n" +
                 "c = foreach b generate COUNT(a);";
 
@@ -54,26 +57,42 @@ public class FastaStorageTest extends TestCase {
         assertFalse(it.hasNext());
    }
 
+        public void testSequencePackerAndUnPack() throws IOException
+     {
 
+          PigServer ps = new PigServer(ExecType.LOCAL);
+          String script = "a = load 'target/test-classes/1M.fas' using gov.jgi.meta.pig.storage.FastaStorage as (id: chararray, d: int, seq: bytearray);\n" +
+                  "b = foreach a generate gov.jgi.meta.pig.eval.UnpackSequence(seq);";
+
+          Util.registerMultiLineQuery(ps, script);
+          Iterator<Tuple> it = ps.openIterator("b");
+          String t = new String("TGCAGCTCAACANCGTCGGCTACGACNNCACCNNNGAGCGCATCGGCTNCNNNANNNCCTNNNNNNNNCGGGAGGT").toLowerCase();
+
+          assertEquals(t, ((String) it.next().get(0)));
+     }
+    
     public void testKmerGenerator() throws IOException
      {
 
           PigServer ps = new PigServer(ExecType.LOCAL);
-          String script = "a = load '/scratch/karan/1M.fas' using gov.jgi.meta.pig.storage.FastaStorage as (id: chararray, d: int, seq: chararray);\n" +
+          String script = "a = load 'target/test-classes/1M.fas' using gov.jgi.meta.pig.storage.FastaStorage as (id: chararray, d: int, seq: bytearray);\n" +
                   "b = foreach a generate gov.jgi.meta.pig.eval.KmerGenerator(seq, 20);\n" +
                   "c = foreach b generate COUNT($0);";
 
           Util.registerMultiLineQuery(ps, script);
           Iterator<Tuple> it = ps.openIterator("c");
 
-          assertEquals(Util.createTuple(new Long[] { new Long(57) }), it.next());
+          assertEquals(Util.createTuple(new Long[] { new Long(0) }), it.next());
+         assertEquals(Util.createTuple(new Long[] { new Long(57) }), it.next());
+         assertEquals(Util.createTuple(new Long[] { new Long(0) }), it.next());
+         assertEquals(Util.createTuple(new Long[] { new Long(57) }), it.next());
      }
 
     public void testFastaStorageCompressedLoad() throws IOException
      {
 
           PigServer ps2 = new PigServer(ExecType.LOCAL);
-          String script = "a = load 'target/test-classes/1M.fas.bz2' using gov.jgi.meta.pig.storage.FastaStorage as (id: chararray, d: int, seq: chararray);\n" +
+          String script = "a = load 'target/test-classes/1M.fas.bz2' using gov.jgi.meta.pig.storage.FastaStorage as (id: chararray, d: int, seq: bytearray);\n" +
                   "b = group a by '1';\n" +
                   "c = foreach b generate COUNT(a);";
 

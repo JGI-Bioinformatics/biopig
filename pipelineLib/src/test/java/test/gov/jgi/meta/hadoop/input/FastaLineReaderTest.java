@@ -42,6 +42,7 @@ package test.gov.jgi.meta.hadoop.input;
 import gov.jgi.meta.hadoop.input.FastaBlockLineReader;
 import gov.jgi.meta.hadoop.input.FastaLineReader;
 import gov.jgi.meta.hadoop.input.FastqLineReader;
+import gov.jgi.meta.sequence.SequenceString;
 import junit.framework.Test;
 import junit.framework.TestSuite;
 import junit.framework.TestCase;
@@ -98,7 +99,7 @@ public class FastaLineReaderTest extends TestCase {
             } while (bytes > 0);
             Assert.assertTrue(total==10638);
 
-            Assert.assertEquals("sequence not read correctly", sequence.toString(), "CTGTTGGAGAGATTGAATTCCTCAGCGAGCGCCTCTCCGCTGACGGCTTCAAAGGCTTCAAACTGCCCTGCGGAGT");
+            Assert.assertEquals("sequence not read correctly", SequenceString.byteArrayToSequence(sequence), "CTGTTGGAGAGATTGAATTCCTCAGCGAGCGCCTCTCCGCTGACGGCTTCAAAGGCTTCAAACTGCCCTGCGGAGT".toLowerCase());
             Assert.assertEquals("sequence key not read correctly", key.toString(), "756:1:1:1599:15858/2");
 
            
