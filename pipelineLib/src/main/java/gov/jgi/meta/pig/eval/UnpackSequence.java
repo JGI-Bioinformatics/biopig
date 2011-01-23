@@ -66,8 +66,10 @@ public class UnpackSequence extends EvalFunc<String> {
      * @exception java.io.IOException
      */
     public String exec(Tuple input) throws IOException {
-        DataByteArray ba = (DataByteArray) input.get(0);
-        String seq  = SequenceString.byteArrayToSequence(ba.get());
+        String x = (String) input.get(0);
+        byte[] y = x.getBytes();
+        //DataByteArray ba = (DataByteArray) input.get(0);
+        String seq  = SequenceString.byteArrayToSequence(y);
         if (seq != null) {
             return seq;
         } else {

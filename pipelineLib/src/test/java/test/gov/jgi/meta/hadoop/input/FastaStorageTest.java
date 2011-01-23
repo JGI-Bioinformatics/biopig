@@ -70,6 +70,22 @@ public class FastaStorageTest extends TestCase {
 
           assertEquals(t, ((String) it.next().get(0)));
      }
+
+    public void testSequencePackerAndUnPackwithKmer() throws IOException
+ {
+
+//      PigServer ps = new PigServer(ExecType.LOCAL);
+//      String script = "a = load '/tmp/x.fas' using gov.jgi.meta.pig.storage.FastaStorage as (id: chararray, d: int, seq: bytearray);\n" +
+//              "b = foreach a generate FLATTEN(gov.jgi.meta.pig.eval.KmerGenerator(seq, 20));\n" +
+//              "c = foreach b generate gov.jgi.meta.pig.eval.UnpackSequence($0);";
+//
+//      Util.registerMultiLineQuery(ps, script);
+//      Iterator<Tuple> it = ps.openIterator("c");
+//      String t = new String("TGCAGCTCAACANCGTCGGCTACGACNNCACCNNNGAGCGCATCGGCTNCNNNANNNCCTNNNNNNNNCGGGAGGT").toLowerCase();
+//
+//      assertEquals(t, ((String) it.next().get(0)));
+ }
+
     
     public void testKmerGenerator() throws IOException
      {
