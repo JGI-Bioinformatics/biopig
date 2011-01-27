@@ -42,32 +42,32 @@ public class KmerGenerator extends EvalFunc<DataBag> {
 
     public DataBag exec(Tuple input) throws IOException {
 
+       DataBag output = DefaultBagFactory.getInstance().newDefaultBag();
 
         if (input == null || input.size() == 0)
             return null;
         try{
-            DataBag output = DefaultBagFactory.getInstance().newDefaultBag();
+
             byte[] ba  = ((DataByteArray) input.get(0)).get();
             int kmerSize = (Integer) input.get(1);
             int seqLength = SequenceString.numBases(ba);
 
             if (kmerSize > seqLength) return null;
 
-            List<String> kmers = generateKmers(ba, kmerSize);
-
- //           LOG.info("generated " + kmers.size() + " kmers");
-            
-            for (String kmer : kmers) {
+           String kmer;
+           for (int i = 0; i <= seqLength-kmerSize; i++) {
+              kmer = new String(SequenceString.subseq(ba, i, i+kmerSize));
+              if (kmer != null && !SequenceString.contains(kmer, "n")) {
                 Tuple t = DefaultTupleFactory.getInstance().newTuple(1);
-                //t.set(0, seqid);
                 t.set(0, kmer);
                 output.add(t);
-            }
-            return output;
+              }
+           }
         }catch(Exception e){
             System.err.println("KmerGenerator: failed to process input; error - " + e.getMessage());
             return null;
         }
+       return output;
    }
 
     @Override
@@ -95,25 +95,6 @@ public class KmerGenerator extends EvalFunc<DataBag> {
             // and also because superclass does not throw exception
             throw new RuntimeException("Unable to compute TOKENIZE schema.");
         }
-    }
-   
-
-    List<String> generateKmers(byte[] ba, int window)
-    {
-       List<String> set= new LinkedList<String>();
-
-       int seqLength =  SequenceString.numBases(ba);
-
-        if (window > seqLength) return set;
-        String kmer;
-        for (int i = 0; i <= seqLength-window; i++) {
-            kmer = new String(SequenceString.subseq(ba, i, i+window));
-            if (kmer != null && !SequenceString.contains(kmer, "n")) {
-                set.add(kmer);
-            }
-        }
-
-        return set;
     }
 
 }

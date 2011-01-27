@@ -41,10 +41,11 @@ public class FastaStorageTest extends TestCase {
       super.tearDown();
    }
 
-
+     // should test some sequences with bad formats.
+   
   public void testFastaStorageLoad() throws IOException
    {   
-
+                        // /scratch/nt_2011-01-11_shredded_1k.fas
         PigServer ps = new PigServer(ExecType.LOCAL);
         String script = "a = load 'target/test-classes/1M.fas' using gov.jgi.meta.pig.storage.FastaStorage as (id: chararray, d: int, seq: bytearray);\n" +
                 "b = group a by '1';\n" +
@@ -103,6 +104,36 @@ public class FastaStorageTest extends TestCase {
          assertEquals(Util.createTuple(new Long[] { new Long(0) }), it.next());
          assertEquals(Util.createTuple(new Long[] { new Long(57) }), it.next());
      }
+
+   public void testSubSequence() throws IOException
+    {
+
+         PigServer ps = new PigServer(ExecType.LOCAL);
+         String script = "a = load 'target/test-classes/1M.fas' using gov.jgi.meta.pig.storage.FastaStorage as (id: chararray, d: int, seq: bytearray);\n" +
+                 "b = foreach a generate gov.jgi.meta.pig.eval.SubSequence(seq, 0, 10);\n" +
+                 "c = foreach b generate gov.jgi.meta.pig.eval.UnpackSequence($0);";
+
+         Util.registerMultiLineQuery(ps, script);
+         Iterator<Tuple> it = ps.openIterator("c");
+
+        assertEquals("TGCAGCTCAA".toLowerCase(), ((String) it.next().get(0)));
+    }
+      public void testSequenceNeighbors() throws IOException
+    {
+
+         PigServer ps = new PigServer(ExecType.LOCAL);
+         String script = "a = load 'target/test-classes/1M.fas' using gov.jgi.meta.pig.storage.FastaStorage as (id: chararray, d: int, seq: bytearray);\n" +
+
+                 "b = foreach a generate gov.jgi.meta.pig.eval.SubSequence(seq, 0, 10);\n" +
+                 "c = foreach b generate gov.jgi.meta.pig.eval.UnpackSequence($0);\n" +
+                 "d = foreach c generate FLATTEN(gov.jgi.meta.pig.eval.SequenceEditDistance($0, 2));";
+
+         Util.registerMultiLineQuery(ps, script);
+         Iterator<Tuple> it = ps.openIterator("d");
+
+        assertEquals("TGCAGCTCAA".toLowerCase(), ((String) it.next().get(0)));
+    }
+
 
     public void testFastaStorageCompressedLoad() throws IOException
      {

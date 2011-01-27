@@ -44,6 +44,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.file.tfile.ByteArray;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -134,7 +135,7 @@ public class FastaLineReader {
         int numRecordsRead = 0;
         Boolean eof = false;
         int startPosn;
-        Text recordBlock = new Text();
+        StringBuilder recordBlock = new StringBuilder(this.bufferSize);
 
         /*
         first thing to do is to move forward till you see a start character
@@ -165,7 +166,7 @@ public class FastaLineReader {
         startPosn = bufferPosn-1;  // startPosn guaranteed to be at a ">"
 
         /*
-        find the next record start
+        find the next record start:  first scan to end of the line
          */
         eof = false;
         do {
@@ -175,7 +176,10 @@ public class FastaLineReader {
                 copy the current buffer before refreshing the buffer
                  */
                 int appendLength = bufferPosn - startPosn;
-                recordBlock.append(buffer, startPosn, appendLength);
+                for (int copyi = startPosn; copyi < startPosn+appendLength; copyi++) {
+                   recordBlock.append((char) buffer[copyi]);
+                }
+                //recordBlock.append(buffer, startPosn, appendLength);
                 totalBytesRead += appendLength;
 
                 startPosn = bufferPosn = 0;
@@ -185,13 +189,42 @@ public class FastaLineReader {
                     break; // EOF
                 }
             }
+            bufferPosn++;
+        } while (buffer[bufferPosn-1] != CR && buffer[bufferPosn-1] != LF) ;
 
+
+        /*
+        find the next record start:  scan till next ">"
+         */
+        do {
+            if (bufferPosn >= bufferLength) {
+
+                /*
+                copy the current buffer before refreshing the buffer
+                 */
+                int appendLength = bufferPosn - startPosn;
+                for (int copyi = startPosn; copyi < startPosn+appendLength; copyi++) {
+                   recordBlock.append((char) buffer[copyi]);
+                }
+                //recordBlock.append(buffer, startPosn, appendLength);
+                totalBytesRead += appendLength;
+
+                startPosn = bufferPosn = 0;
+                bufferLength = in.read(buffer);
+                if (bufferLength <= 0) {
+                    eof = true;
+                    break; // EOF
+                }
+            }
         } while (buffer[bufferPosn++] != '>');  // only read one record at a time
 
         if (!eof) {
             bufferPosn--;  // make sure we leave bufferPosn pointing to the next record
             int appendLength = bufferPosn - startPosn;
-            recordBlock.append(buffer, startPosn, appendLength);
+            for (int copyi = startPosn; copyi < startPosn+appendLength; copyi++) {
+               recordBlock.append((char) buffer[copyi]);
+            }
+            //recordBlock.append(buffer, startPosn, appendLength);
             totalBytesRead += appendLength;
         }
 
@@ -209,7 +242,7 @@ public class FastaLineReader {
              */
             i = j;
             Boolean junkOnLine = false;
-            while (j < recordBlock.getLength()) {
+            while (j < recordBlock.length()) {
                 int c = recordBlock.charAt(j++);
                 if (c == CR || c == LF) {
                     break;
@@ -218,14 +251,21 @@ public class FastaLineReader {
                     break;
                 }
             }
-            key.append(recordBlock.getBytes(), i, j - i - 1);
+            if (j == i) {
+               // then we didn't parse out a proper id
+               LOG.error("Unable to parse entry: " + recordBlock);
+               str.clear();
+               key.clear();
+               return totalBytesRead;
+            }
+            key.set(recordBlock.substring(i, j-1));
            
             /*
             in case there is additional metadata on the header line, ignore everything after
             the first word.
              */
             if (junkOnLine) {
-                while (j < recordBlock.getLength() && recordBlock.charAt(j) != CR && recordBlock.charAt(j) != LF ) j++;
+                while (j < recordBlock.length() && recordBlock.charAt(j) != CR && recordBlock.charAt(j) != LF ) j++;
             }
 
             //LOG.info ("key = " + k.toString());
@@ -233,41 +273,54 @@ public class FastaLineReader {
             /*
            now skip the newlines
             */
-            while (j < recordBlock.getLength() && (recordBlock.charAt(j) == CR || recordBlock.charAt(j) == LF)) j++;
+            while (j < recordBlock.length() && (recordBlock.charAt(j) == CR || recordBlock.charAt(j) == LF)) j++;
 
             /*
            now read the sequence
             */
+           StringBuilder sequenceTmp = new StringBuilder(recordBlock.length());
             do {
                 i = j;
-                while (j < recordBlock.getLength()) {
+                while (j < recordBlock.length()) {
                     int c = recordBlock.charAt(j++);
                     if (c == CR || c == LF) {
                         break;
                     }
                 }
-                byte[] ba = recordBlock.getBytes();
-                if (ba.length <= i || ba.length <= j - i - 1) {
-                    LOG.fatal("hmm... ba.length = " + ba.length + " i = " + i + " j-i-1 = " + (j-i-1));
-                }
-                str.append(recordBlock.getBytes(), i, j - i - 1);
+                //byte[] ba = recordBlock.getBytes();
+                //if (ba.length <= i || ba.length <= j - i - 1) {
+                //    LOG.fatal("hmm... ba.length = " + ba.length + " i = " + i + " j-i-1 = " + (j-i-1));
+                //}
 
-                while (j < recordBlock.getLength() && (recordBlock.charAt(j) == CR || recordBlock.charAt(j) == LF)) j++;
+               if (j == i) {
+                  // then we didn't parse out a proper id
+                  LOG.error("Unable to parse entry: " + recordBlock);
+                  str.clear();
+                  key.clear();
+                  return totalBytesRead;
+               }
+               for (int copyi = i; copyi < j-1; copyi++) {
+                  sequenceTmp.append((char) recordBlock.charAt(copyi));
+               }
 
-            } while (j < recordBlock.getLength() && recordBlock.charAt(j) != '>');
+
+                while (j < recordBlock.length() && (recordBlock.charAt(j) == CR || recordBlock.charAt(j) == LF)) j++;
+
+            } while (j < recordBlock.length() && recordBlock.charAt(j) != '>');
+            str.set(sequenceTmp.toString());           
 
             numRecordsRead++;
 
             /*
            now skip characters (newline or carige return most likely) till record start
             */
-            while (j < recordBlock.getLength() && recordBlock.charAt(j) != '>') {
+            while (j < recordBlock.length() && recordBlock.charAt(j) != '>') {
                 j++;
             }
 
             j++; // skip the ">"
 
-        } while (j < recordBlock.getLength());
+        } while (j < recordBlock.length());
 
 //        LOG.info("");
 //        LOG.info("object key = " + key);

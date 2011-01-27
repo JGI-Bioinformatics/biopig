@@ -36,48 +36,76 @@
  * use, modify, prepare derivative works, incorporate into other computer software, distribute, and
  * sublicense such enhancements or derivative works thereof, in binary and source code form.
  */
-
 package gov.jgi.meta.pig.eval;
 
+import gov.jgi.meta.MetaUtils;
 import gov.jgi.meta.sequence.SequenceString;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.pig.EvalFunc;
-import org.apache.pig.backend.executionengine.ExecException;
 import org.apache.pig.data.*;
+import org.apache.pig.impl.logicalLayer.FrontendException;
 import org.apache.pig.impl.logicalLayer.schema.Schema;
 
 import java.io.IOException;
-import java.util.Iterator;
-
+import java.util.Set;
 
 /**
- * string.LOWER implements eval function to convert a string to lower case
- * Example:
- *      register pigudfs.jar;
- *      A = load 'mydata' as (name);
- *      B = foreach A generate string.LOWER(name);
- *      dump B;
  */
-public class UnpackSequence extends EvalFunc<String> {
+public class SequenceEditDistance extends EvalFunc<DataBag> {
+    private static final Log LOG = LogFactory.getLog(SequenceEditDistance.class);
 
-    /**
-     * Method invoked on every tuple during foreach evaluation
-     * @param input tuple; assumed to be a sequence tuple of the form (id, direction, sequence)
-     * @exception java.io.IOException
-     */
-    public String exec(Tuple input) throws IOException {
-        //String x = (String) input.get(0);
-        //byte[] y = x.getBytes();
-        byte[] y = ((DataByteArray) input.get(0)).get();
-        String seq  = SequenceString.byteArrayToSequence(y);
-        if (seq != null) {
-            return seq;
-        } else {
+    public DataBag exec(Tuple input) throws IOException {
+
+       DataBag output = DefaultBagFactory.getInstance().newDefaultBag();
+
+        if (input == null || input.size() == 0)
+            return null;
+        try{
+           String seq = ((String) input.get(0));
+           //byte[] ba  = ((DataByteArray) input.get(0)).get();
+           int editDistance = (Integer) input.get(1);
+           //int seqLength = SequenceString.numBases(ba);
+           //String seq = SequenceString.byteArrayToSequence(ba);
+           
+           Set<String> neighbors = MetaUtils.generateAllNeighbors(seq, editDistance);
+           for (String n : neighbors) {
+                Tuple t = DefaultTupleFactory.getInstance().newTuple(1);
+                t.set(0, n);
+                output.add(t);
+              }
+        }catch(Exception e){
+            System.err.println("sequenceeditdistance: failed to process input; error - " + e.getMessage());
             return null;
         }
-    }
+       return output;
+   }
+
     @Override
     public Schema outputSchema(Schema input) {
-        return new Schema(new Schema.FieldSchema(null, DataType.BYTEARRAY));
+
+        try {
+            Schema.FieldSchema tokenFs = new Schema.FieldSchema("token",
+                    DataType.CHARARRAY);
+            Schema tupleSchema = new Schema(tokenFs);
+
+            Schema.FieldSchema tupleFs;
+            tupleFs = new Schema.FieldSchema("tuple_of_tokens", tupleSchema,
+                    DataType.TUPLE);
+
+            Schema bagSchema = new Schema(tupleFs);
+            bagSchema.setTwoLevelAccessRequired(true);
+            Schema.FieldSchema bagFs = new Schema.FieldSchema(
+                        "bag_of_tokenTuples",bagSchema, DataType.BAG);
+
+            return new Schema(bagFs);
+
+        } catch (FrontendException e) {
+            // throwing RTE because
+            //above schema creation is not expected to throw an exception
+            // and also because superclass does not throw exception
+            throw new RuntimeException("Unable to compute TOKENIZE schema.");
+        }
     }
+
 }

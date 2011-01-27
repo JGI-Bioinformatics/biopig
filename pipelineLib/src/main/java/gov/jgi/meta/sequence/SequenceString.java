@@ -175,11 +175,14 @@ public static String byteArrayToSequence(Text seq)
        try {
       for (i = 0; i < numberOfFullBytes; i++) {
 
-         String subseq = sequenceToPack.substring(i*3, i*3+3);
-         if (subseq.matches(".*[^atgcn].*")) {
-             subseq = subseq.replaceAll("[^atgcn]", "n");
+         StringBuilder subseq = new StringBuilder(sequenceToPack.substring(i*3, i*3+3));
+         for (int si = 0; si < 3; si++) {
+            char sichar = subseq.charAt(si);
+            if (sichar != 'a' && sichar != 't' && sichar != 'g' && sichar != 'c' && sichar != 'n') {
+               subseq.setCharAt(si, 'n');
+            }
          }
-         bytes[i] = hash.get(subseq);
+         bytes[i] = hash.get(subseq.toString());
 
       }
        } catch (Exception e) {
@@ -187,11 +190,14 @@ public static String byteArrayToSequence(Text seq)
        }
 
       if (overflow > 0) {
-         String subseq = sequenceToPack.substring(i*3, i*3 + numberOfBases % 3);
-         if (subseq.matches("[^atgcn]")) {
-             subseq = subseq.replaceAll("[^atgcn]", "n");
+         StringBuilder subseq = new StringBuilder(sequenceToPack.substring(i*3, i*3 + numberOfBases % 3));
+         for (int si = 0; si < numberOfBases % 3; si++) {
+            char sichar = subseq.charAt(si);
+            if (sichar != 'a' && sichar != 't' && sichar != 'g' && sichar != 'c' && sichar != 'n') {
+               subseq.setCharAt(si, 'n');
+            }
          }
-         bytes[i++] = hash.get(subseq);
+         bytes[i++] = hash.get(subseq.toString());
       }
 
       // sanity check
