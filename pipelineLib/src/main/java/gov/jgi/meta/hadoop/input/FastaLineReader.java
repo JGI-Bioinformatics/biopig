@@ -246,10 +246,10 @@ public class FastaLineReader {
                 int c = recordBlock.charAt(j++);
                 if (c == CR || c == LF) {
                     break;
-                } else if (c == ' ' || c == '\t') {
-                    junkOnLine = true;
-                    break;
-                }
+                } //else if (c == ' ' || c == '\t') {
+                  //  junkOnLine = true;
+                  //  break;
+                //}
             }
             if (j == i) {
                // then we didn't parse out a proper id

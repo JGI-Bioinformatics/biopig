@@ -14,16 +14,19 @@
 --
 
 %default p '1'
-%default output '/tmp/x'
 
-SET default_parallel $p;
+register pipelineLib/target/pipelinelibrary-0.1.0-job.jar
 
-register pipelineLib/target/pipelinelibrary-0.1.0-job.jar 
+-- load the reads
+reads       = LOAD '$reads' USING gov.jgi.meta.pig.storage.FastaStorage AS (id: chararray, d: int, seq: chararray);
 
-A = load '$reads' using gov.jgi.meta.pig.storage.FastaStorage as (id: chararray, d: int, seq: chararray);
-B = foreach A generate SIZE(seq);
-C = group B by $0;
-D = foreach C generate group, SUM(B);
---E = order D by $0 DESC;
+-- foreach read, generate its size (number of bases) and sort set by size
+readsizes   = GROUP (SORT (FOREACH reads GENERATE SIZE(seq) AS size) BY size) all;
 
-store D into '$output';
+-- calculate the total number of bases as a sum of the individual counts
+readcounts  = FOREACH readsizes GENERATE SUM(readsizes) AS totalcount;
+
+-- finally, stream over sorted sizes and return the one size that goes over the mid way point
+n50         = FOREACH readsizes GENERATE N50(readsizes,(long)(readcounts.totalcount/2));
+
+dump n50;

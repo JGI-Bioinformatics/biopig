@@ -47,7 +47,7 @@ public class FastaStorageTest extends TestCase {
    {   
                         // /scratch/nt_2011-01-11_shredded_1k.fas
         PigServer ps = new PigServer(ExecType.LOCAL);
-        String script = "a = load 'target/test-classes/1M.fas' using gov.jgi.meta.pig.storage.FastaStorage as (id: chararray, d: int, seq: bytearray);\n" +
+        String script = "a = load '../test/nt-10259.fas' using gov.jgi.meta.pig.storage.FastaStorage as (id: chararray, d: int, seq: bytearray);\n" +
                 "b = group a by '1';\n" +
                 "c = foreach b generate COUNT(a);";
 

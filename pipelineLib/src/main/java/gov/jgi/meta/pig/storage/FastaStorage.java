@@ -98,20 +98,31 @@ public class FastaStorage extends LoadFunc {
            check the id of the sequence to see if its a paired read
           */
          String seqid = ((Text)in.getCurrentKey()).toString();
-         String seqkey;
+         String seqkey = null;
+         String seqkey2;
+         String header = "";
          String direction;
-         if (seqid.indexOf("/") >= 0) {
-            String[] a = seqid.split("/");
-            seqkey = a[0];
+         for (int i = 0; i < seqid.length(); i++) {
+            if (seqid.charAt(i) == ' ' || seqid.charAt(i) == '\t') {
+               seqkey = seqid.substring(0, i);
+               header = seqid.substring(i, seqid.length());
+               break;
+            }
+         }
+         if (seqkey == null) seqkey = seqid;
+         if (seqkey.indexOf("/") >= 0) {
+            String[] a = seqkey.split("/");
+            seqkey2 = a[0];
             direction = a[1];
          } else {
-            seqkey = seqid;
+            seqkey2 = seqkey;
             direction = "0";
          }
          Text value     = ((Text)in.getCurrentValue());
-         mProtoTuple.add(new DataByteArray(seqkey.getBytes(), 0, seqkey.length()));                           // add key
+         mProtoTuple.add(new DataByteArray(seqkey2.getBytes(), 0, seqkey2.length()));                           // add key
          mProtoTuple.add(new DataByteArray(direction.getBytes(), 0, direction.length()));               // add direction
          mProtoTuple.add(new DataByteArray(value.getBytes(), 0, value.getLength()));                       // add sequence
+         mProtoTuple.add(new DataByteArray(header.getBytes(), 0, header.length()));                           // add header
 
          Tuple t = mTupleFactory.newTupleNoCopy(mProtoTuple);
          mProtoTuple = null;
