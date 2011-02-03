@@ -43,11 +43,11 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>gov.jgi.gentech</groupId>
-    <artifactId>pipelinelibrary</artifactId>
+    <artifactId>biopig-core</artifactId>
     <packaging>jar</packaging>
-    <version>0.1.1</version>
-    <name>pipelineLib</name>
-    <description>java library for for accessing and using cassandra data model</description>
+    <version>0.2.0</version>
+    <name>biopig-core</name>
+    <description>apache pig extensions to support biological sequence data analysis</description>
     <url></url>
     <organization>
         <name>Joint Genomics Institute, US Department of Energy</name>
@@ -55,14 +55,14 @@
     </organization>
     <parent>
         <groupId>gov.jgi.gentech</groupId>
-        <artifactId>pipeline</artifactId>
-        <version>0.1.1</version>
+        <artifactId>biopig</artifactId>
+        <version>0.2.0</version>
     </parent>
     <dependencies>
 	<dependency>
 	    <groupId>org.apache</groupId>
 	    <artifactId>pig</artifactId>
-	    <version>0.7.0</version>
+	    <version>0.8.0</version>
 	</dependency>
         <dependency>
             <groupId>log4j</groupId>
@@ -74,6 +74,16 @@
             <groupId>org.apache.mahout.hadoop</groupId>
             <artifactId>hadoop-core</artifactId>
             <version>0.20.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-tools</artifactId>
+            <version>0.20.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-test</artifactId>
+            <version>0.20.2</version>
         </dependency>
         <dependency>
             <groupId>commons-cli</groupId>
@@ -122,6 +132,11 @@
             <version>2.3</version>
         </dependency>
         <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>1.8.5</version>
+        </dependency>
+        <dependency>
             <groupId>org.biojava</groupId>
             <artifactId>biojava</artifactId>
             <version>UNKNOWN</version>
@@ -133,14 +148,9 @@
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
                 <configuration>
-                    <archive>
-                        <manifest>
-                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
-                            <mainClass>gov.jgi.meta.hadoop.apps.Fastq2FastaApp</mainClass>
-                        </manifest>
-                    </archive>
                     <descriptors>
                         <descriptor>src/main/assembly/job.xml</descriptor>
+                        <descriptor>src/main/assembly/bin.xml</descriptor>
                     </descriptors>
                 </configuration>
                 <executions>
@@ -160,8 +170,8 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <source>1.5</source>
-                    <target>1.5</target>
+                    <source>1.6</source>
+                    <target>1.6</target>
                 </configuration>
             </plugin>
 

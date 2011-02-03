@@ -4,18 +4,13 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>gov.jgi.gentech</groupId>
-    <artifactId>pipeline</artifactId>
+    <artifactId>biopig</artifactId>
     <packaging>pom</packaging>
-    <version>0.1.1</version>
-    <name>pipeline</name>
-    <description>Hadoop application pipeline</description>
-
+    <version>0.2.0</version>
+    <name>biopig</name>
+    <description>apache pig extensions to support ngs sequence analysis</description>
     <modules>
-        <module>pipelineLib</module>
-        <module>geneBlaster</module>
-        <module>dereplicate</module>
-        <module>meta</module>
-        <module>contigX</module>
+        <module>biopig</module>
     </modules>
     
 </project>

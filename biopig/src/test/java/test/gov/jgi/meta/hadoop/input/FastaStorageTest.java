@@ -1,18 +1,13 @@
 package test.gov.jgi.meta.hadoop.input;
 
-import gov.jgi.meta.hadoop.input.Util;
-import gov.jgi.meta.pig.storage.FastaStorage;
+import test.gov.jgi.meta.Util;
 import junit.framework.Test;
 import junit.framework.TestSuite;
 import junit.framework.TestCase;
-import org.apache.hadoop.io.Text;
 import org.apache.pig.ExecType;
 import org.apache.pig.PigServer;
-import org.apache.pig.data.DataByteArray;
 import org.apache.pig.data.Tuple;
-import org.junit.Assert;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Iterator;
 

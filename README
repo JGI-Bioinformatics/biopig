@@ -1,0 +1,35 @@
+BioPig
+
+This project provides additional apache pig commands and data loaders/writers specific
+for biologicial sequence data.  Specifically, biopig supports the following functionality:
+  - load fasta and fastq files
+  - filter sequence data by id, header or size
+  - generate kmers
+  - wrappers for common external programs (Blast, Newbler, velvet, cap3, etc)
+
+With biopig, users can write data parallel analysis tools that get executed on a hadoop
+map/reduce cluster such as NERSC's Magellan or AWS's Elastic MapReduce.
+
+=======================================
+
+to build
+
+=======================================
+
+To build the software, you need to have maven.  install maven and then build using
+
+   % mvn package -DskipTests=true
+
+this will produce a JAR file in biopig/target/biopig-<version>-all.jar
+
+
+=======================================
+
+to use
+
+=======================================
+
+see ./pigscripts for examples.
+
+
+questions/comments can be emailed to me at kbhatia [at] lbl [dot] gov

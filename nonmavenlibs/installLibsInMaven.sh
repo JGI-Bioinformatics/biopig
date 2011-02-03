@@ -14,6 +14,6 @@ mvn install:install-file -Dfile=clhm-production.jar -DgroupId=com.reardencommerc
 
 mvn install:install-file -Dfile=biojava.jar -DgroupId=org.biojava -DartifactId=biojava -Dversion=UNKNOWN -Dpackaging=jar -DgeneratePom=true
 
-mvn install:install-file -Dfile=pig.jar -DgroupId=org.apache -DartifactId=pig -Dversion=0.7.0 -Dpackaging=jar -DgeneratePom=true
+mvn install:install-file -Dfile=pig-0.8.0.jar -DgroupId=org.apache -DartifactId=pig -Dversion=0.8.0 -Dpackaging=jar -DgeneratePom=true
 
 

@@ -74,8 +74,8 @@ public class BLAST extends EvalFunc<DataBag> {
       /*
        * process the inputs (bagOfSequences, optionalNumberOfContigsToReturn, optionalGroupId)
        */
-      DataBag values     = (DataBag)input.get(0);
-      String databaseFilename = (String) input.get(1);
+      DataBag values           = (DataBag)input.get(0);
+      String  databaseFilename = (String)input.get(1);
 
       long numberOfSequences = values.size();
 
@@ -95,8 +95,8 @@ public class BLAST extends EvalFunc<DataBag> {
        * now process inputs and execute blast
        */
       Map<String, String> seqMap = new HashMap<String, String>();
-      Set<String> s;
-      Map<String, Set<String>> resultMap = new HashMap<String, Set<String>>();
+      Set<String>         s;
+      Map < String, Set < String >> resultMap = new HashMap < String, Set < String >> ();
 
       Iterator<Tuple> it = values.iterator();
       while (it.hasNext())
@@ -106,34 +106,39 @@ public class BLAST extends EvalFunc<DataBag> {
       }
       try {
          s = blastCmd.exec(seqMap, databaseFilename);
-      } catch (InterruptedException e) {
+      }
+      catch (InterruptedException e) {
          throw new IOException(e);
       }
 
       for (String k : s)
       {
-
          /*
           * blast returns the stdout, line by line.  the output is split by tab and
           * the first column is the id of the gene, second column is the read id
           */
          String[] a = k.split("\t");
 
-         if (resultMap.containsKey(a[0])) {
+         if (resultMap.containsKey(a[0]))
+         {
             resultMap.get(a[0]).add(a[1]);
-         } else {
+         }
+         else
+         {
             resultMap.put(a[0], new HashSet<String>());
             resultMap.get(a[0]).add(a[1]);
          }
       }
 
-      for (String k : resultMap.keySet()) {
+      for (String k : resultMap.keySet())
+      {
          Tuple t = DefaultTupleFactory.getInstance().newTuple(2);
 
          t.set(0, k);
 
          DataBag oo = DefaultBagFactory.getInstance().newDefaultBag();
-         for (String kk : resultMap.get(k)) {
+         for (String kk : resultMap.get(k))
+         {
             Tuple tt = DefaultTupleFactory.getInstance().newTuple(3);
 
             String[] a = kk.split("/");
@@ -150,5 +155,4 @@ public class BLAST extends EvalFunc<DataBag> {
 
       return(output);
    }
-
 }

@@ -1,0 +1,23 @@
+Detailed Installation Instructions
+
+---------------------------------------------------------
+1. add non-maven libraries to your local maven repository
+---------------------------------------------------------
+
+Maven is great, however not all libraries are always available from
+maven repos.  The directory nonmavenlibs contains a set of jars that
+aren't found in any repo.  you will need to add them to your local
+maven repository (by default that's ~/.m2).  just run the following
+script:
+
+    % cd nonmavenlibs; ./installLibsInMaven.sh
+
+this will generate appropriate maven metadata.
+
+---------------------------------
+2. build and package using maven2
+---------------------------------
+
+% mvn install -DskipTests=true
+
+

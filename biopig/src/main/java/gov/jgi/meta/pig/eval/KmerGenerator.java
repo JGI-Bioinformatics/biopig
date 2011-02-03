@@ -38,64 +38,67 @@ import org.apache.pig.impl.logicalLayer.FrontendException;
  * the record is split into: (u1, h1, pig), (u1, h1, hadoop), (u1, h1, pig hadoop)
  */
 public class KmerGenerator extends EvalFunc<DataBag> {
-    private static final Log LOG = LogFactory.getLog(KmerGenerator.class);
+   private static final Log LOG = LogFactory.getLog(KmerGenerator.class );
 
-    public DataBag exec(Tuple input) throws IOException {
+   public DataBag exec(Tuple input) throws IOException
+   {
+      DataBag output = DefaultBagFactory.getInstance().newDefaultBag();
 
-       DataBag output = DefaultBagFactory.getInstance().newDefaultBag();
+      if ((input == null) || (input.size() == 0))
+      {
+         return(null);
+      }
+      try{
+         byte[] ba = ((DataByteArray)input.get(0)).get();
+         int kmerSize  = (Integer)input.get(1);
+         int seqLength = SequenceString.numBases(ba);
 
-        if (input == null || input.size() == 0)
-            return null;
-        try{
+         if (kmerSize > seqLength) { return(null); }
 
-            byte[] ba  = ((DataByteArray) input.get(0)).get();
-            int kmerSize = (Integer) input.get(1);
-            int seqLength = SequenceString.numBases(ba);
-
-            if (kmerSize > seqLength) return null;
-
-           String kmer;
-           for (int i = 0; i <= seqLength-kmerSize; i++) {
-              kmer = new String(SequenceString.subseq(ba, i, i+kmerSize));
-              if (kmer != null && !SequenceString.contains(kmer, "n")) {
-                Tuple t = DefaultTupleFactory.getInstance().newTuple(1);
-                t.set(0, kmer);
-                output.add(t);
-              }
-           }
-        }catch(Exception e){
-            System.err.println("KmerGenerator: failed to process input; error - " + e.getMessage());
-            return null;
-        }
-       return output;
+         String kmer;
+         for (int i = 0; i <= seqLength - kmerSize; i++)
+         {
+            kmer = new String(SequenceString.subseq(ba, i, i + kmerSize));
+            if ((kmer != null) && !SequenceString.contains(kmer, "n"))
+            {
+               Tuple t = DefaultTupleFactory.getInstance().newTuple(1);
+               t.set(0, kmer);
+               output.add(t);
+            }
+         }
+      }
+      catch (Exception e) {
+         System.err.println("KmerGenerator: failed to process input; error - " + e.getMessage());
+         return(null);
+      }
+      return(output);
    }
 
-    @Override
-    public Schema outputSchema(Schema input) {
 
-        try {
-            Schema.FieldSchema tokenFs = new Schema.FieldSchema("token",
-                    DataType.BYTEARRAY);
-            Schema tupleSchema = new Schema(tokenFs);
+   @Override
+   public Schema outputSchema(Schema input)
+   {
+      try {
+         Schema.FieldSchema tokenFs = new Schema.FieldSchema("token",
+                                                             DataType.BYTEARRAY);
+         Schema tupleSchema = new Schema(tokenFs);
 
-            Schema.FieldSchema tupleFs;
-            tupleFs = new Schema.FieldSchema("tuple_of_tokens", tupleSchema,
-                    DataType.TUPLE);
+         Schema.FieldSchema tupleFs;
+         tupleFs = new Schema.FieldSchema("tuple_of_tokens", tupleSchema,
+                                          DataType.TUPLE);
 
-            Schema bagSchema = new Schema(tupleFs);
-            bagSchema.setTwoLevelAccessRequired(true);
-            Schema.FieldSchema bagFs = new Schema.FieldSchema(
-                        "bag_of_tokenTuples",bagSchema, DataType.BAG);
+         Schema bagSchema = new Schema(tupleFs);
+         bagSchema.setTwoLevelAccessRequired(true);
+         Schema.FieldSchema bagFs = new Schema.FieldSchema(
+            "bag_of_tokenTuples", bagSchema, DataType.BAG);
 
-            return new Schema(bagFs);
-
-        } catch (FrontendException e) {
-            // throwing RTE because
-            //above schema creation is not expected to throw an exception
-            // and also because superclass does not throw exception
-            throw new RuntimeException("Unable to compute TOKENIZE schema.");
-        }
-    }
-
+         return(new Schema(bagFs));
+      }
+      catch (FrontendException e) {
+         // throwing RTE because
+         //above schema creation is not expected to throw an exception
+         // and also because superclass does not throw exception
+         throw new RuntimeException("Unable to compute TOKENIZE schema.");
+      }
+   }
 }
-                 
