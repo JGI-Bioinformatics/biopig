@@ -37,65 +37,54 @@
  * sublicense such enhancements or derivative works thereof, in binary and source code form.
  */
 
-package test.gov.jgi.meta.pig;
+package test.gov.jgi.meta.pig.eval;
 
 import junit.framework.Test;
-import junit.framework.TestCase;
 import junit.framework.TestSuite;
+import junit.framework.TestCase;
 import org.apache.pig.ExecType;
 import org.apache.pig.PigServer;
 import org.apache.pig.data.Tuple;
+import test.gov.jgi.meta.Util;
 
 import java.io.IOException;
 import java.util.Iterator;
 
 /**
- * Created by IntelliJ IDEA.
- * User: dev
- * Date: 1/31/11
- * Time: 7:31 PM
- * To change this template use File | Settings | File Templates.
+ * SubSequence Tester.
+ *
+ * @author <Authors name>
+ * @since <pre>02/04/2011</pre>
+ * @version 1.0
  */
+public class SubSequenceTest extends TestCase {
+    public SubSequenceTest(String name) {
+        super(name);
+    }
+
+    public void setUp() throws Exception {
+        super.setUp();
+    }
+
+    public void tearDown() throws Exception {
+        super.tearDown();
+    }
 
 
-public class N50Test extends TestCase {
-   public N50Test(String name)
-   {
-      super(name);
-   }
+   public void testSubSequence() throws IOException
+    {
 
+         PigServer ps = new PigServer(ExecType.LOCAL);
+         String script = "a = load 'target/test-classes/1M.fas' using gov.jgi.meta.pig.storage.FastaStorage as (id: chararray, d: int, seq: bytearray);\n" +
+                 "b = foreach a generate gov.jgi.meta.pig.eval.SubSequence(seq, 0, 10);\n" +
+                 "c = foreach b generate gov.jgi.meta.pig.eval.UnpackSequence($0);";
 
-   public void setUp() throws Exception
-   {
-      super.setUp();
-   }
+         Util.registerMultiLineQuery(ps, script);
+         Iterator<Tuple> it = ps.openIterator("c");
 
-
-   public void tearDown() throws Exception
-   {
-      super.tearDown();
-   }
-
-     // should test some sequences with bad formats.
-
-   public void testN50Basic() throws IOException
-     {
-          PigServer ps = new PigServer(ExecType.LOCAL);
-          String script = "a = load 'target/test-classes/1M.fas' using gov.jgi.meta.pig.storage.FastaStorage as (id: chararray, d: int, seq: bytearray);\n" +
-                  "b = foreach a generate SIZE(seq);\n" +
-                  "c = order b by $0 DESC;\n" +
-                  "d = group c by '1';\n" +
-                  "e  = foreach d generate SUM($1) as count;\n" +
-                  "f = foreach d generate gov.jgi.meta.pig.eval.N50($1, (long)e.count/2);";
-
-          test.gov.jgi.meta.Util.registerMultiLineQuery(ps, script);
-          Iterator<Tuple> it = ps.openIterator("f");
-
-          assertEquals((Long) 26L, ((Long)it.next().get(0)));
-     }
-
-   public static Test suite()
-   {
-      return(new TestSuite(N50Test.class ));
-   }
+        assertEquals("TGCAGCTCAA".toLowerCase(), ((String) it.next().get(0)));
+    }
+    public static Test suite() {
+        return new TestSuite(SubSequenceTest.class);
+    }
 }

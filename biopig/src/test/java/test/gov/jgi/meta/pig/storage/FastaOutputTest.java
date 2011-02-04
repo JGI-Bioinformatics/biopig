@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, The Regents of the University of California, through Lawrence Berkeley
+ * Copyright (c) 2011, The Regents of the University of California, through Lawrence Berkeley
  * National Laboratory (subject to receipt of any required approvals from the U.S. Dept. of Energy).
  * All rights reserved.
  *
@@ -37,47 +37,90 @@
  * sublicense such enhancements or derivative works thereof, in binary and source code form.
  */
 
-package gov.jgi.meta.pig.eval;
+package test.gov.jgi.meta.pig.storage;
 
-import gov.jgi.meta.sequence.SequenceString;
-import org.apache.commons.lang.StringUtils;
-import org.apache.pig.EvalFunc;
-import org.apache.pig.backend.executionengine.ExecException;
-import org.apache.pig.data.*;
-import org.apache.pig.impl.logicalLayer.schema.Schema;
-
-import java.io.IOException;
-import java.util.Iterator;
-
+import junit.framework.Test;
+import junit.framework.TestSuite;
+import junit.framework.TestCase;
 
 /**
- * string.LOWER implements eval function to convert a string to lower case
- * Example:
- *      register pigudfs.jar;
- *      A = load 'mydata' as (name);
- *      B = foreach A generate string.LOWER(name);
- *      dump B;
+ * FastaOutput Tester.
+ *
+ * @author <Authors name>
+ * @since <pre>02/04/2011</pre>
+ * @version 1.0
  */
-public class UnpackSequence extends EvalFunc<String> {
+public class FastaOutputTest extends TestCase {
+    public FastaOutputTest(String name) {
+        super(name);
+    }
+
+    public void setUp() throws Exception {
+        super.setUp();
+    }
+
+    public void tearDown() throws Exception {
+        super.tearDown();
+    }
 
     /**
-     * Method invoked on every tuple during foreach evaluation
-     * @param input tuple; assumed to be a sequence tuple of the form (id, direction, sequence)
-     * @exception java.io.IOException
+     *
+     * Method: putNext(Tuple f)
+     *
      */
-    public String exec(Tuple input) throws IOException {
-        //String x = (String) input.get(0);
-        //byte[] y = x.getBytes();
-        byte[] y = ((DataByteArray) input.get(0)).get();
-        String seq  = SequenceString.byteArrayToSequence(y);
-        if (seq != null) {
-            return seq;
-        } else {
-            return null;
-        }
+    public void testPutNext() throws Exception {
+        //TODO: Test goes here...
     }
-    @Override
-    public Schema outputSchema(Schema input) {
-        return new Schema(new Schema.FieldSchema(null, DataType.CHARARRAY));
+
+    /**
+     *
+     * Method: getOutputFormat()
+     *
+     */
+    public void testGetOutputFormat() throws Exception {
+        //TODO: Test goes here...
+    }
+
+    /**
+     *
+     * Method: prepareToWrite(RecordWriter writer)
+     *
+     */
+    public void testPrepareToWrite() throws Exception {
+        //TODO: Test goes here...
+    }
+
+    /**
+     *
+     * Method: setStoreLocation(String location, Job job)
+     *
+     */
+    public void testSetStoreLocation() throws Exception {
+        //TODO: Test goes here...
+    }
+
+
+    /**
+     *
+     * Method: putField(Object field)
+     *
+     */
+    public void testPutField() throws Exception {
+        //TODO: Test goes here...
+        /*
+        try {
+           Method method = FastaOutput.class.getMethod("putField", Object.class);
+           method.setAccessible(true);
+           method.invoke(<Object>, <Parameters>);
+        } catch(NoSuchMethodException e) {
+        } catch(IllegalAccessException e) {
+        } catch(InvocationTargetException e) {
+        }
+        */
+        }
+
+
+    public static Test suite() {
+        return new TestSuite(FastaOutputTest.class);
     }
 }

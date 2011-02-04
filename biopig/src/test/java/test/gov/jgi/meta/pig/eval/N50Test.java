@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, The Regents of the University of California, through Lawrence Berkeley
+ * Copyright (c) 2011, The Regents of the University of California, through Lawrence Berkeley
  * National Laboratory (subject to receipt of any required approvals from the U.S. Dept. of Energy).
  * All rights reserved.
  *
@@ -37,47 +37,57 @@
  * sublicense such enhancements or derivative works thereof, in binary and source code form.
  */
 
-package gov.jgi.meta.pig.eval;
+package test.gov.jgi.meta.pig.eval;
 
-import gov.jgi.meta.sequence.SequenceString;
-import org.apache.commons.lang.StringUtils;
-import org.apache.pig.EvalFunc;
-import org.apache.pig.backend.executionengine.ExecException;
-import org.apache.pig.data.*;
-import org.apache.pig.impl.logicalLayer.schema.Schema;
+import junit.framework.Test;
+import junit.framework.TestSuite;
+import junit.framework.TestCase;
+import org.apache.pig.ExecType;
+import org.apache.pig.PigServer;
+import org.apache.pig.data.Tuple;
 
 import java.io.IOException;
 import java.util.Iterator;
 
-
 /**
- * string.LOWER implements eval function to convert a string to lower case
- * Example:
- *      register pigudfs.jar;
- *      A = load 'mydata' as (name);
- *      B = foreach A generate string.LOWER(name);
- *      dump B;
+ * N50 Tester.
+ *
+ * @author <Authors name>
+ * @since <pre>02/04/2011</pre>
+ * @version 1.0
  */
-public class UnpackSequence extends EvalFunc<String> {
-
-    /**
-     * Method invoked on every tuple during foreach evaluation
-     * @param input tuple; assumed to be a sequence tuple of the form (id, direction, sequence)
-     * @exception java.io.IOException
-     */
-    public String exec(Tuple input) throws IOException {
-        //String x = (String) input.get(0);
-        //byte[] y = x.getBytes();
-        byte[] y = ((DataByteArray) input.get(0)).get();
-        String seq  = SequenceString.byteArrayToSequence(y);
-        if (seq != null) {
-            return seq;
-        } else {
-            return null;
-        }
+public class N50Test extends TestCase {
+    public N50Test(String name) {
+        super(name);
     }
-    @Override
-    public Schema outputSchema(Schema input) {
-        return new Schema(new Schema.FieldSchema(null, DataType.CHARARRAY));
+
+    public void setUp() throws Exception {
+        super.setUp();
+    }
+
+    public void tearDown() throws Exception {
+        super.tearDown();
+    }
+
+    public void testN50Basic() throws IOException
+      {
+           PigServer ps = new PigServer(ExecType.LOCAL);
+           String script = "a = load 'target/test-classes/1M.fas' using gov.jgi.meta.pig.storage.FastaStorage as (id: chararray, d: int, seq: bytearray);\n" +
+                   "b = foreach a generate SIZE(seq);\n" +
+                   "c = order b by $0 DESC;\n" +
+                   "d = group c by '1';\n" +
+                   "e  = foreach d generate SUM($1) as count;\n" +
+                   "f = foreach d generate gov.jgi.meta.pig.eval.N50($1, (long)e.count/2);";
+
+           test.gov.jgi.meta.Util.registerMultiLineQuery(ps, script);
+           Iterator<Tuple> it = ps.openIterator("f");
+
+           assertEquals((Long) 26L, ((Long)it.next().get(0)));
+      }
+
+
+
+    public static Test suite() {
+        return new TestSuite(N50Test.class);
     }
 }

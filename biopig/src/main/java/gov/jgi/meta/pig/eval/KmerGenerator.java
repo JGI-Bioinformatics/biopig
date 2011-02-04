@@ -62,7 +62,7 @@ public class KmerGenerator extends EvalFunc<DataBag> {
             if ((kmer != null) && !SequenceString.contains(kmer, "n"))
             {
                Tuple t = DefaultTupleFactory.getInstance().newTuple(1);
-               t.set(0, kmer);
+               t.set(0, new DataByteArray(kmer.getBytes()));
                output.add(t);
             }
          }
@@ -79,18 +79,18 @@ public class KmerGenerator extends EvalFunc<DataBag> {
    public Schema outputSchema(Schema input)
    {
       try {
-         Schema.FieldSchema tokenFs = new Schema.FieldSchema("token",
+         Schema.FieldSchema tokenFs = new Schema.FieldSchema("kmer",
                                                              DataType.BYTEARRAY);
          Schema tupleSchema = new Schema(tokenFs);
 
          Schema.FieldSchema tupleFs;
-         tupleFs = new Schema.FieldSchema("tuple_of_tokens", tupleSchema,
+         tupleFs = new Schema.FieldSchema("tuple_of_kmer", tupleSchema,
                                           DataType.TUPLE);
 
          Schema bagSchema = new Schema(tupleFs);
          bagSchema.setTwoLevelAccessRequired(true);
          Schema.FieldSchema bagFs = new Schema.FieldSchema(
-            "bag_of_tokenTuples", bagSchema, DataType.BAG);
+            "kmers", bagSchema, DataType.BAG);
 
          return(new Schema(bagFs));
       }
