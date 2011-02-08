@@ -42,6 +42,13 @@ package test.gov.jgi.meta.pig.eval;
 import junit.framework.Test;
 import junit.framework.TestSuite;
 import junit.framework.TestCase;
+import org.apache.pig.ExecType;
+import org.apache.pig.PigServer;
+import org.apache.pig.data.Tuple;
+import test.gov.jgi.meta.Util;
+
+import java.io.IOException;
+import java.util.Iterator;
 
 /**
  * SequencePairMerge Tester.
@@ -63,25 +70,22 @@ public class SequencePairMergeTest extends TestCase {
         super.tearDown();
     }
 
-    /**
-     *
-     * Method: exec(Tuple input)
-     *
-     */
-    public void testExec() throws Exception {
-        //TODO: Test goes here...
-    }
+     public void testPairMerge() throws IOException
+ {
 
-    /**
-     *
-     * Method: arePairedSequences(Tuple s1, Tuple s2)
-     *
-     */
-    public void testArePairedSequences() throws Exception {
-        //TODO: Test goes here...
-    }
+      PigServer ps = new PigServer(ExecType.LOCAL);
+      String script = "a = load 'target/test-classes/1M.fas' using gov.jgi.meta.pig.storage.FastaStorage as (id: chararray, d: int, seq: bytearray);\n" +
+              "aa = filter a by (id matches '756:1:1:1074:20235');" +
+              "b = group aa by id;\n" +
+              "c = foreach b generate FLATTEN(gov.jgi.meta.pig.eval.SequencePairMerge($1)) as (id: chararray, d: int, seq: bytearray);\n" +
+              "d = foreach c generate gov.jgi.meta.pig.eval.UnpackSequence(seq);\n";
 
+      Util.registerMultiLineQuery(ps, script);
+      Iterator<Tuple> it = ps.openIterator("d");
+      String t = new String("tgcagctcaacancgtcggctacgacnncaccnnngagcgcatcggctncnnnannncctnnnnnnnncgggaggtcgcccgcgccccaggtcccctgaggtgacctgtacctccgcaagttgcggttccaccttcttccgaagtcgctgct");
 
+      assertEquals(t, ((String) it.next().get(0)));
+ }
 
     public static Test suite() {
         return new TestSuite(SequencePairMergeTest.class);

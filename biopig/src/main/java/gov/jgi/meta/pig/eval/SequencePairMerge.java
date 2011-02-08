@@ -39,30 +39,18 @@
 
 package gov.jgi.meta.pig.eval;
 
-import org.apache.commons.lang.StringUtils;
+
+import gov.jgi.meta.sequence.SequenceString;
 import org.apache.pig.EvalFunc;
-import org.apache.pig.FuncSpec;
 import org.apache.pig.backend.executionengine.ExecException;
-import org.apache.pig.data.DataBag;
-import org.apache.pig.data.DataType;
-import org.apache.pig.data.DefaultTupleFactory;
-import org.apache.pig.data.Tuple;
-import org.apache.pig.impl.logicalLayer.FrontendException;
-import org.apache.pig.impl.logicalLayer.schema.Schema;
+import org.apache.pig.data.*;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
 
 
 /**
- * string.LOWER implements eval function to convert a string to lower case
- * Example:
- *      register pigudfs.jar;
- *      A = load 'mydata' as (name);
- *      B = foreach A generate string.LOWER(name);
- *      dump B;
+ * given two sequences in a bag (positions 0 and 1), merge them into a single value
  */
 public class SequencePairMerge extends EvalFunc<Tuple> {
 
@@ -93,9 +81,10 @@ public class SequencePairMerge extends EvalFunc<Tuple> {
         Tuple t = DefaultTupleFactory.getInstance().newTuple(3);
         t.set(0, seqPair1.get(0));
         t.set(1, "0");
-        String seq1 = seqPair1.get(2).toString();
-        String seq2 = seqPair2.get(2).toString();
-        t.set(2, (seq1 + StringUtils.reverse(seq2)));
+        byte[] seq1 = ((DataByteArray) seqPair1.get(2)).get();
+        byte[] seq2 = ((DataByteArray) seqPair2.get(2)).get();
+        byte[] newseq = SequenceString.merge(seq1, seq2);
+        t.set(2, (new DataByteArray(newseq)));
 
         return t;
     }
@@ -103,7 +92,5 @@ public class SequencePairMerge extends EvalFunc<Tuple> {
     boolean arePairedSequences(Tuple s1, Tuple s2) {
         return true;
     }
-
- 
 
 }

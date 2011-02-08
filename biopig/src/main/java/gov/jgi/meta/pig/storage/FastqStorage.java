@@ -53,7 +53,6 @@ import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.PigSplit;
 import org.apache.pig.data.DataByteArray;
 import org.apache.pig.data.Tuple;
 import org.apache.pig.data.TupleFactory;
-import org.biojava.bio.seq.Sequence;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -108,7 +107,7 @@ public class FastqStorage extends LoadFunc {
             seqkey = seqid;
             direction = "0";
          }
-         String value     = ((Sequence)in.getCurrentValue()).seqString();
+         String value     =  (String) in.getCurrentValue();
          mProtoTuple.add(new DataByteArray(seqkey.getBytes(), 0, seqkey.length()));                           // add key
          mProtoTuple.add(new DataByteArray(direction.getBytes(), 0, direction.length()));               // add direction
          mProtoTuple.add(new DataByteArray(value.getBytes(), 0, value.length()));                       // add sequence

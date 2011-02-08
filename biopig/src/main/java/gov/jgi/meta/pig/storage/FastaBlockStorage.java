@@ -53,7 +53,6 @@ import org.apache.pig.PigException;
 import org.apache.pig.backend.executionengine.ExecException;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.PigSplit;
 import org.apache.pig.data.*;
-import org.biojava.bio.seq.Sequence;
 
 import java.io.IOException;
 import java.util.ArrayList;

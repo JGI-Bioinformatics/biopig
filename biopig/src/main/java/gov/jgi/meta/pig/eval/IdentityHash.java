@@ -54,12 +54,6 @@ import java.util.List;
 
 
 /**
- * string.LOWER implements eval function to convert a string to lower case
- * Example:
- *      register pigudfs.jar;
- *      A = load 'mydata' as (name);
- *      B = foreach A generate string.LOWER(name);
- *      dump B;
  */
 public class IdentityHash extends EvalFunc<String> {
 

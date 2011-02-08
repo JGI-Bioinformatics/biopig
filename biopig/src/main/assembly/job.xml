@@ -53,7 +53,7 @@
             <scope>runtime</scope>
             <outputDirectory>lib</outputDirectory>
             <excludes>
-                <exclude>org.apache.mahout.hadoop:hadoop-core</exclude>
+                <exclude>org.apache.hadoop:hadoop-core</exclude>
                 <exclude>${artifact.groupId}:${artifact.artifactId}</exclude>
             </excludes>
         </dependencySet>

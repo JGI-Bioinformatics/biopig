@@ -40,6 +40,7 @@
 package gov.jgi.meta.sequence;
 
 import org.apache.hadoop.io.Text;
+import org.apache.commons.lang.StringUtils;
 
 import java.util.HashMap;
 
@@ -205,4 +206,16 @@ public static String byteArrayToSequence(Text seq)
 
       return bytes;
    }
+
+    static public byte[] merge(byte[] seq1, byte[] seq2) {
+
+        // reverse the second sequence and merge
+
+        String s1 = byteArrayToSequence(seq1);
+        String s2 = byteArrayToSequence(seq2);
+
+        String s3 = s1 + StringUtils.reverse(s2);
+
+        return sequenceToByteArray(s3);
+    }
 }

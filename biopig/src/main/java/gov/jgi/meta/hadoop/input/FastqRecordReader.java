@@ -52,9 +52,6 @@ import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
-import org.biojava.bio.seq.DNATools;
-import org.biojava.bio.seq.Sequence;
-import org.biojava.bio.symbol.IllegalSymbolException;
 
 import java.io.IOException;
 
@@ -62,7 +59,7 @@ import java.io.IOException;
 /**
  * Treats keys as offset in file and value as line.
  */
-public class FastqRecordReader extends RecordReader<Text, Sequence> {
+public class FastqRecordReader extends RecordReader<Text, Text> {
   private static final Log LOG = LogFactory.getLog(FastqRecordReader.class);
 
   private CompressionCodecFactory compressionCodecs = null;
@@ -72,7 +69,7 @@ public class FastqRecordReader extends RecordReader<Text, Sequence> {
   private FastqLineReader in;
   private int maxLineLength;
   private Text key = null;
-  private Sequence value = null;
+  private Text value = null;
 
   public void initialize(InputSplit genericSplit,
                          TaskAttemptContext context) throws IOException {
@@ -127,11 +124,9 @@ public class FastqRecordReader extends RecordReader<Text, Sequence> {
                                      maxLineLength));
 //        LOG.info("newsize = " + newSize);
 
-      try {
-          value = DNATools.createDNASequence(txtvalue.toString(), key.toString());
-      } catch (IllegalSymbolException e) {
-          throw new IOException("parse error on key: " + key + "/" + txtvalue + ": " + e);
-      }
+
+      value = txtvalue;
+
 
       if (newSize == 0) {
         break;
@@ -160,7 +155,7 @@ public class FastqRecordReader extends RecordReader<Text, Sequence> {
   }
 
   @Override
-  public Sequence getCurrentValue() {
+  public Text getCurrentValue() {
     return value;
   }
 

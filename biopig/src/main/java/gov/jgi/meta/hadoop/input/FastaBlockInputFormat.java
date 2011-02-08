@@ -48,9 +48,7 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
-import org.biojava.bio.seq.Sequence;
 
-import java.util.List;
 import java.util.Map;
 
 
