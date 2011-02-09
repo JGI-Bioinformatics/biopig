@@ -28,6 +28,22 @@ public class SequenceStringTest extends TestCase {
     public void tearDown() throws Exception {
     }
 
+      /**
+     *
+     * Method: toString()
+     *
+     */
+    @org.junit.Test
+    public void testToStringAndBack() throws Exception {
+
+       String s = "TGCAGCTCAACANCGTCGGC".toLowerCase(); // size 20 kmer
+       byte[] ss = SequenceString.sequenceToByteArray(s);
+       String t = new String(ss, "ISO-8859-1");
+       byte[] c = t.getBytes("ISO-8859-1");
+         
+       Assert.assertArrayEquals("ss: byte array not correct", c, ss);
+
+    }
     /**
      *
      * Method: toString()

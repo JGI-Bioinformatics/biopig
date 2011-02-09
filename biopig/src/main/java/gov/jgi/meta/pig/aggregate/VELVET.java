@@ -46,8 +46,11 @@ import gov.jgi.meta.exec.VelvetCommand;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.pig.EvalFunc;
 import org.apache.pig.data.DataBag;
+import org.apache.pig.data.DataType;
 import org.apache.pig.data.DefaultTupleFactory;
 import org.apache.pig.data.Tuple;
+import org.apache.pig.impl.logicalLayer.FrontendException;
+import org.apache.pig.impl.logicalLayer.schema.Schema;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -73,11 +76,11 @@ public class VELVET extends EvalFunc<Tuple> {
        * process the inputs (bagOfSequences, optionalNumberOfContigsToReturn, optionalGroupId)
        */
       DataBag values     = (DataBag)input.get(0);
-      Long    numContigs = new Long(1); // by default only return a single contig
+      int    numContigs = 1;
 
       if (input.size() > 1)
       {
-         numContigs = (Long)input.get(1);
+         numContigs = (Integer) input.get(1);
       }
       String groupId = "";
       if (input.size() > 2)
@@ -91,7 +94,6 @@ public class VELVET extends EvalFunc<Tuple> {
       {
          return(null);
       }
-
 
       /*
        * need to load the biopig defaults from the classpath
@@ -139,5 +141,28 @@ public class VELVET extends EvalFunc<Tuple> {
    boolean arePairedSequences(Tuple s1, Tuple s2)
    {
       return(true);
+   }
+
+
+      @Override
+   public Schema outputSchema(Schema input)
+   {
+      try {
+         Schema tupleSchema = new Schema();
+
+         // now define the tuple
+         tupleSchema.add(new Schema.FieldSchema("seq", DataType.CHARARRAY));
+
+         Schema.FieldSchema bagFs = new Schema.FieldSchema(
+            "contigs", tupleSchema, DataType.BAG);
+
+         return(new Schema(bagFs));
+      }
+      catch (FrontendException e) {
+         // throwing RTE because
+         //above schema creation is not expected to throw an exception
+         // and also because superclass does not throw exception
+         throw new RuntimeException("Unable to compute TOKENIZE schema.");
+      }
    }
 }

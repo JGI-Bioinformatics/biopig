@@ -42,6 +42,12 @@ package test.gov.jgi.meta.pig.aggregate;
 import junit.framework.Test;
 import junit.framework.TestSuite;
 import junit.framework.TestCase;
+import org.apache.pig.ExecType;
+import org.apache.pig.PigServer;
+import org.apache.pig.data.Tuple;
+import test.gov.jgi.meta.Util;
+
+import java.util.Iterator;
 
 /**
  * VELVET Tester.
@@ -69,7 +75,17 @@ public class VELVETTest extends TestCase {
      *
      */
     public void testExec() throws Exception {
-        //TODO: Test goes here...
+
+      PigServer ps = new PigServer(ExecType.LOCAL);
+      String script = "a = load 'target/test-classes/1M.fas' using gov.jgi.meta.pig.storage.FastaStorage as (id: chararray, d: int, seq: bytearray);\n" +
+              "b = foreach a generate id, d, gov.jgi.meta.pig.eval.UnpackSequence(seq);\n" +
+              "c = group b by '1';\n" +
+              "d = foreach c generate FLATTEN(gov.jgi.meta.pig.aggregate.VELVET(b, 1, '0'));\n";
+
+      Util.registerMultiLineQuery(ps, script);
+      Iterator<Tuple> it = ps.openIterator("d");
+
+      assertEquals(Util.createTuple(new String[]{new String("caagaagcaaaccactcacgaagggagaaaacattatgacagtagcaaacattatttcaatcgtagcagcttgtgagacaatcgatattaagagagcaacgtcacttatcaacctacgttgacgttaatgg")}), it.next());
     }
 
     /**

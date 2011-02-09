@@ -45,11 +45,11 @@ import gov.jgi.meta.exec.CapCommand;
 import gov.jgi.meta.exec.CommandLineProgram;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
+import org.apache.pig.Accumulator;
 import org.apache.pig.EvalFunc;
-import org.apache.pig.data.DataBag;
-import org.apache.pig.data.DefaultBagFactory;
-import org.apache.pig.data.DefaultTupleFactory;
-import org.apache.pig.data.Tuple;
+import org.apache.pig.data.*;
+import org.apache.pig.impl.logicalLayer.FrontendException;
+import org.apache.pig.impl.logicalLayer.schema.Schema;
 
 import java.io.IOException;
 import java.util.*;
@@ -58,101 +58,156 @@ import java.util.*;
 /**
  * Pig eval command that given a bag of sequences, assemble them using Cap3 assembler and returns
  * the assembled contigs.
- *
+ * <p/>
  * given a bag of sequences, and the number of contigs to return, return either a tuple or a bag
  */
-public class BLAST extends EvalFunc<DataBag> {
+public class BLAST extends EvalFunc<DataBag> implements Accumulator<DataBag> {
    /**
     * Method invoked on every tuple during foreach evaluation
+    *
     * @param input tuple; assumed to be a sequence tuple of the form (id, direction, sequence)
     * @exception java.io.IOException
     */
-   public DataBag exec(Tuple input) throws IOException
-   {
-      DataBag output = DefaultBagFactory.getInstance().newDefaultBag();
+   DataBag output = null;
+   Configuration conf = null;
+   String databaseFilename = null;
+   Map<String, String> seqMap = null;
 
+   public DataBag exec(Tuple input) throws IOException {
+      accumulate(input);
+      return getValue();
+   }
+
+   public void accumulate(Tuple input) throws IOException {
+      if (output == null) {
+         output = DefaultBagFactory.getInstance().newDefaultBag();
+      }
+
+      if (conf == null) {
+         conf = new Configuration();
+         MetaUtils.loadConfiguration(conf, "BioPig.xml", null);
+      }
+
+      if (seqMap == null) {
+         seqMap = new HashMap<String, String>();
+      }
       /*
        * process the inputs (bagOfSequences, optionalNumberOfContigsToReturn, optionalGroupId)
        */
-      DataBag values           = (DataBag)input.get(0);
-      String  databaseFilename = (String)input.get(1);
+      DataBag values = (DataBag) input.get(0);
+      databaseFilename = (String) input.get(1);
+      
+     // long numberOfSequences = values.size();
 
-      long numberOfSequences = values.size();
+      //if (numberOfSequences == 0) {
+//         return;
+//      }
 
-      if (numberOfSequences == 0)
-      {
-         return(null);
+      Iterator<Tuple> it = values.iterator();
+      while (it.hasNext()) {
+         Tuple t = it.next();
+         seqMap.put((String) t.get(0) + "/" + (Integer) t.get(1), (String) t.get(2));
       }
 
+
+   }
+
+   @Override
+   public void cleanup() {
+      output = null;
+      conf = null;
+      databaseFilename = null;
+      seqMap = null;
+   }
+
+   @Override
+   public DataBag getValue() {
+
       /*
-       * need to load the biopig defaults from the classpath
-       */
-      Configuration conf = new Configuration();
-      MetaUtils.loadConfiguration(conf, "BioPig.xml", null);
-      BlastCommand blastCmd = new BlastCommand(conf);
+      * need to load the biopig defaults from the classpath
+      */
+
 
       /*
        * now process inputs and execute blast
        */
-      Map<String, String> seqMap = new HashMap<String, String>();
-      Set<String>         s;
-      Map < String, Set < String >> resultMap = new HashMap < String, Set < String >> ();
 
-      Iterator<Tuple> it = values.iterator();
-      while (it.hasNext())
-      {
-         Tuple t = it.next();
-         seqMap.put((String)t.get(0) + "/" + (Integer)t.get(1), (String)t.get(2));
-      }
+      Set<String> s;
+      Map<String, Set<String>> resultMap = new HashMap<String, Set<String>>();
+
+
       try {
+         BlastCommand blastCmd = new BlastCommand(conf);
          s = blastCmd.exec(seqMap, databaseFilename);
-      }
-      catch (InterruptedException e) {
-         throw new IOException(e);
-      }
 
-      for (String k : s)
-      {
-         /*
-          * blast returns the stdout, line by line.  the output is split by tab and
-          * the first column is the id of the gene, second column is the read id
-          */
-         String[] a = k.split("\t");
+         for (String k : s) {
+            /*
+            * blast returns the stdout, line by line.  the output is split by tab and
+            * the first column is the id of the gene, second column is the read id
+            */
+            String[] a = k.split("\t");
 
-         if (resultMap.containsKey(a[0]))
-         {
-            resultMap.get(a[0]).add(a[1]);
-         }
-         else
-         {
-            resultMap.put(a[0], new HashSet<String>());
-            resultMap.get(a[0]).add(a[1]);
-         }
-      }
-
-      for (String k : resultMap.keySet())
-      {
-         Tuple t = DefaultTupleFactory.getInstance().newTuple(2);
-
-         t.set(0, k);
-
-         DataBag oo = DefaultBagFactory.getInstance().newDefaultBag();
-         for (String kk : resultMap.get(k))
-         {
-            Tuple tt = DefaultTupleFactory.getInstance().newTuple(3);
-
-            String[] a = kk.split("/");
-            tt.set(0, a[0]);
-            tt.set(1, a[1]);
-            tt.set(2, seqMap.get(kk));
-
-            oo.add(tt);
+            if (resultMap.containsKey(a[0])) {
+               resultMap.get(a[0]).add(a[1]);
+            } else {
+               resultMap.put(a[0], new HashSet<String>());
+               resultMap.get(a[0]).add(a[1]);
+            }
          }
 
-         t.set(1, oo);
-         output.add(t);
+         for (String k : resultMap.keySet()) {
+            Tuple t = DefaultTupleFactory.getInstance().newTuple(2);
+
+            t.set(0, k);
+
+            DataBag oo = DefaultBagFactory.getInstance().newDefaultBag();
+            for (String kk : resultMap.get(k)) {
+               Tuple tt = DefaultTupleFactory.getInstance().newTuple(3);
+
+               String[] a = kk.split("/");
+               tt.set(0, a[0]);
+               tt.set(1, a[1]);
+               tt.set(2, seqMap.get(kk));
+
+               oo.add(tt);
+            }
+
+            t.set(1, oo);
+            output.add(t);
+         }
+      } catch (Exception e) {
       }
 
-      return(output);
+      return (output);
    }
+
+   @Override
+   public Schema outputSchema(Schema input)
+   {
+      try {
+         Schema tupleSchema = new Schema();
+         Schema seqSchema = new Schema();
+
+         // first define the sequence schema id, d, sequence
+         seqSchema.add(new Schema.FieldSchema("id", DataType.CHARARRAY));
+         seqSchema.add(new Schema.FieldSchema("d", DataType.INTEGER));
+         seqSchema.add(new Schema.FieldSchema("seq", DataType.CHARARRAY));
+
+         // now define the tuple
+         tupleSchema.add(new Schema.FieldSchema("geneid", DataType.CHARARRAY));
+         tupleSchema.add(new Schema.FieldSchema("setofsequences", seqSchema, DataType.BAG));
+
+         Schema.FieldSchema bagFs = new Schema.FieldSchema(
+            "blastmatches", tupleSchema, DataType.BAG);
+
+         return(new Schema(bagFs));
+      }
+      catch (FrontendException e) {
+         // throwing RTE because
+         //above schema creation is not expected to throw an exception
+         // and also because superclass does not throw exception
+         throw new RuntimeException("Unable to compute TOKENIZE schema.");
+      }
+   }
+
 }

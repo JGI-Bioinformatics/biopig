@@ -58,11 +58,12 @@ public class KmerGenerator extends EvalFunc<DataBag> {
          String kmer;
          for (int i = 0; i <= seqLength - kmerSize; i++)
          {
-            kmer = new String(SequenceString.subseq(ba, i, i + kmerSize));
+            byte[] kmerba = SequenceString.subseq(ba, i, i + kmerSize);
+            kmer = new String(kmerba, "ISO-8859-1");
             if ((kmer != null) && !SequenceString.contains(kmer, "n"))
             {
                Tuple t = DefaultTupleFactory.getInstance().newTuple(1);
-               t.set(0, new DataByteArray(kmer.getBytes()));
+               t.set(0, new DataByteArray(kmer.getBytes("ISO-8859-1")));
                output.add(t);
             }
          }
@@ -73,8 +74,6 @@ public class KmerGenerator extends EvalFunc<DataBag> {
       }
       return(output);
    }
-
-
    @Override
    public Schema outputSchema(Schema input)
    {
@@ -101,4 +100,6 @@ public class KmerGenerator extends EvalFunc<DataBag> {
          throw new RuntimeException("Unable to compute TOKENIZE schema.");
       }
    }
+
+
 }

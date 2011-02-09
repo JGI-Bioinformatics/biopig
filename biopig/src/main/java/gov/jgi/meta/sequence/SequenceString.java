@@ -42,6 +42,7 @@ package gov.jgi.meta.sequence;
 import org.apache.hadoop.io.Text;
 import org.apache.commons.lang.StringUtils;
 
+import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
 
 /**
@@ -83,9 +84,9 @@ public class SequenceString {
 
     }
 
-    public static boolean contains(String sequence, CharSequence c)
+    public static boolean contains(String sequence, CharSequence c) throws UnsupportedEncodingException
     {
-        return byteArrayToSequence(sequence.getBytes()).contains(c);
+        return byteArrayToSequence(sequence.getBytes("ISO-8859-1")).contains(c);
     }
 
    public static byte[] sequenceToByteArray(String sequence)
