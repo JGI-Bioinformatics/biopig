@@ -176,6 +176,7 @@ public class BLAST extends EvalFunc<DataBag> implements Accumulator<DataBag> {
             output.add(t);
          }
       } catch (Exception e) {
+           throw new RuntimeException(e);
       }
 
       return (output);

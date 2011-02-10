@@ -74,5 +74,9 @@
                 <exclude>*.jar</exclude>
             </excludes>
         </fileSet>
+        <fileSet>
+            <directory>${basedir}/etc</directory>
+            <outputDirectory>/</outputDirectory>
+        </fileSet>
     </fileSets>
 </assembly>
