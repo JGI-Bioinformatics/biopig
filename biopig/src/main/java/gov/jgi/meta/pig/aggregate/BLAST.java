@@ -194,9 +194,12 @@ public class BLAST extends EvalFunc<DataBag> implements Accumulator<DataBag> {
          seqSchema.add(new Schema.FieldSchema("d", DataType.INTEGER));
          seqSchema.add(new Schema.FieldSchema("seq", DataType.CHARARRAY));
 
+         Schema xSchema = new Schema();
+         xSchema.add(new Schema.FieldSchema("tuple", seqSchema, DataType.TUPLE));
+
          // now define the tuple
          tupleSchema.add(new Schema.FieldSchema("geneid", DataType.CHARARRAY));
-         tupleSchema.add(new Schema.FieldSchema("setofsequences", seqSchema, DataType.BAG));
+         tupleSchema.add(new Schema.FieldSchema("setofsequences", xSchema, DataType.BAG));
 
          Schema.FieldSchema bagFs = new Schema.FieldSchema(
             "blastmatches", tupleSchema, DataType.BAG);

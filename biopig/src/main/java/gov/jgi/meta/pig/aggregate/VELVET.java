@@ -112,10 +112,22 @@ public class VELVET extends EvalFunc<Tuple> {
       while (it.hasNext())
       {
          Tuple t = it.next();
-         seqMap.put((String)t.get(0) + "/" + (Integer)t.get(1), (String)t.get(2));
+         //log.info("reading sequence: " + t.get(0) + ": " + t.get(1) + " " + t.get(2));
+         //log.info("types           : " + t.get(0).getClass() + ": " + t.get(1).getClass() + ": " + t.get(2).getClass());
+
+         String seqid = (String) t.get(0);
+         int direction = 0;
+         if (t.get(1) instanceof String) {
+            direction = Integer.parseInt((String) t.get(1));
+         } else if (t.get(1) instanceof Integer) {
+            direction = (Integer) t.get(1);
+         }
+         
+         seqMap.put(seqid + "/" + direction, (String)t.get(2));
       }
       try {
          resultMap = assemblerCmd.exec(groupId, seqMap, null);
+         assemblerCmd.cleanup();
       } catch (InterruptedException e) {
          throw new IOException(e);
       }
@@ -149,12 +161,14 @@ public class VELVET extends EvalFunc<Tuple> {
    {
       try {
          Schema tupleSchema = new Schema();
+         Schema xSchema = new Schema();
 
          // now define the tuple
          tupleSchema.add(new Schema.FieldSchema("seq", DataType.CHARARRAY));
+         xSchema.add(new Schema.FieldSchema("tuple", tupleSchema, DataType.TUPLE));
 
          Schema.FieldSchema bagFs = new Schema.FieldSchema(
-            "contigs", tupleSchema, DataType.BAG);
+            "contigs", xSchema, DataType.BAG);
 
          return(new Schema(bagFs));
       }

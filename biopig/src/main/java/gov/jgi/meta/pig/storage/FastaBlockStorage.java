@@ -134,7 +134,7 @@ public class FastaBlockStorage extends LoadFunc {
                seqkey = seqid;
                direction = 0;
             }
-            t.set(0, seqid);
+            t.set(0, seqkey);
             t.set(1, direction);
             t.set(2, seqMap.get(seqid));
 

@@ -271,10 +271,10 @@ public class VelvetCommand implements CommandLineProgram {
       List<String> commands = new ArrayList<String>();
       commands.add("/bin/sh");
       commands.add("-c");
-      commands.add(velveth_commandPath + " " + tmpDirFile.getPath() + "/sillyDirectory " +
+      commands.add("umask 000; " + velveth_commandPath + " " + tmpDirFile.getPath() + "/sillyDirectory " +
                    velveth_commandLine + " " + seqFilepath + " ; " +
                    velvetg_commandPath + " " + tmpDirFile.getPath() + "/sillyDirectory " +
-                   velvetg_commandLine + "; chmod 777 " + tmpDirFile.getPath() + "/sillyDirectory");
+                   velvetg_commandLine);
 
       log.info("command = " + commands);
 

@@ -74,12 +74,25 @@ public class VELVETTest extends TestCase {
      * Method: exec(Tuple input)
      *
      */
-    public void testExec() throws Exception {
+    public void testExecBasic() throws Exception {
 
       PigServer ps = new PigServer(ExecType.LOCAL);
       String script = "A = load 'target/test-classes/1M.fas' using gov.jgi.meta.pig.storage.FastaBlockStorage\n" +
               "    as (offset: int, b:bag {s:(id: chararray, d: int, sequence: chararray)});" +
-              "B = foreach A generate FLATTEN( gov.jgi.meta.pig.aggregate.BLAST($1, 'target/test-classes/EC.faa'));" +
+              "C = foreach A generate FLATTEN(gov.jgi.meta.pig.aggregate.VELVET($1, 1, '0'));\n";
+
+      Util.registerMultiLineQuery(ps, script);
+      Iterator<Tuple> it = ps.openIterator("C");
+
+      assertEquals(Util.createTuple(new String[]{new String("caagaagcaaaccactcacgaagggagaaaacattatgacagtagcaaacattatttcaatcgtagcagcttgtgagacaatcgatattaagagagcaacgtcacttatcaacctacgttgacgttaatgg")}), it.next());
+    }
+
+    public void testExecWithBlast() throws Exception {
+
+      PigServer ps = new PigServer(ExecType.LOCAL);
+      String script = "A = load 'target/test-classes/1M.fas' using gov.jgi.meta.pig.storage.FastaBlockStorage\n" +
+              "    as (offset: int, b:bag {s:(id: chararray, d: int, sequence: chararray)});" +
+              "B = foreach A generate FLATTEN( gov.jgi.meta.pig.aggregate.BLAST($1, '/scratch/karan/EC3.2.1.4.faa'));" +
               "C = foreach B generate FLATTEN(gov.jgi.meta.pig.aggregate.VELVET($1, 1, '0'));\n";
 
       Util.registerMultiLineQuery(ps, script);
