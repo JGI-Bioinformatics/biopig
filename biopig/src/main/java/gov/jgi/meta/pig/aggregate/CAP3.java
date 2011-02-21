@@ -98,7 +98,7 @@ public class CAP3 extends EvalFunc<Tuple> {
        * need to load the biopig defaults from the classpath
        */
       Configuration conf = new Configuration();
-      MetaUtils.loadConfiguration(conf, "BioPig.xml", null);
+      MetaUtils.loadConfiguration(conf, "BioPig.xml.magellan", null);
       CommandLineProgram assemblerCmd = new CapCommand(conf);
 
       /*

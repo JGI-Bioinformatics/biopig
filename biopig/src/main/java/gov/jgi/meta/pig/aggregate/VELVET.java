@@ -99,7 +99,7 @@ public class VELVET extends EvalFunc<Tuple> {
        * need to load the biopig defaults from the classpath
        */
       Configuration conf = new Configuration();
-      MetaUtils.loadConfiguration(conf, "BioPig.xml", null);
+      MetaUtils.loadConfiguration(conf, "BioPig.xml.magellan", null);
       CommandLineProgram assemblerCmd = new VelvetCommand(conf);
 
       /*
@@ -115,15 +115,15 @@ public class VELVET extends EvalFunc<Tuple> {
          //log.info("reading sequence: " + t.get(0) + ": " + t.get(1) + " " + t.get(2));
          //log.info("types           : " + t.get(0).getClass() + ": " + t.get(1).getClass() + ": " + t.get(2).getClass());
 
-         String seqid = (String) t.get(0);
+         String seqid = (String) t.get(1);
          int direction = 0;
-         if (t.get(1) instanceof String) {
-            direction = Integer.parseInt((String) t.get(1));
-         } else if (t.get(1) instanceof Integer) {
-            direction = (Integer) t.get(1);
+         if (t.get(2) instanceof String) {
+            direction = Integer.parseInt((String) t.get(2));
+         } else if (t.get(2) instanceof Integer) {
+            direction = (Integer) t.get(2);
          }
          
-         seqMap.put(seqid + "/" + direction, (String)t.get(2));
+         seqMap.put(seqid + "/" + direction, (String)t.get(3));
       }
       try {
          resultMap = assemblerCmd.exec(groupId, seqMap, null);

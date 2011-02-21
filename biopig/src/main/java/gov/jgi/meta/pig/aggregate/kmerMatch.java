@@ -88,7 +88,7 @@ public class kmerMatch extends EvalFunc<DataBag> {
        * need to load the biopig defaults from the classpath
        */
       Configuration conf = new Configuration();
-      MetaUtils.loadConfiguration(conf, "BioPig.xml", null);
+      MetaUtils.loadConfiguration(conf, "BioPig.xml.magellan", null);
 
       /*
        * now process inputs and execute blast

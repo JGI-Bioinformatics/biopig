@@ -4,7 +4,8 @@
 -- a consensues sequence... the beginnings of dereplication.
 --
 
-register pipelineLib/target/pipelinelibrary-1.0-beta2.jar
+register biopig-core-0.2.0-job.jar;
+
 define PAIRMERGE gov.jgi.meta.pig.eval.SequencePairMerge();
 define CONSENSUS gov.jgi.meta.pig.eval.GenerateConsensus();
 

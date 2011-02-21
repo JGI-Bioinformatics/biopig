@@ -39,9 +39,12 @@
 
 package test.gov.jgi.meta;
 
+import gov.jgi.meta.MetaUtils;
 import junit.framework.Test;
 import junit.framework.TestSuite;
 import junit.framework.TestCase;
+
+import java.util.Set;
 
 /**
  * MetaUtils Tester.
@@ -176,8 +179,18 @@ public class MetaUtilsTest extends TestCase {
      * Method: generateAllNeighbors2(String start, int distance)
      *
      */
-    public void testGenerateAllNeighbors2() throws Exception {
-        //TODO: Test goes here...
+    public void testGenerateAllNeighbors() throws Exception {
+
+        Set x = MetaUtils.generateAllNeighbors("AAA".toLowerCase(), 1);
+        assertEquals(12, x.size());
+        x = MetaUtils.generateAllNeighbors("AAAACAGTCT".toLowerCase(), 1);
+        assertEquals(41, x.size());
+        x = MetaUtils.generateAllNeighbors("AAAACAGTCT".toLowerCase(), 2);
+        assertEquals(721, x.size());
+        x = MetaUtils.generateAllNeighbors("AAAACAGTCT".toLowerCase(), 3);
+        assertEquals(7681, x.size());
+        x = MetaUtils.generateAllNeighbors("AAAACAGTCT".toLowerCase(), 4);
+        assertEquals(53761, x.size());
     }
 
     /**

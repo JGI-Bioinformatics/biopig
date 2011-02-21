@@ -85,7 +85,7 @@ public class BLAST extends EvalFunc<DataBag> implements Accumulator<DataBag> {
 
       if (conf == null) {
          conf = new Configuration();
-         MetaUtils.loadConfiguration(conf, "BioPig.xml", null);
+         MetaUtils.loadConfiguration(conf, "BioPig.xml.magellan", null);
       }
 
       if (seqMap == null) {

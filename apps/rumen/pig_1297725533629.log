@@ -1,0 +1,14 @@
+Error before Pig is launched
+----------------------------
+ERROR 4010: Cannot find hadoop configurations in classpath (neither hadoop-site.xml nor core-site.xml was found in the classpath).If you plan to use local mode, please put -x local option in command line
+
+org.apache.pig.backend.executionengine.ExecException: ERROR 4010: Cannot find hadoop configurations in classpath (neither hadoop-site.xml nor core-site.xml was found in the classpath).If you plan to use local mode, please put -x local option in command line
+	at org.apache.pig.backend.hadoop.executionengine.HExecutionEngine.init(HExecutionEngine.java:168)
+	at org.apache.pig.backend.hadoop.executionengine.HExecutionEngine.init(HExecutionEngine.java:133)
+	at org.apache.pig.impl.PigContext.connect(PigContext.java:183)
+	at org.apache.pig.PigServer.<init>(PigServer.java:226)
+	at org.apache.pig.PigServer.<init>(PigServer.java:215)
+	at org.apache.pig.tools.grunt.Grunt.<init>(Grunt.java:55)
+	at org.apache.pig.Main.run(Main.java:492)
+	at org.apache.pig.Main.main(Main.java:107)
+================================================================================
