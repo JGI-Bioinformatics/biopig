@@ -182,15 +182,15 @@ public class MetaUtilsTest extends TestCase {
     public void testGenerateAllNeighbors() throws Exception {
 
         Set x = MetaUtils.generateAllNeighbors("AAA".toLowerCase(), 1);
-        assertEquals(12, x.size());
+        assertEquals(10, x.size());
         x = MetaUtils.generateAllNeighbors("AAAACAGTCT".toLowerCase(), 1);
-        assertEquals(41, x.size());
-        x = MetaUtils.generateAllNeighbors("AAAACAGTCT".toLowerCase(), 2);
-        assertEquals(721, x.size());
+        assertEquals(31, x.size());
+        x = MetaUtils.generateAllNeighbors("AAAAAAAAAA".toLowerCase(), 2);
+        assertEquals(405 + 31, x.size());
         x = MetaUtils.generateAllNeighbors("AAAACAGTCT".toLowerCase(), 3);
-        assertEquals(7681, x.size());
+        assertEquals(3240 + 405 + 31, x.size());
         x = MetaUtils.generateAllNeighbors("AAAACAGTCT".toLowerCase(), 4);
-        assertEquals(53761, x.size());
+        assertEquals(17010 + 3240 + 405 + 31, x.size());
     }
 
     /**

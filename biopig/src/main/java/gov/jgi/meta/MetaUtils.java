@@ -513,9 +513,7 @@ public class MetaUtils {
     */
    public static Set<String> generateAllNeighbors(String start, int distance)
    {
-      Set<String> neighbors = generateAllNeighbors(start, distance, new HashSet());
-      neighbors.add(start);
-      return(neighbors);
+      return generateAllNeighbors(new StringBuffer(start), distance);
    }
 
    public static Set<String> generateAllNeighbors2(String start, int distance)
@@ -588,28 +586,34 @@ public class MetaUtils {
       return(r);
    }
 
-   public static Set<String> generateAllNeighbors(String start, int distance, Set x)
+   /**
+    * generate a set (unique) of all sequences ({ATGC} only) from start sequence
+    * to distance steps (Hamming distance)
+    *
+    * @param start the start sequence
+    * @param distance the number of steps to travel
+    * @return s set containing all neighbors including itself.
+    */
+   public static Set<String> generateAllNeighbors(StringBuffer start, int distance)
    {
-      char [] bases = { 'a', 't', 'g', 'c', 'n' };
+      char [] bases = { 'a', 't', 'g', 'c' };
       Set<String> s = new HashSet<String>();
 
-      //s.add(start);
       if (distance == 0)
       {
+         s.add(start.toString());
          return(s);
       }
 
       for (int i = 0; i < start.length(); i++)
       {
+         char old = start.charAt(i);
          for (char basePair : bases)
          {
-            if (start.charAt(i) == basePair) { continue; }
-            String n = stringReplaceIth(start, i, basePair);
-            if (x.contains(n)) { continue; }
-
-            s.add(n);
-            s.addAll(generateAllNeighbors(n, distance - 1, s));
+            start.setCharAt(i, basePair);
+            s.addAll(generateAllNeighbors(start, distance - 1));
          }
+         start.setCharAt(i, old);
       }
 
       return(s);

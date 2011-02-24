@@ -74,7 +74,7 @@ public class KmerGeneratorTest extends TestCase {
      {
 
           PigServer ps = new PigServer(ExecType.LOCAL);
-          String script = "a = load 'target/test-classes/1M.fas'  using gov.jgi.meta.pig.storage.FastaBlockStorage as (id: chararray, d: int, seq: bytearray);\n" +
+          String script = "a = load 'target/test-classes/1M.fas'  using gov.jgi.meta.pig.storage.FastaStorage as (id: chararray, d: int, seq: bytearray);\n" +
                   "b = foreach a generate gov.jgi.meta.pig.eval.KmerGenerator(seq, 20);\n" +
                   "c = foreach b generate COUNT($0);";
 
