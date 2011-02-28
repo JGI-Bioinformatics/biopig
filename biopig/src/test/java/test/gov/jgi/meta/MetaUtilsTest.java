@@ -193,6 +193,37 @@ public class MetaUtilsTest extends TestCase {
         assertEquals(17010 + 3240 + 405 + 31, x.size());
     }
 
+
+    public void testGenerateAllNeighborsAtDistance() throws Exception {
+
+        Set x = MetaUtils.generateAllNeighborsAtDistance("AAA".toLowerCase(), 1);
+        assertEquals(9, x.size());
+        x = MetaUtils.generateAllNeighborsAtDistance("AAAACAGTCT".toLowerCase(), 1);
+        assertEquals(30, x.size());
+        x = MetaUtils.generateAllNeighborsAtDistance("AAAAAAAAAA".toLowerCase(), 2);
+        assertEquals(405, x.size());
+        x = MetaUtils.generateAllNeighborsAtDistance("AAAACAGTCT".toLowerCase(), 3);
+        assertEquals(3240, x.size());
+        x = MetaUtils.generateAllNeighborsAtDistance("AAAACAGTCT".toLowerCase(), 4);
+        assertEquals(17010, x.size());
+    }
+
+
+    public void testGenerateAllNeighborsWithinDistance() throws Exception {
+
+        Set x = MetaUtils.generateAllNeighborsWithinDistance("AAA".toLowerCase(), 1);
+        assertEquals(10, x.size());
+        x = MetaUtils.generateAllNeighborsWithinDistance("AAAACAGTCT".toLowerCase(), 1);
+        assertEquals(31, x.size());
+        x = MetaUtils.generateAllNeighborsWithinDistance("AAAAAAAAAA".toLowerCase(), 2);
+        assertEquals(405 + 31, x.size());
+        x = MetaUtils.generateAllNeighborsWithinDistance("AAAACAGTCT".toLowerCase(), 3);
+        assertEquals(3240 + 405 + 31, x.size());
+        x = MetaUtils.generateAllNeighborsWithinDistance("AAAACAGTCT".toLowerCase(), 4);
+        assertEquals(17010 + 3240 + 405 + 31, x.size());
+    }
+
+
     /**
      *
      * Method: generateAllNeighbors(String start, int distance, Set x)

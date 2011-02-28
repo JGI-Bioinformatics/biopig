@@ -68,7 +68,7 @@ public class SequenceEditDistance extends EvalFunc<DataBag> {
            //int seqLength = SequenceString.numBases(ba);
            //String seq = SequenceString.byteArrayToSequence(ba);
            
-           Set<String> neighbors = MetaUtils.generateAllNeighbors(seq, editDistance);
+           Set<String> neighbors = MetaUtils.generateAllNeighborsWithinDistance(seq, editDistance);
            for (String n : neighbors) {
                 Tuple t = DefaultTupleFactory.getInstance().newTuple(1);
                 t.set(0, n);

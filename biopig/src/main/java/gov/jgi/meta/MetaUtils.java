@@ -586,6 +586,145 @@ public class MetaUtils {
       return(r);
    }
 
+    public static boolean testvvEnd(int[] vv) {
+        for (int i = 0; i < vv.length; i++) {
+            if (vv[i] != 0) return false;
+        }
+        return true;
+    }
+    public static boolean vvcaniskip(String start, int []v, int[] vv) {
+        char [] bases = { 'a', 't', 'g', 'c' };
+        for (int i = 0; i < v.length; i++) {
+            if (start.charAt(v[i]) == bases[vv[i]]) return true;
+        }
+        return false;
+    }
+    public static String applychangevectortovalues(String start, int[]v, int[] vv)
+    {
+        StringBuffer sb = new StringBuffer(start);
+        char [] bases = { 'a', 't', 'g', 'c' };
+        for (int i = 0; i < v.length; i++) {
+            sb.setCharAt(v[i], bases[vv[i]]);
+        }
+        return sb.toString();
+    }
+
+    public static Set<String> changeVectorApply(String start, int[] v)
+    {
+        int i;
+        char [] bases = { 'a', 't', 'g', 'c' };
+        int[] vv = new int[v.length];
+        Set<String> s = new HashSet<String>();
+
+        for (i = 0; i < v.length; i++) vv[i] = 0;
+
+        boolean overflow = false;
+        while (!overflow) {
+            if (!vvcaniskip(start, v, vv)) {
+                String neighbor = applychangevectortovalues(start, v, vv);
+                s.add(neighbor);
+            }
+            for (int j = vv.length-1; j >= 0; j-- ) {
+                if (vv[j] < 3) {
+                    vv[j] += 1;
+                    break;
+                } else if (j == 0) {
+                    overflow = true;
+                    vv[j] = 0;
+                } else {
+                    vv[j] = 0;
+                }
+            }
+        }
+
+        return s;
+    }
+
+    public static Set<String> changeVectorApply2(String start, int[] v)
+    {
+        int i;
+        char [] bases = { 'a', 't', 'g', 'c' };
+        int[] vv = new int[v.length];
+        Set<String> s = new HashSet<String>();
+
+        for (i = 0; i < v.length; i++) vv[i] = 0;
+
+        boolean overflow = false;
+        while (!overflow) {
+            String neighbor = applychangevectortovalues(start, v, vv);
+            s.add(neighbor);
+            for (int j = vv.length-1; j >= 0; j-- ) {
+                if (vv[j] < 3) {
+                    vv[j] += 1;
+                    break;
+                } else if (j == 0) {
+                    overflow = true;
+                    vv[j] = 0;
+                } else {
+                    vv[j] = 0;
+                }
+            }
+        }
+
+        return s;
+    }
+
+    public static Set<String> generateAllNeighborsWithinDistance(String start, int distance)
+    {
+        Set<String> s = new HashSet<String>();
+        int[] v = new int[distance];
+        int i;
+
+        for (i = 0; i < distance; i++) v[i] = i; // init the change vector
+
+        boolean overflow = false;
+        while (!overflow) {
+            Set<String> c = changeVectorApply2(start, v);
+            s.addAll(c);
+            for (int j = v.length-1; j >=0 ; j--) {
+                if (v[j] < start.length()-distance+j) {
+                    v[j] += 1;
+                    for (int k = j+1; k < v.length; k++) v[k] = v[k-1]+1;
+                    break;
+                } else if (j == 0) {
+                    v[j] = 0;
+                    overflow = true;
+                } else {
+                    v[j] = 0;
+                }
+            }
+        }
+        return s;
+    }
+
+
+    public static Set<String> generateAllNeighborsAtDistance(String start, int distance)
+    {
+        Set<String> s = new HashSet<String>();
+        int[] v = new int[distance];
+        int i;
+
+        for (i = 0; i < distance; i++) v[i] = i; // init the change vector
+
+        boolean overflow = false;
+        while (!overflow) {
+            Set<String> c = changeVectorApply(start, v);
+            s.addAll(c);
+            for (int j = v.length-1; j >=0 ; j--) {
+                if (v[j] < start.length()-distance+j) {
+                    v[j] += 1;
+                    for (int k = j+1; k < v.length; k++) v[k] = v[k-1]+1;
+                    break;
+                } else if (j == 0) {
+                    v[j] = 0;
+                    overflow = true;
+                } else {
+                    v[j] = 0;
+                }
+            }
+        }
+        return s;
+    }
    /**
     * generate a set (unique) of all sequences ({ATGC} only) from start sequence
     * to distance steps (Hamming distance)
