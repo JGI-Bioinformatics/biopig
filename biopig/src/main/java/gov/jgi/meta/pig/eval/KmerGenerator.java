@@ -43,20 +43,69 @@ public class KmerGenerator extends EvalFunc<DataBag> {
    public DataBag exec(Tuple input) throws IOException
    {
       DataBag output = DefaultBagFactory.getInstance().newDefaultBag();
+       int start, num, end;
+       boolean bothEnds = false;
 
       if ((input == null) || (input.size() == 0))
       {
          return(null);
       }
+
       try{
-         byte[] ba = ((DataByteArray)input.get(0)).get();
+          byte[] ba;
+          Object values = input.get(0);
+          if (values instanceof DataByteArray) {
+              ba = ((DataByteArray) values).get();
+          } else {
+              // i know this is somewhat inefficient, but quick and dirty
+              ba = SequenceString.sequenceToByteArray((String) values);
+          }
          int kmerSize  = (Integer)input.get(1);
          int seqLength = SequenceString.numBases(ba);
 
+         // defaults
+         start = 0;
+         end = seqLength - kmerSize;
+         num = end - start + 1;
+
+          if (input.size() == 2) {
+              // this is the regular kmergenerator function
+              // start at 0, go through to the end.
+          } else if (input.size() == 3) {
+              // user added a start location
+              start = (Integer) (input.get(2));
+              if (start == -1) {
+                  // pick a random spot
+                  Random rand = new Random();
+                  start = rand.nextInt(seqLength-kmerSize+1);
+              }
+              num = end - start + 1;
+          } else if (input.size() == 4) {
+              // add both a start and a count (number of kmers to generate)
+              start = (Integer) (input.get(2));
+              if (start == -1) {
+                  // pick a random spot
+                  Random rand = new Random();
+                  start = rand.nextInt(seqLength-kmerSize+1);
+              }
+              num = (Integer) (input.get(3));
+              end = Math.min(start+num-1, seqLength - kmerSize);
+          } else if (input.size() == 5 ) {
+              // same as 4, but do both ends
+              bothEnds = true;
+              start = (Integer) (input.get(2));
+              if (start == -1) {
+                  // pick a random spot
+                  Random rand = new Random();
+                  start = rand.nextInt(seqLength-kmerSize+1);
+              }
+              num = (Integer) (input.get(3));
+              end = Math.min(start+num-1, seqLength - kmerSize);
+          }
          if (kmerSize > seqLength) { return(null); }
 
          String kmer;
-         for (int i = 0; i <= seqLength - kmerSize; i++)
+         for (int i = start; i <= end; i++)
          {
             byte[] kmerba = SequenceString.subseq(ba, i, i + kmerSize);
             kmer = new String(kmerba, "ISO-8859-1");
@@ -66,6 +115,22 @@ public class KmerGenerator extends EvalFunc<DataBag> {
                t.set(0, new DataByteArray(kmer.getBytes("ISO-8859-1")));
                output.add(t);
             }
+         }
+
+         if (bothEnds) {
+             start = Math.max(seqLength - kmerSize - num, 0);
+             end = Math.min(start+num-1, seqLength - kmerSize);
+             for (int i = start; i <= end; i++)
+             {
+                 byte[] kmerba = SequenceString.subseq(ba, i, i + kmerSize);
+                 kmer = new String(kmerba, "ISO-8859-1");
+                 if ((kmer != null) && !SequenceString.contains(kmer, "n"))
+                 {
+                     Tuple t = DefaultTupleFactory.getInstance().newTuple(1);
+                     t.set(0, new DataByteArray(kmer.getBytes("ISO-8859-1")));
+                     output.add(t);
+                 }
+             }
          }
       }
       catch (Exception e) {

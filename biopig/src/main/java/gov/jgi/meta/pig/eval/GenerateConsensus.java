@@ -78,10 +78,6 @@ public class GenerateConsensus extends EvalFunc<Tuple> {
         if(values.size() == 0)
             return null;
 
-        if (values.size() == 1) {
-            return values.iterator().next();
-        }
-
         Tuple t = DefaultTupleFactory.getInstance().newTuple(3);
         t.set(0, "mergedsequences");
         t.set(1, 0);
@@ -100,16 +96,18 @@ public class GenerateConsensus extends EvalFunc<Tuple> {
 
 
         int ii = 0;
+        int maxlength = -1;
         for (Iterator<Tuple> it = values.iterator(); it.hasNext(); ) {
-            seqArray[ii++] = it.next().get(2).toString();
+            seqArray[ii] = it.next().get(2).toString();
+            if (seqArray[ii].length() > maxlength) maxlength = seqArray[ii].length();
+            ii++;
         }
         int length = (int) values.size();
 
        if (length == 1) { return(seqArray[0]); }
        else
        {
-          int seqLength = seqArray[0].length();
-          for (int i = 0; i < seqLength; i++)
+          for (int i = 0; i < maxlength; i++)
           {
              totals[0] = 0;
              totals[1] = 0;
@@ -143,6 +141,8 @@ public class GenerateConsensus extends EvalFunc<Tuple> {
     public int[] getCounts(String s, int i)
     {
        int[] totals = { 0, 0, 0, 0 }; // a t g c
+       if (i >= s.length()) return totals;
+
        if (s.charAt(i) == 'a') { totals[0]++; }
        else if (s.charAt(i) == 't') { totals[1]++; }
        else if (s.charAt(i) == 'g') { totals[2]++; }

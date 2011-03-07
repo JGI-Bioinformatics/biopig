@@ -70,7 +70,8 @@ public class SequenceEditDistanceTest extends TestCase {
         super.tearDown();
     }
 
-    public void testSequenceNeighbors() throws IOException
+
+    public void testSequenceNeighborsDistanceZero() throws IOException
      {
 
           PigServer ps = new PigServer(ExecType.LOCAL);
@@ -78,12 +79,44 @@ public class SequenceEditDistanceTest extends TestCase {
 
                   "b = foreach a generate gov.jgi.meta.pig.eval.SubSequence(seq, 0, 10);\n" +
                   "c = foreach b generate gov.jgi.meta.pig.eval.UnpackSequence($0);\n" +
-                  "d = foreach c generate FLATTEN(gov.jgi.meta.pig.eval.SequenceEditDistance($0, 2));";
+                  "d = foreach c generate COUNT(gov.jgi.meta.pig.eval.SequenceEditDistance($0, 0));";
 
           Util.registerMultiLineQuery(ps, script);
           Iterator<Tuple> it = ps.openIterator("d");
 
-         assertEquals("tgcngctnaa", ((String) it.next().get(0)));
+         assertEquals(new Long(1), ((Long) it.next().get(0)));
+     }
+
+    public void testSequenceNeighborsDistanceOne() throws IOException
+     {
+
+          PigServer ps = new PigServer(ExecType.LOCAL);
+          String script = "a = load 'target/test-classes/1M.fas' using gov.jgi.meta.pig.storage.FastaStorage as (id: chararray, d: int, seq: bytearray);\n" +
+
+                  "b = foreach a generate gov.jgi.meta.pig.eval.SubSequence(seq, 0, 10);\n" +
+                  "c = foreach b generate gov.jgi.meta.pig.eval.UnpackSequence($0);\n" +
+                  "d = foreach c generate COUNT(gov.jgi.meta.pig.eval.SequenceEditDistance($0, 1));";
+
+          Util.registerMultiLineQuery(ps, script);
+          Iterator<Tuple> it = ps.openIterator("d");
+
+         assertEquals(new Long(31), ((Long) it.next().get(0)));
+     }
+
+    public void testSequenceNeighborsDistanceTwo() throws IOException
+     {
+
+          PigServer ps = new PigServer(ExecType.LOCAL);
+          String script = "a = load 'target/test-classes/1M.fas' using gov.jgi.meta.pig.storage.FastaStorage as (id: chararray, d: int, seq: bytearray);\n" +
+
+                  "b = foreach a generate gov.jgi.meta.pig.eval.SubSequence(seq, 0, 10);\n" +
+                  "c = foreach b generate gov.jgi.meta.pig.eval.UnpackSequence($0);\n" +
+                  "d = foreach c generate COUNT(gov.jgi.meta.pig.eval.SequenceEditDistance($0, 2));";
+
+          Util.registerMultiLineQuery(ps, script);
+          Iterator<Tuple> it = ps.openIterator("d");
+
+         assertEquals(new Long(436), ((Long) it.next().get(0)));
      }
 
 

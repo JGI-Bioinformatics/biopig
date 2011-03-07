@@ -87,6 +87,56 @@ public class KmerGeneratorTest extends TestCase {
          assertEquals(Util.createTuple(new Long[] { new Long(57) }), it.next());
      }
 
+        public void testKmerGeneratorAtPosition0length1() throws IOException
+     {
+
+          PigServer ps = new PigServer(ExecType.LOCAL);
+          String script = "a = load 'target/test-classes/1M.fas'  using gov.jgi.meta.pig.storage.FastaStorage as (id: chararray, d: int, seq: bytearray);\n" +
+                  "b = foreach a generate gov.jgi.meta.pig.eval.KmerGenerator(seq, 20, 0,1);\n" +
+                  "c = foreach b generate COUNT($0);";
+
+          Util.registerMultiLineQuery(ps, script);
+          Iterator<Tuple> it = ps.openIterator("c");
+
+          assertEquals(Util.createTuple(new Long[] { new Long(0) }), it.next());
+         assertEquals(Util.createTuple(new Long[] { new Long(1) }), it.next());
+         assertEquals(Util.createTuple(new Long[] { new Long(0) }), it.next());
+         assertEquals(Util.createTuple(new Long[] { new Long(1) }), it.next());
+     }
+
+    public void testKmerGeneratorAtPosition0length1BlockStorage() throws IOException
+ {
+      PigServer ps = new PigServer(ExecType.LOCAL);
+      String script = "a = load 'target/test-classes/1M.fas'  using gov.jgi.meta.pig.storage.FastaBlockStorage as (offset: int, b:bag {s:(id: chararray, d: int, sequence: chararray)});" +
+              "b = foreach a generate FLATTEN($1);" +
+              "bb = filter b by ($0 == '756:1:1:1074:20235');" +
+              "c = foreach bb generate FLATTEN(gov.jgi.meta.pig.eval.KmerGenerator(sequence, 20, 0,1));\n" +
+              "d = foreach c generate gov.jgi.meta.pig.eval.UnpackSequence($0);\n";
+
+      Util.registerMultiLineQuery(ps, script);
+      Iterator<Tuple> it = ps.openIterator("d");
+
+     assertEquals(Util.createTuple(new String[] {"tcgtcgctgaagccttcttc"}), it.next());
+     assertEquals(null, it.next());
+ }
+
+
+    public void testKmerGeneratorAtPositionRandomLength1() throws IOException
+  {
+
+       PigServer ps = new PigServer(ExecType.LOCAL);
+       String script = "a = load 'target/test-classes/1M.fas'  using gov.jgi.meta.pig.storage.FastaStorage as (id: chararray, d: int, seq: bytearray);\n" +
+               "b = foreach a generate gov.jgi.meta.pig.eval.KmerGenerator(seq, 20, -1, 1);\n" +
+               "c = foreach b generate COUNT($0);";
+
+       Util.registerMultiLineQuery(ps, script);
+       Iterator<Tuple> it = ps.openIterator("c");
+
+       assertEquals(Util.createTuple(new Long[] { new Long(0) }), it.next());
+      assertEquals(Util.createTuple(new Long[] { new Long(1) }), it.next());
+      assertEquals(Util.createTuple(new Long[] { new Long(0) }), it.next());
+      assertEquals(Util.createTuple(new Long[] { new Long(1) }), it.next());
+  }
 
 
     public static Test suite() {

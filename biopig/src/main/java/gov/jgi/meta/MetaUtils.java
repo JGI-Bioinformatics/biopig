@@ -672,6 +672,12 @@ public class MetaUtils {
     public static Set<String> generateAllNeighborsWithinDistance(String start, int distance)
     {
         Set<String> s = new HashSet<String>();
+
+        if (distance == 0) {
+            s.add(start);
+            return s;
+        }
+
         int[] v = new int[distance];
         int i;
 
