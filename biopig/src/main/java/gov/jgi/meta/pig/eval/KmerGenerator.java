@@ -92,7 +92,7 @@ public class KmerGenerator extends EvalFunc<DataBag> {
               end = Math.min(start+num-1, seqLength - kmerSize);
           } else if (input.size() == 5 ) {
               // same as 4, but do both ends
-              bothEnds = true;
+              bothEnds = (Integer) (input.get(4)) != 0;
               start = (Integer) (input.get(2));
               if (start == -1) {
                   // pick a random spot
@@ -118,7 +118,7 @@ public class KmerGenerator extends EvalFunc<DataBag> {
          }
 
          if (bothEnds) {
-             start = Math.max(seqLength - kmerSize - num, 0);
+             start = Math.max(seqLength - kmerSize - num + 1, 0);
              end = Math.min(start+num-1, seqLength - kmerSize);
              for (int i = start; i <= end; i++)
              {

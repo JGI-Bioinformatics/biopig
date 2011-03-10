@@ -138,6 +138,23 @@ public class KmerGeneratorTest extends TestCase {
       assertEquals(Util.createTuple(new Long[] { new Long(1) }), it.next());
   }
 
+  public void testKmerGeneratorAtPosition0FrontAndBack() throws IOException
+  {
+
+       PigServer ps = new PigServer(ExecType.LOCAL);
+       String script = "a = load 'target/test-classes/1M.fas'  using gov.jgi.meta.pig.storage.FastaStorage as (id: chararray, d: int, seq: bytearray);\n" +
+               "aa = filter a by ($0 == '756:1:1:1074:20235');" +
+               "b = foreach aa generate FLATTEN(gov.jgi.meta.pig.eval.KmerGenerator(seq, 20, 0, 1, 1));\n" +
+               "c = foreach b generate gov.jgi.meta.pig.eval.UnpackSequence($0);";
+
+       Util.registerMultiLineQuery(ps, script);
+       Iterator<Tuple> it = ps.openIterator("c");
+
+       // TCGTCGCTGAAGCCTTCTTCCACCTTGGCGTTGAACGCCTCCATGTCCAGTGGAGTCCCCTGGACCCCGCGCCCGC
+     assertEquals(Util.createTuple(new String[] { "TCGTCGCTGAAGCCTTCTTC".toLowerCase() }), it.next());
+     assertEquals(Util.createTuple(new String[] { "CCCCTGGACCCCGCGCCCGC".toLowerCase() }), it.next());
+
+  }
 
     public static Test suite() {
         return new TestSuite(KmerGeneratorTest.class);

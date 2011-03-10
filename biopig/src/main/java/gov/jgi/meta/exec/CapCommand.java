@@ -279,6 +279,8 @@ public class CapCommand implements CommandLineProgram {
          fstream = new FileInputStream(tmpDirFile.getPath() + "/reads.fa.cap.contigs");
          in      = new FastaBlockLineReader(fstream);
          int bytes = in.readLine(t, s);
+      } catch (java.io.FileNotFoundException e) {
+         // in this case, its not an error, it may be that cap3 could not create any contigs
       } catch (Exception e) {
          log.error("unable to find outputfile:" + e);
          throw new IOException(e);
