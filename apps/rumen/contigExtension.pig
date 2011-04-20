@@ -52,4 +52,4 @@ n = join contigs by id, m by $0;
 complete = foreach n generate $0, gov.jgi.meta.pig.aggregate.ExtendContigWithCap3($2, $5);
 final = filter complete by $1 is not null;
 
-dump j;
+dump n; 
