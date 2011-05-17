@@ -1,0 +1,14 @@
+README File for BioPig Applications
+-----------------------------------
+
+BioPig (or: How I Learned to Stop Worrying and Learned To Love Parallelism) provides data analysts with
+tools to define the analytics needed without worrying about how the parallelism will work.  This directory
+includes a variety of analytic scripts.
+
+rumen/      - scripts related to the analysis of the rumen pipeline
+qa/         - scripts related to quality control
+stats/      - scripts related to calculating statistics over a set of sequences
+misc/       - miscellanious
+tutorial/   - simple scripts for learning
+
+

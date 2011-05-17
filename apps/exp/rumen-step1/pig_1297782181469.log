@@ -1,0 +1,33 @@
+Backend error message
+---------------------
+java.lang.NegativeArraySizeException
+	at org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.PigSplit.readObject(PigSplit.java:262)
+	at org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.PigSplit.readFields(PigSplit.java:209)
+	at org.apache.hadoop.io.serializer.WritableSerialization$WritableDeserializer.deserialize(WritableSerialization.java:67)
+	at org.apache.hadoop.io.serializer.WritableSerialization$WritableDeserializer.deserialize(WritableSerialization.java:40)
+	at org.apache.hadoop.mapred.MapTask.runNewMapper(MapTask.java:586)
+	at org.apache.hadoop.mapred.MapTask.run(MapTask.java:305)
+	at org.apache.hadoop.mapred.Child.main(Child.java:170)
+
+Pig Stack Trace
+---------------
+ERROR 6015: During execution, encountered a Hadoop error.
+
+org.apache.pig.impl.logicalLayer.FrontendException: ERROR 1066: Unable to open iterator for alias G
+	at org.apache.pig.PigServer.openIterator(PigServer.java:521)
+	at org.apache.pig.tools.grunt.GruntParser.processDump(GruntParser.java:544)
+	at org.apache.pig.tools.pigscript.parser.PigScriptParser.parse(PigScriptParser.java:241)
+	at org.apache.pig.tools.grunt.GruntParser.parseStopOnError(GruntParser.java:162)
+	at org.apache.pig.tools.grunt.GruntParser.parseStopOnError(GruntParser.java:138)
+	at org.apache.pig.tools.grunt.Grunt.exec(Grunt.java:89)
+	at org.apache.pig.Main.main(Main.java:391)
+Caused by: org.apache.pig.backend.executionengine.ExecException: ERROR 6015: During execution, encountered a Hadoop error.
+	at .apache.pig.backend.hadoop.executionengine.mapReduceLayer.PigSplit.readObject(PigSplit.java:262)
+	at .apache.pig.backend.hadoop.executionengine.mapReduceLayer.PigSplit.readFields(PigSplit.java:209)
+	at .apache.hadoop.io.serializer.WritableSerialization$WritableDeserializer.deserialize(WritableSerialization.java:67)
+	at .apache.hadoop.io.serializer.WritableSerialization$WritableDeserializer.deserialize(WritableSerialization.java:40)
+	at .apache.hadoop.mapred.MapTask.runNewMapper(MapTask.java:586)
+	at .apache.hadoop.mapred.MapTask.run(MapTask.java:305)
+Caused by: java.lang.NegativeArraySizeException
+	... 6 more
+================================================================================

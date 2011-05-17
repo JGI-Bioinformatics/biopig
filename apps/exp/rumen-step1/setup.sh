@@ -1,0 +1,1 @@
+export PIG_OPTS="-Dmapred.job.name=rumen-generatecontigs -Dio.file.buffer.size=1048576 -Dio.sort.record.percent=.33 -Dmapred.child.java.opts=-Xmx2G -Dio.sort.factor=-Dio.sort.mb=250 -Dfs.inmemory.size.mb=250 -Dmapred.compress.map.output=true -Dmapred.max.split.size=19323216"

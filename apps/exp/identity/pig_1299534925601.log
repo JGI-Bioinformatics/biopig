@@ -1,0 +1,39 @@
+Backend error message during job submission
+-------------------------------------------
+org.apache.pig.backend.executionengine.ExecException: ERROR 2118: Unable to create input splits for: hdfs://cvrsvc11-ib/user/kbhatia/target/test-classes/one.txt
+	at org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.PigInputFormat.getSplits(PigInputFormat.java:269)
+	at org.apache.hadoop.mapred.JobClient.writeNewSplits(JobClient.java:885)
+	at org.apache.hadoop.mapred.JobClient.submitJobInternal(JobClient.java:779)
+	at org.apache.hadoop.mapred.JobClient.submitJob(JobClient.java:730)
+	at org.apache.hadoop.mapred.jobcontrol.Job.submit(Job.java:378)
+	at org.apache.hadoop.mapred.jobcontrol.JobControl.startReadyJobs(JobControl.java:247)
+	at org.apache.hadoop.mapred.jobcontrol.JobControl.run(JobControl.java:279)
+	at java.lang.Thread.run(Thread.java:619)
+Caused by: org.apache.hadoop.mapreduce.lib.input.InvalidInputException: Input path does not exist: hdfs://cvrsvc11-ib/user/kbhatia/target/test-classes/one.txt
+	at org.apache.hadoop.mapreduce.lib.input.FileInputFormat.listStatus(FileInputFormat.java:224)
+	at org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.PigTextInputFormat.listStatus(PigTextInputFormat.java:36)
+	at org.apache.hadoop.mapreduce.lib.input.FileInputFormat.getSplits(FileInputFormat.java:241)
+	at org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.PigInputFormat.getSplits(PigInputFormat.java:258)
+	... 7 more
+
+Pig Stack Trace
+---------------
+ERROR 2997: Unable to recreate exception from backend error: org.apache.pig.backend.executionengine.ExecException: ERROR 2118: Unable to create input splits for: hdfs://cvrsvc11-ib/user/kbhatia/target/test-classes/one.txt
+
+org.apache.pig.impl.logicalLayer.FrontendException: ERROR 1066: Unable to open iterator for alias a
+	at org.apache.pig.PigServer.openIterator(PigServer.java:521)
+	at org.apache.pig.tools.grunt.GruntParser.processDump(GruntParser.java:544)
+	at org.apache.pig.tools.pigscript.parser.PigScriptParser.parse(PigScriptParser.java:241)
+	at org.apache.pig.tools.grunt.GruntParser.parseStopOnError(GruntParser.java:162)
+	at org.apache.pig.tools.grunt.GruntParser.parseStopOnError(GruntParser.java:138)
+	at org.apache.pig.tools.grunt.Grunt.run(Grunt.java:75)
+	at org.apache.pig.Main.main(Main.java:357)
+Caused by: org.apache.pig.backend.executionengine.ExecException: ERROR 2997: Unable to recreate exception from backend error: org.apache.pig.backend.executionengine.ExecException: ERROR 2118: Unable to create input splits for: hdfs://cvrsvc11-ib/user/kbhatia/target/test-classes/one.txt
+	at org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.Launcher.getStats(Launcher.java:169)
+	at org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.MapReduceLauncher.launchPig(MapReduceLauncher.java:268)
+	at org.apache.pig.backend.hadoop.executionengine.HExecutionEngine.execute(HExecutionEngine.java:308)
+	at org.apache.pig.PigServer.executeCompiledLogicalPlan(PigServer.java:835)
+	at org.apache.pig.PigServer.store(PigServer.java:569)
+	at org.apache.pig.PigServer.openIterator(PigServer.java:504)
+	... 6 more
+================================================================================

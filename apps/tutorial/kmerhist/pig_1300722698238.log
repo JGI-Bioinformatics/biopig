@@ -1,0 +1,37 @@
+Backend error message
+---------------------
+org.apache.pig.backend.executionengine.ExecException: ERROR 1075: Received a bytearray from the UDF. Cannot determine how to convert the bytearray to string.
+	at org.apache.pig.backend.hadoop.executionengine.physicalLayer.expressionOperators.POCast.getNext(POCast.java:652)
+	at org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POPreCombinerLocalRearrange.getNext(POPreCombinerLocalRearrange.java:149)
+	at org.apache.pig.backend.hadoop.executionengine.physicalLayer.PhysicalOperator.processInput(PhysicalOperator.java:272)
+	at org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POForEach.getNext(POForEach.java:237)
+	at org.apache.pig.backend.hadoop.executionengine.physicalLayer.PhysicalOperator.processInput(PhysicalOperator.java:272)
+	at org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POLocalRearrange.getNext(POLocalRearrange.java:255)
+	at org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.PigMapBase.runPipeline(PigMapBase.java:232)
+	at org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.PigMapBase.map(PigMapBase.java:227)
+	at org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.PigMapBase.map(PigMapBase.java:52)
+	at org.apache.hadoop.mapreduce.Mapper.run(Mapper.java:144)
+	at org.apache.hadoop.mapred.MapTask.runNewMapper(MapTask.java:621)
+	at org.apache.hadoop.mapred.MapTask.run(MapTask.java:305)
+	at org.apache.hadoop.mapred.Child.main(Child.java:170)
+
+Pig Stack Trace
+---------------
+ERROR 1075: Received a bytearray from the UDF. Cannot determine how to convert the bytearray to string.
+
+org.apache.pig.backend.executionengine.ExecException: ERROR 6015: During execution, encountered a Hadoop error.
+	at .apache.pig.backend.hadoop.executionengine.physicalLayer.expressionOperators.POCast.getNext(POCast.java:652)
+	at .apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POPreCombinerLocalRearrange.getNext(POPreCombinerLocalRearrange.java:149)
+	at .apache.pig.backend.hadoop.executionengine.physicalLayer.PhysicalOperator.processInput(PhysicalOperator.java:272)
+	at .apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POForEach.getNext(POForEach.java:237)
+	at .apache.pig.backend.hadoop.executionengine.physicalLayer.PhysicalOperator.processInput(PhysicalOperator.java:272)
+	at .apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POLocalRearrange.getNext(POLocalRearrange.java:255)
+	at .apache.pig.backend.hadoop.executionengine.mapReduceLayer.PigMapBase.runPipeline(PigMapBase.java:232)
+	at .apache.pig.backend.hadoop.executionengine.mapReduceLayer.PigMapBase.map(PigMapBase.java:227)
+	at .apache.pig.backend.hadoop.executionengine.mapReduceLayer.PigMapBase.map(PigMapBase.java:52)
+	at .apache.hadoop.mapreduce.Mapper.run(Mapper.java:144)
+	at .apache.hadoop.mapred.MapTask.runNewMapper(MapTask.java:621)
+	at .apache.hadoop.mapred.MapTask.run(MapTask.java:305)
+Caused by: org.apache.pig.backend.executionengine.ExecException: ERROR 1075: Received a bytearray from the UDF. Cannot determine how to convert the bytearray to string.
+	... 12 more
+================================================================================

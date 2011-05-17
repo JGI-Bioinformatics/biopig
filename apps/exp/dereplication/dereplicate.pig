@@ -6,9 +6,12 @@
 -- edit   = the edit distance (int)
 -- output = the location for the output (hdfs file path)
 
-register biopig/target/biopig-core-0.2.0-job.jar
+register /global/homes/k/kbhatia/local/biopig/lib/biopig-core-0.2.0-job.jar;
 
-%default edit 1
+%default reads '/users/kbhatia/cloud/HiSeq_100M.fas'
+%default output '/users/kbhatia/dereplicate-out'
+%default edit 0 
+%default p 100
 
 define PAIRMERGE gov.jgi.meta.pig.eval.SequencePairMerge();
 define CONSENSUS gov.jgi.meta.pig.eval.GenerateConsensus();
@@ -23,17 +26,17 @@ READS = load '$reads' using gov.jgi.meta.pig.storage.FastaStorage as (id: charar
 -- group the read pairs together by id and filter out any reads that don't have a matching pair.
 -- then combine the mate pairs into a single sequence
 --
-GROUPEDREADS  = group READS by id;
-FILTEREDREADS = filter GROUPEDREADS by (COUNT(READS) == 2);
+GROUPEDREADS  = group READS by id PARALLEL $p;
 MERGEDREADS   = foreach GROUPEDREADS generate FLATTEN(PAIRMERGE(READS)) as (id: chararray, d: int, seq: bytearray);
 
 -- generate the hash
-HASH = foreach MERGEDREADS generate '1', FLATTEN(EDITDISTANCE(IDENTITYHASH(UNPACK(seq)), $edit)), UNPACK(seq);
+HASH = foreach MERGEDREADS generate IDENTITYHASH(UNPACK(seq)) as hash, UNPACK(seq) as seq;
+HASHNEIGHBORS = foreach HASH generate FLATTEN(EDITDISTANCE($0, $edit)) as hash, '0', $1 as seq;
 
 -- now merge all similar reads together
-E = group HASH by $1;
+E = group HASHNEIGHBORS by $0 PARALLEL $p;
 F = foreach E generate $0, COUNT($1), CONSENSUS($1);
 
 -- return output
-store F into '$output';
+store E into '$output';
 
