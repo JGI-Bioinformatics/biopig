@@ -87,6 +87,22 @@ public class SequencePairMergeTest extends TestCase {
       assertEquals(t, ((String) it.next().get(0)));
  }
 
+    public void testPairMergeBad() throws IOException
+{
+
+     PigServer ps = new PigServer(ExecType.LOCAL);
+     String script = "a = load 'target/test-classes/threepair.fas' using gov.jgi.meta.pig.storage.FastaStorage as (id: chararray, d: int, seq: bytearray);\n" +
+             "b = group a by id;\n" +
+             "c = foreach b generate FLATTEN(gov.jgi.meta.pig.eval.SequencePairMerge($1)) as (id: chararray, d: int, seq: bytearray);\n" +
+             "d = foreach c generate gov.jgi.meta.pig.eval.UnpackSequence(seq);\n";
+
+     Util.registerMultiLineQuery(ps, script);
+     Iterator<Tuple> it = ps.openIterator("c");
+     String t = null;
+
+     assertEquals(t, ((String) it.next().get(0)));
+}
+
     public static Test suite() {
         return new TestSuite(SequencePairMergeTest.class);
     }

@@ -6,7 +6,7 @@
     <groupId>gov.jgi.gentech</groupId>
     <artifactId>biopig</artifactId>
     <packaging>pom</packaging>
-    <version>0.2.0</version>
+    <version>0.3.0</version>
     <name>biopig</name>
     <description>apache pig extensions to support ngs sequence analysis</description>
     <modules>

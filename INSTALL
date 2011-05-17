@@ -1,4 +1,15 @@
 Detailed Installation Instructions
+----------------------------------
+
+BioPig is a framework for genomic data analysis using Apache Pig and Hadoop.  The software builds a
+jar file that can then be used on hadoop clusters or through the pig query language.
+
+---------------------------------------------------------
+0. Requirements
+---------------------------------------------------------
+
+You will need java and maven to build the software.  To run, you need
+a hadoop cluster (version 0.20) and Pig (version 0.7.0).
 
 ---------------------------------------------------------
 1. add non-maven libraries to your local maven repository
@@ -15,9 +26,67 @@ script:
 this will generate appropriate maven metadata.
 
 ---------------------------------
-2. build and package using maven2
+2. build and run tests
 ---------------------------------
+
+% mvn install
+
+if you want to build without running tests (most likely), then run
 
 % mvn install -DskipTests=true
 
+This produces a tar file in biopig/target/biopig-core-0.2.0-bin.tar.gz
+that includes the apps, the configuration directory, and the library files.
+
+karans-macbook:git.metagenomics dev$ tar -ztf biopig/target/biopig-core-0.2.0-bin.tar.gz
+biopig-core-0.2.0/CHANGELOG
+biopig-core-0.2.0/INSTALL
+biopig-core-0.2.0/LICENSE
+biopig-core-0.2.0/README
+biopig-core-0.2.0/lib/biopig-core-0.2.0-job.jar
+biopig-core-0.2.0/apps/
+biopig-core-0.2.0/apps/rumen/
+biopig-core-0.2.0/apps/screening/
+biopig-core-0.2.0/apps/alex.pig
+biopig-core-0.2.0/apps/alex2.pig
+biopig-core-0.2.0/apps/barcode.pig
+biopig-core-0.2.0/apps/contigKmer.pig
+biopig-core-0.2.0/apps/datasplit.pig
+biopig-core-0.2.0/apps/dereplicate.pig
+biopig-core-0.2.0/apps/identityCount.pig
+biopig-core-0.2.0/apps/kmerGenerator.pig
+biopig-core-0.2.0/apps/kmerStats.pig
+biopig-core-0.2.0/apps/N50.pig
+biopig-core-0.2.0/apps/README
+biopig-core-0.2.0/apps/rumen/contigExtension.pig
+biopig-core-0.2.0/apps/rumen/dereplicate.pig
+biopig-core-0.2.0/apps/rumen/generateContigs.pig
+biopig-core-0.2.0/apps/rumen/kmerfilter.pig
+biopig-core-0.2.0/apps/rumen/README
+biopig-core-0.2.0/apps/screening/generateGi2SpeciesMapping.pig
+biopig-core-0.2.0/apps/screening/README
+biopig-core-0.2.0/apps/screening/RUN.sh
+biopig-core-0.2.0/apps/screening/screening.pig
+biopig-core-0.2.0/apps/screening/setup.sh
+biopig-core-0.2.0/apps/screening/strain-hist.pig
+biopig-core-0.2.0/apps/step1.pig
+
+
+---------------------------------
+3. Installation
+---------------------------------
+
+To install, untar the built tar file in some location.
+
+% tar -zxvf biopig/target/biopig-core-0.2.0-bin.tar.gz -C /usr/local/
+==> produces a directory /usr/local/biopig-0.2.0/
+
+add /usr/local/biopig-0.2.0/lib/biopig-core-0.2.0-job.jar to your PIG_CLASSPATH environment variable and
+you are off.
+
+---------------------------------
+4. Running apps
+---------------------------------
+
+See readme in ./apps (or after installation, in <INSTALLDIR>/apps/README)
 

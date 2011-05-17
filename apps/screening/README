@@ -1,4 +1,0 @@
-read screening application
-
-This pig/hadoop pipeline screens a set of reads against the NT database and
-reports species counts for the readset.  For example,

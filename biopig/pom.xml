@@ -45,7 +45,7 @@
     <groupId>gov.jgi.gentech</groupId>
     <artifactId>biopig-core</artifactId>
     <packaging>jar</packaging>
-    <version>0.2.0</version>
+    <version>0.3.0</version>
     <name>biopig-core</name>
     <description>apache pig extensions to support biological sequence data analysis</description>
     <url></url>
@@ -56,7 +56,7 @@
     <parent>
         <groupId>gov.jgi.gentech</groupId>
         <artifactId>biopig</artifactId>
-        <version>0.2.0</version>
+        <version>0.3.0</version>
     </parent>
     <dependencies>
 	<dependency>

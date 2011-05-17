@@ -67,8 +67,11 @@ public class SequencePairMerge extends EvalFunc<Tuple> {
             return null;
 
         if (values.size() != 2) {
-            ExecException newE = new ExecException("Error: can't merge more than 2 pairs ");
-            throw newE;
+            log.error("SequencePairMerge Error: group size == " + values.size());
+            for (Iterator<Tuple> it = values.iterator(); it.hasNext();) {
+                log.error("SequencePairMerge: ignoring sequence " + it.next());
+            }
+            return null;
         }
 
         Iterator<Tuple> it = values.iterator();
@@ -76,8 +79,10 @@ public class SequencePairMerge extends EvalFunc<Tuple> {
         Tuple seqPair2 = it.next();
 
         if (!arePairedSequences(seqPair1, seqPair2)) {
-            ExecException newE = new ExecException("Error: sequences are not pairs");
+            ExecException newE = new ExecException("SequencePairMerge Error: sequences are not pairs");
+            throw newE;
         }
+
         Tuple t = DefaultTupleFactory.getInstance().newTuple(3);
         t.set(0, seqPair1.get(0));
         t.set(1, "0");
