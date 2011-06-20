@@ -16,4 +16,7 @@ mvn install:install-file -Dfile=biojava.jar -DgroupId=org.biojava -DartifactId=b
 
 mvn install:install-file -Dfile=pig-0.8.0.jar -DgroupId=org.apache -DartifactId=pig -Dversion=0.8.0 -Dpackaging=jar -DgeneratePom=true
 
+mvn install:install-file -Dfile=pig-0.8.1-core.jar -DgroupId=org.apache -DartifactId=pig -Dversion=0.8.1 -Dpackaging=jar -DgeneratePom=true
+
+mvn install:install-file -Dfile=pig-0.7.0.jar -DgroupId=org.apache -DartifactId=pig -Dversion=0.7.0 -Dpackaging=jar -DgeneratePom=true
 
