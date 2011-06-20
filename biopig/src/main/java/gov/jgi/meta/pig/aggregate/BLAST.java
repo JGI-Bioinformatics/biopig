@@ -156,13 +156,13 @@ public class BLAST extends EvalFunc<DataBag> implements Accumulator<DataBag> {
          }
 
          for (String k : resultMap.keySet()) {
-            Tuple t = DefaultTupleFactory.getInstance().newTuple(2);
+            Tuple t = TupleFactory.getInstance().newTuple(2);
 
             t.set(0, k);
 
             DataBag oo = DefaultBagFactory.getInstance().newDefaultBag();
             for (String kk : resultMap.get(k)) {
-               Tuple tt = DefaultTupleFactory.getInstance().newTuple(3);
+               Tuple tt = TupleFactory.getInstance().newTuple(3);
 
                String[] a = kk.split("/");
                tt.set(0, a[0]);
