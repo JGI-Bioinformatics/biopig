@@ -10,46 +10,47 @@
 --    k: kmer size for indexing
 --    p: degree of parallelization
 
-register ../../biopig/target/biopig-core-0.2.0-job.jar;
+register /global/homes/k/kbhatia/local/biopig/lib/biopig-core-0.3.0-job.jar;
 
-%default reads '/scratch/karan/1M.fas'
-%default output '/tmp/contigx-out'
-%default edit 1
+%default reads '/users/kbhatia/cloud/HiSeq_100M.fas'
+%default output '/users/kbhatia/contigx-out'
+%default edit 0
 %default k 20
-%default p 10
+%default p 100
 
 define CONTIGEXTEND gov.jgi.meta.pig.aggregate.ExtendContigWithCap3();
 
 -- load the target sequences
-reads = load '/scratch/karan/30mb.fas' using gov.jgi.meta.pig.storage.FastaStorage as (id: chararray, d: int, seq: bytearray, header: chararray);
-readindex = foreach reads generate
-            seq,
-            FLATTEN(gov.jgi.meta.pig.eval.KmerGenerator(seq, 20)) as (kmer:bytearray);
+readindex = load '/users/kbhatia/cloud/HiSeq_5000M.fas-generateIndex.pig.out' using PigStorage as (seq: chararray, kmer: bytearray);
+
 
 -- now index the contigs
-contigs = load '/scratch/karan/all_enzymes_contigs.fas' using gov.jgi.meta.pig.storage.FastaStorage as (id: chararray, d: int, seq: bytearray, header: chararray);
+contigs = load '/users/kbhatia/cloud/HiSeq_100000M.fas-generateContigs.pig.out' using PigStorage as (geneid: chararray, seq: chararray);
 contigindex = foreach contigs generate
-              id,
+              geneid,
               FLATTEN(gov.jgi.meta.pig.eval.KmerGenerator(seq, 20, 0, 10, 1)) as (kmer:bytearray);
 
 -- join reads with the contigs database
 j = join readindex by kmer,
-         contigindex by kmer;
+         contigindex by kmer PARALLEL $p;
 k = foreach j generate
-         contigindex::id as contigid,
-         gov.jgi.meta.pig.eval.UnpackSequence(readindex::seq) as readseq;
-kk = distinct k;
-l = group kk by contigid;
+         contigindex::geneid as contigid,
+         readindex::seq as readseq;
+kk = distinct k PARALLEL $p;
+l = group kk by contigid PARALLEL $p;
 m = foreach l {
          a = $1.$1;
          generate $0, a;
 }
 
 -- join the contigid back with the contigs
-n = join contigs by id, m by $0;
+n = join contigs by geneid, m by $0 PARALLEL $p;
+
+-- n: {contigs::geneid: chararray,contigs::seq: chararray,m::group: chararray,m::a: {readseq: bytearray}}
+
 
 -- now assemble
-complete = foreach n generate $0, gov.jgi.meta.pig.aggregate.ExtendContigWithCap3($2, $5);
+complete = foreach n generate $0, gov.jgi.meta.pig.aggregate.ExtendContigWithCap3($1, $3);
 final = filter complete by $1 is not null;
 
-dump n; 
+dump final;
