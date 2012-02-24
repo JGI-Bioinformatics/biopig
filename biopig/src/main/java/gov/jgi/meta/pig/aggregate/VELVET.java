@@ -40,22 +40,22 @@
 package gov.jgi.meta.pig.aggregate;
 
 import gov.jgi.meta.MetaUtils;
-import gov.jgi.meta.exec.CapCommand;
 import gov.jgi.meta.exec.CommandLineProgram;
 import gov.jgi.meta.exec.VelvetCommand;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.pig.EvalFunc;
-import org.apache.pig.data.DataBag;
-import org.apache.pig.data.DataType;
-import org.apache.pig.data.DefaultTupleFactory;
-import org.apache.pig.data.Tuple;
-import org.apache.pig.impl.logicalLayer.FrontendException;
-import org.apache.pig.impl.logicalLayer.schema.Schema;
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.pig.EvalFunc;
+import org.apache.pig.data.DataBag;
+import org.apache.pig.data.DataType;
+import org.apache.pig.data.Tuple;
+import org.apache.pig.data.TupleFactory;
+import org.apache.pig.impl.logicalLayer.FrontendException;
+import org.apache.pig.impl.logicalLayer.schema.Schema;
 
 
 /**
@@ -76,12 +76,6 @@ public class VELVET extends EvalFunc<Tuple> {
        * process the inputs (bagOfSequences, optionalNumberOfContigsToReturn, optionalGroupId)
        */
       DataBag values     = (DataBag)input.get(0);
-      int    numContigs = 1;
-
-      if (input.size() > 1)
-      {
-         numContigs = (Integer) input.get(1);
-      }
       String groupId = "";
       if (input.size() > 2)
       {
@@ -144,7 +138,7 @@ public class VELVET extends EvalFunc<Tuple> {
          }
       }
 
-      Tuple t = DefaultTupleFactory.getInstance().newTuple(1);
+      Tuple t = TupleFactory.getInstance().newTuple(1);
       t.set(0, resultMap.get(maxKey));
 
       return(t);

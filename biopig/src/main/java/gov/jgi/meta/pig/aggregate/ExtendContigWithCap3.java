@@ -42,6 +42,7 @@ package gov.jgi.meta.pig.aggregate;
 import gov.jgi.meta.MetaUtils;
 import gov.jgi.meta.exec.CapCommand;
 import gov.jgi.meta.exec.CommandLineProgram;
+import gov.jgi.meta.exec.NewblerCommand;
 import gov.jgi.meta.sequence.SequenceString;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.pig.EvalFunc;
@@ -49,6 +50,7 @@ import org.apache.pig.data.DataBag;
 import org.apache.pig.data.DataByteArray;
 import org.apache.pig.data.DefaultTupleFactory;
 import org.apache.pig.data.Tuple;
+import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -63,6 +65,9 @@ import java.util.Map;
  * given a bag of sequences, and the number of contigs to return, return either a tuple or a bag
  */
 public class ExtendContigWithCap3 extends EvalFunc<Tuple> {
+	
+	Logger log = Logger.getLogger(ExtendContigWithCap3.class );
+	
    /**
     * Method invoked on every tuple during foreach evaluation
     *
@@ -76,6 +81,7 @@ public class ExtendContigWithCap3 extends EvalFunc<Tuple> {
       String contig;
 
       Object values = input.get(0);
+      log.info("Executing ExtendContigWithCap3 values = " + values.getClass().toString());
       if (values instanceof DataByteArray) {
          contig = SequenceString.byteArrayToSequence(((DataByteArray) values).get());
       } else {
@@ -109,33 +115,41 @@ public class ExtendContigWithCap3 extends EvalFunc<Tuple> {
          Tuple t = it.next();
          seqMap.put("read" + readcount++, (String) t.get(0));
       }
+      
+      int error = 0;
       try {
          resultMap = assemblerCmd.exec(groupId, seqMap, null);
-      } catch (InterruptedException e) {
+      } catch (Exception e) {
+
          throw new IOException(e);
       }
-
+ 
       int maxLength = 0;
       String maxKey = null;
       for (String key : resultMap.keySet()) {
-         int l;
-         if ((l = resultMap.get(key).length()) > maxLength) {
+         int l = resultMap.get(key).length();
+         if (l > maxLength) {
             maxKey = key;
             maxLength = l;
          }
       }
 
-
+ 
+     
       Tuple t = DefaultTupleFactory.getInstance().newTuple(2);
+      
+//      t.set(0, error);
+//      t.set(1, contig.length());
 
       if (maxLength > contig.length()) {
          t.set(0, resultMap.get(maxKey));
          t.set(1, maxLength);
          return t;
-      } else {
+      }
+      
+      else {
          return null;
       }
 
-//      return (t);
    }
 }

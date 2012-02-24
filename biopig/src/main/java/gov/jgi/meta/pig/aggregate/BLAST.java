@@ -41,18 +41,24 @@ package gov.jgi.meta.pig.aggregate;
 
 import gov.jgi.meta.MetaUtils;
 import gov.jgi.meta.exec.BlastCommand;
-import gov.jgi.meta.exec.CapCommand;
-import gov.jgi.meta.exec.CommandLineProgram;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.io.Text;
-import org.apache.pig.Accumulator;
-import org.apache.pig.EvalFunc;
-import org.apache.pig.data.*;
-import org.apache.pig.impl.logicalLayer.FrontendException;
-import org.apache.pig.impl.logicalLayer.schema.Schema;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.pig.Accumulator;
+import org.apache.pig.EvalFunc;
+import org.apache.pig.data.DataBag;
+import org.apache.pig.data.DataType;
+import org.apache.pig.data.DefaultBagFactory;
+import org.apache.pig.data.Tuple;
+import org.apache.pig.data.TupleFactory;
+import org.apache.pig.impl.logicalLayer.FrontendException;
+import org.apache.pig.impl.logicalLayer.schema.Schema;
 
 
 /**

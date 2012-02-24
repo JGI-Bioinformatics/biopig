@@ -40,6 +40,8 @@
 package gov.jgi.meta;
 
 import gov.jgi.meta.hadoop.input.FastaBlockLineReader;
+
+import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.*;
 import org.apache.hadoop.io.Text;
@@ -411,6 +413,39 @@ public class MetaUtils {
       return(seqFile.getPath());
    }
 
+   public static File createTempDir(String prefix, String tmpDir) throws IOException
+   {
+	      final File sysTempDir = new File(tmpDir);
+	      File       newTempDir;
+	      final int  maxAttempts  = 9;
+	      int        attemptCount = 0;
+
+	      do
+	      {
+	         attemptCount++;
+	         if (attemptCount > maxAttempts)
+	         {
+	            throw new IOException("The highly improbable has occurred! Failed to create a unique temporary directory after " + maxAttempts + " attempts.");
+	         }
+	         String dirName = prefix + UUID.randomUUID().toString();
+	         newTempDir = new File(sysTempDir, dirName);
+	      } while (newTempDir.exists());
+
+	      try {
+	    	  FileUtils.forceMkdir(newTempDir);
+	      } catch(Exception e) {
+	          throw new IOException("Failed to create temp dir named " + newTempDir.getAbsolutePath() + ". Reason: " + e.getMessage(), e);    	  
+	      }
+
+	      if (! ( newTempDir.setExecutable(true, false) &&
+		             newTempDir.setReadable(true, false) &&
+		             newTempDir.setWritable(true, false) ) ) {
+		        throw new IOException("unable to set RWX bits to 777");
+	      }
+
+		  return(newTempDir);   
+   }
+   
    /**
     * Create a new temporary directory. Use something like
     * {@link #recursiveDelete(java.io.File)} to clean this directory up since it isn't
@@ -422,38 +457,7 @@ public class MetaUtils {
     */
    public static File createTempDir(String tmpDir) throws IOException
    {
-      final File sysTempDir = new File(tmpDir);
-      File       newTempDir;
-      final int  maxAttempts  = 9;
-      int        attemptCount = 0;
-
-      do
-      {
-         attemptCount++;
-         if (attemptCount > maxAttempts)
-         {
-            throw new IOException(
-               "The highly improbable has occurred! Failed to " +
-               "create a unique temporary directory after " +
-               maxAttempts + " attempts.");
-         }
-         String dirName = UUID.randomUUID().toString();
-         newTempDir = new File(sysTempDir, dirName);
-      } while (newTempDir.exists());
-
-      if (newTempDir.mkdirs())
-      {
-         if (! ( newTempDir.setExecutable(true, false) &&
-                 newTempDir.setReadable(true, false) &&
-                 newTempDir.setWritable(true, false) ) ) {
-            throw new IOException("unable to set RWX bits to 777");
-         }
-         return(newTempDir);
-      }
-      else
-      {
-         throw new IOException("Failed to create temp dir named " + newTempDir.getAbsolutePath());
-      }
+	   return createTempDir("", tmpDir);
    }
 
    /**

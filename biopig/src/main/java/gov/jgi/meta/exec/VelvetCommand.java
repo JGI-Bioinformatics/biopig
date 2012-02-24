@@ -127,7 +127,7 @@ public class VelvetCommand implements CommandLineProgram {
       velvetg_commandPath = DEFAULT_VELVETG_COMMANDPATH;
 
       tmpDir     = DEFAULTTMPDIR;
-      tmpDirFile = MetaUtils.createTempDir(tmpDir);
+      tmpDirFile = MetaUtils.createTempDir("velvet_", tmpDir);
    }
 
    /**
@@ -209,7 +209,7 @@ public class VelvetCommand implements CommandLineProgram {
        * if all is good, create a working space inside tmpDir
        */
 
-      tmpDirFile = MetaUtils.createTempDir(tmpDir);
+      tmpDirFile = MetaUtils.createTempDir("velvet_", tmpDir);
    }
 
    /**

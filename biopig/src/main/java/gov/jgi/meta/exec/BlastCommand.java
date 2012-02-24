@@ -40,18 +40,28 @@
 package gov.jgi.meta.exec;
 
 import gov.jgi.meta.MetaUtils;
-import gov.jgi.meta.hadoop.input.FastaBlockLineReader;
+
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.util.GenericOptionsParser;
 import org.apache.log4j.Logger;
-import com.devdaily.system.*;
 
-import java.io.*;
-import java.util.*;
+import com.devdaily.system.SystemCommandExecutor;
 
 
 /**
@@ -70,7 +80,8 @@ import java.util.*;
  */
 public class BlastCommand {
    String DEFAULTCOMMANDLINE = "-m 8 -p tblastn -b 1000000 -a 10";
-   String DEFAULTCOMMANDPATH = "/home/asczyrba/src/blast-2.2.20/bin/blastall";
+//   String DEFAULTCOMMANDPATH = "/home/asczyrba/src/blast-2.2.20/bin/blastall";
+   String DEFAULTCOMMANDPATH = "/global/common/carver/jgi/blast-2.2.23/bin/blastall";
    String DEFAULTTMPDIR      = "/tmp/blast";
 
    String DEFAULTFORMATDBCOMMANDLINE = "-o T -p F";
@@ -148,7 +159,7 @@ public class BlastCommand {
     */
    public BlastCommand() throws IOException
    {
-      tmpDirFile = MetaUtils.createTempDir(tmpDir);
+      tmpDirFile = MetaUtils.createTempDir("blast_", tmpDir);
    }
 
 
@@ -209,7 +220,7 @@ public class BlastCommand {
        * if all is good, create a working space inside tmpDir
        */
 
-      tmpDirFile = MetaUtils.createTempDir(tmpDir);
+      tmpDirFile = MetaUtils.createTempDir("blast_", tmpDir);
 
        log.info("done initializing: tmp dir = " + tmpDirFile);
    }
@@ -340,7 +351,7 @@ public class BlastCommand {
     */
    private String copyDBFile(String dfsPath) throws IOException
    {
-       log.info("copiing database to file");
+       log.info("copying database to file");
 
       Configuration conf = new Configuration();
       FileSystem    fs   = FileSystem.get(conf);
@@ -354,8 +365,7 @@ public class BlastCommand {
       }
 
       FSDataInputStream in = fs.open(filenamePath);
-      BufferedReader    d
-         = new BufferedReader(new InputStreamReader(in));
+      BufferedReader    d = new BufferedReader(new InputStreamReader(in));
 
       BufferedWriter out = new BufferedWriter(new FileWriter(localFile.getPath()));
 
@@ -412,7 +422,7 @@ public class BlastCommand {
        if (this.useScaledEValue) {
            ecutoff = (ecutoff * databasesize / effectiveSize);
        }
-       commandString.append(" -e " + ecutoff);
+       //commandString.append(" -e " + ecutoff);
        commandString.append(" -d " + seqDir + " -i " + localCazyEC);
 
        log.info("command = " + commandString.toString());
@@ -428,8 +438,11 @@ public class BlastCommand {
          stdout = commandExecutor.getStandardOutputFromCommand().toString();
          stderr = commandExecutor.getStandardErrorFromCommand().toString();
 
+         File blast_output = new File(tmpDirFile.getPath() + "/blast_output.txt");
+         FileUtils.writeStringToFile(blast_output, stdout);
+         
          log.debug("exit = " + exitValue);
-         log.debug("stdout = " + stdout);
+//         log.debug("stdout = " + stdout);
          log.debug("stderr = " + stderr);
 
       if (exitValue != 0) {

@@ -42,18 +42,17 @@ package gov.jgi.meta.pig.aggregate;
 import gov.jgi.meta.MetaUtils;
 import gov.jgi.meta.exec.CapCommand;
 import gov.jgi.meta.exec.CommandLineProgram;
-import org.apache.commons.lang.StringUtils;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.pig.EvalFunc;
-import org.apache.pig.backend.executionengine.ExecException;
-import org.apache.pig.data.DataBag;
-import org.apache.pig.data.DefaultTupleFactory;
-import org.apache.pig.data.Tuple;
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.pig.EvalFunc;
+import org.apache.pig.data.DataBag;
+import org.apache.pig.data.Tuple;
+import org.apache.pig.data.TupleFactory;
 
 
 /**
@@ -74,12 +73,6 @@ public class CAP3 extends EvalFunc<Tuple> {
        * process the inputs (bagOfSequences, optionalNumberOfContigsToReturn, optionalGroupId)
        */
       DataBag values     = (DataBag)input.get(0);
-      Long    numContigs = new Long(1); // by default only return a single contig
-
-      if (input.size() > 1)
-      {
-         numContigs = (Long)input.get(1);
-      }
       String groupId = "";
       if (input.size() > 2)
       {
@@ -131,7 +124,7 @@ public class CAP3 extends EvalFunc<Tuple> {
          }
       }
 
-      Tuple t = DefaultTupleFactory.getInstance().newTuple(1);
+      Tuple t = TupleFactory.getInstance().newTuple(1);
       t.set(0, resultMap.get(maxKey));
 
       return(t);

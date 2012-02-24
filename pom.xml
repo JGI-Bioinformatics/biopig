@@ -3,14 +3,60 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>gov.jgi.gentech</groupId>
+    <groupId>gov.doe.jgi.gentech</groupId>
     <artifactId>biopig</artifactId>
     <packaging>pom</packaging>
     <version>0.3.0</version>
     <name>biopig</name>
-    <description>apache pig extensions to support ngs sequence analysis</description>
+    <description>apache pig extensions to support sequence analysis</description>
     <modules>
         <module>biopig</module>
     </modules>
+	<build>
+		<finalName>biopig</finalName>
+		<plugins>
+			<plugin>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>2.0</version>
+				<configuration>
+					<source>1.7</source>
+					<target>1.7</target>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-source-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>attach-sources</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+	<dependencies>
+		<dependency>
+			<groupId>commons-io</groupId>
+			<artifactId>commons-io</artifactId>
+			<version>2.0</version>
+			<scope>compile</scope>
+		</dependency>
+	</dependencies>
+	<distributionManagement>
+		<repository>
+			<id>JGI-internal</id>
+			<name>JGI internal repo</name>
+			<url>http://uhura.jgi-psf.org:8084/archiva/repository/internal</url>
+		</repository>
+		<snapshotRepository>
+			<id>JGI-snapshots</id>
+			<name>JGI snapshots repo</name>
+			<url>http://uhura.jgi-psf.org:8084/archiva/repository/snapshots</url>
+		</snapshotRepository>
+	</distributionManagement>
     
 </project>

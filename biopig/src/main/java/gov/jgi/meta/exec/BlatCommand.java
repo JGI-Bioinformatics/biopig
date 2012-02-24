@@ -126,7 +126,7 @@ public class BlatCommand {
         commandPath = DEFAULTCOMMANDPATH;
         tmpDir = DEFAULTTMPDIR;
 
-        tmpDirFile = MetaUtils.createTempDir(tmpDir);
+        tmpDirFile = MetaUtils.createTempDir("blat_", tmpDir);
 
     }
 
@@ -173,7 +173,7 @@ public class BlatCommand {
         if all is good, create a working space inside tmpDir
          */
 
-        tmpDirFile = MetaUtils.createTempDir(tmpDir);
+        tmpDirFile = MetaUtils.createTempDir("blat_", tmpDir);
 
     }
 

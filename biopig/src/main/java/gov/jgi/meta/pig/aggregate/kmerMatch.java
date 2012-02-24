@@ -40,16 +40,19 @@
 package gov.jgi.meta.pig.aggregate;
 
 import gov.jgi.meta.MetaUtils;
-import gov.jgi.meta.exec.BlastCommand;
+
+import java.io.IOException;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.pig.EvalFunc;
 import org.apache.pig.data.DataBag;
 import org.apache.pig.data.DefaultBagFactory;
-import org.apache.pig.data.DefaultTupleFactory;
 import org.apache.pig.data.Tuple;
-
-import java.io.IOException;
-import java.util.*;
+import org.apache.pig.data.TupleFactory;
 
 
 /**
@@ -93,7 +96,6 @@ public class kmerMatch extends EvalFunc<DataBag> {
       /*
        * now process inputs and execute blast
        */
-      Map<String, Boolean> seqMap = new HashMap<String, Boolean>();
       Set<String> s = new HashSet<String>();
 
       Iterator<Tuple> it = values.iterator();
@@ -107,7 +109,7 @@ public class kmerMatch extends EvalFunc<DataBag> {
 
          Tuple t = it.next();
          String seq = (String) t.get(2);
-         String seqid = (String)t.get(0) + "/" + (Integer)t.get(1);
+         @SuppressWarnings("unused") String seqid = (String)t.get(0) + "/" + (Integer)t.get(1);
 
          kmers.addAll(generateKmers(seq, kmerSize));
       }
@@ -130,12 +132,12 @@ public class kmerMatch extends EvalFunc<DataBag> {
 
          }
 
-      Tuple t = DefaultTupleFactory.getInstance().newTuple(1);
+      Tuple t = TupleFactory.getInstance().newTuple(1);
       DataBag oo = DefaultBagFactory.getInstance().newDefaultBag();
 
       for (String k : s) {
 
-         Tuple tt = DefaultTupleFactory.getInstance().newTuple(1);
+         Tuple tt = TupleFactory.getInstance().newTuple(1);
          tt.set(0, k);
          oo.add(tt);
 

@@ -39,15 +39,15 @@
 
 package gov.jgi.meta.pig.aggregate;
 
+import java.io.IOException;
+import java.util.Iterator;
+
 import org.apache.commons.lang.StringUtils;
 import org.apache.pig.EvalFunc;
 import org.apache.pig.backend.executionengine.ExecException;
 import org.apache.pig.data.DataBag;
-import org.apache.pig.data.DefaultTupleFactory;
 import org.apache.pig.data.Tuple;
-
-import java.io.IOException;
-import java.util.Iterator;
+import org.apache.pig.data.TupleFactory;
 
 
 /**
@@ -83,8 +83,9 @@ public class BLAT extends EvalFunc<Tuple> {
 
         if (!arePairedSequences(seqPair1, seqPair2)) {
             ExecException newE = new ExecException("Error: sequences are not pairs");
+            throw newE;
         }
-        Tuple t = DefaultTupleFactory.getInstance().newTuple(3);
+        Tuple t = TupleFactory.getInstance().newTuple(3);
         t.set(0, seqPair1.get(0));
         t.set(1, "0");
         String seq1 = seqPair1.get(2).toString();

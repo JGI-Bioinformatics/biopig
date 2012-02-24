@@ -123,7 +123,7 @@ public class MinimusCommand implements CommandLineProgram {
       commandLine = DEFAULTCOMMANDLINE;
       commandPath = DEFAULTCOMMANDPATH;
       tmpDir      = DEFAULTTMPDIR;
-      tmpDirFile  = MetaUtils.createTempDir(tmpDir);
+      tmpDirFile  = MetaUtils.createTempDir("minimus_", tmpDir);
    }
 
    /**
@@ -176,7 +176,7 @@ public class MinimusCommand implements CommandLineProgram {
        * if all is good, create a working space inside tmpDir
        */
 
-      tmpDirFile = MetaUtils.createTempDir(tmpDir);
+      tmpDirFile = MetaUtils.createTempDir("minimus_", tmpDir);
    }
 
    /**

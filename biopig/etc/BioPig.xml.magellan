@@ -42,7 +42,7 @@
     -->
     <property>
         <name>blast.commandline</name>
-        <value>-m 8 -p tblastn -b 9999999999 -F F</value>
+        <value>-m 8 -p tblastn -b 1000000 -a 8 -e 0.1</value>
     </property>
 
     <!-- the full pathname of the blast executable
@@ -50,17 +50,22 @@
     -->
     <property>
         <name>blast.commandpath</name>
-        <value>/global/homes/k/kbhatia/local/bin/blastall</value>
+        <value>/global/homes/n/nordberg/local/bin/blastall</value>
+    </property>
+
+    <property>
+        <name>blast.usescaledevalue</name>
+        <value>true</value>
     </property>
 
     <property>
         <name>blat.commandpath</name>
-        <value>/global/homes/k/kbhatia/local/bin/blat</value>
+        <value>/global/homes/n/nordberg/local/bin/blat</value>
     </property>
 
     <property>
  	<name>formatdb.commandpath</name>
-  	<value>/global/homes/k/kbhatia/local/bin/formatdb</value>
+  	<value>/global/homes/n/nordberg/local/bin/formatdb</value>
     </property>
 
     <property>
@@ -73,13 +78,13 @@
     -->
     <property>
         <name>blast.tmpdir</name>
-        <value>/global/scratch/sd/kbhatia/tmp</value>
+        <value>/global/scratch/sd/nordberg/tmp</value>
     </property>
 
-    <property>
+    <!--property>
         <name>blast.numreducers</name>
         <value>100</value>
-    </property>
+    </property-->
 
     <property>
         <name>blast.cleanup</name>
@@ -88,7 +93,7 @@
 
     <property>
         <name>blat.tmpdir</name>
-        <value>/global/scratch/sd/kbhatia/tmp</value>
+        <value>/global/scratch/sd/nordberg/tmp</value>
     </property>
 
     <property>
@@ -113,24 +118,38 @@
 
     <property>
 	<name>assembler.tmpdir</name>
-	<value>/global/scratch/sd/kbhatia/tmp</value>
+	<value>/global/scratch/sd/nordberg/tmp</value>
+    </property>
+
+    <property>
+        <name>assembler.cleanup</name>
+        <value>true</value>
+    </property>
+
+   <property>
+        <name>newbler.commandpath</name>
+        <value>/global/homes/n/nordberg/local/tools/newbler-2.5.3-01-25-2011-threads/bin/runAssembly</value>
+    </property>
+
+   <property>
+        <name>newbler.commandline</name>
+        <value> -m -consed -l 500 -mi 98 -ml 40 </value>
     </property>
 
     <property>
         <name>velveth.commandpath</name>
-        <value>/global/homes/k/kbhatia/local/bin/velveth</value>
+        <value>/global/homes/n/nordberg/local/bin/velveth</value>
     </property>
         
    <property>
         <name>velvetg.commandpath</name>
-        <value>/global/homes/k/kbhatia/local/bin/velvetg</value>
+        <value>/global/homes/n/nordberg/local/bin/velvetg</value>
     </property>
 
-    <property>
-        <name>assembly.cleanup</name>
-        <value>true</value>
+     <property>
+        <name>cap3.commandpath</name>
+        <value>/global/homes/n/nordberg/local/bin/cap3</value>
     </property>
-
 
 </configuration>
 

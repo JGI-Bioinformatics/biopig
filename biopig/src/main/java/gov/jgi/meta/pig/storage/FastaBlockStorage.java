@@ -59,122 +59,109 @@ import java.util.ArrayList;
 import java.util.Map;
 
 /**
- * A data loader for fasta files.  Loads sequences in blocks defined by the hdfs blocksize.
- * Typically, each mapper will load a single block of sequences, as opposed to loading each
- * sequence individually.  The advantage of loading them in blocks is where you want to operate
- * on blocks at a time, eg. running blast against a dataset.  In this case, you don't want to
- * run blast on each sequence, rather, you want to load a block of sequences (or a bag in pig
- * parlance), and run blast against them all.  The blocks are guaranteed to be co-located within
- * the a single map.
- *
- * returns a bag in the form {offset: int,  sequences: { seq1, seq2, seq3 ... } }  where
- * each sequence is of the form {id: chararray, direction: int, sequence: chararray}
- *
+ * A data loader for fasta files. Loads sequences in blocks defined by the hdfs blocksize. Typically, each mapper will load a single block of sequences, as opposed to loading each
+ * sequence individually. The advantage of loading them in blocks is where you want to operate on blocks at a time, eg. running blast against a dataset. In this case, you don't
+ * want to run blast on each sequence, rather, you want to load a block of sequences (or a bag in pig parlance), and run blast against them all. The blocks are guaranteed to be
+ * co-located within the a single map.
+ * 
+ * returns a bag in the form {offset: int, sequences: { seq1, seq2, seq3 ... } } where each sequence is of the form {id: chararray, direction: int, sequence: chararray}
+ * 
  **/
 
 public class FastaBlockStorage extends LoadFunc {
-    private static final Log LOG = LogFactory.getLog(FastaBlockStorage.class);
+	private static final Log LOG = LogFactory.getLog(FastaBlockStorage.class);
 
-   protected RecordReader    in            = null;
-   private ArrayList<Object> mProtoTuple   = null;
-   private TupleFactory      mTupleFactory = TupleFactory.getInstance();
+	protected RecordReader in = null;
+	private ArrayList<Object> mProtoTuple = null;
+	private TupleFactory mTupleFactory = TupleFactory.getInstance();
 
-   /**
-    * Null constructor
-    */
-   public FastaBlockStorage()
-   {
-        LOG.info("initializing FastaBlockStorage");
-   }
+	/**
+	 * Null constructor
+	 */
+	public FastaBlockStorage() {
+		LOG.info("initializing FastaBlockStorage");
+	}
 
-   /**
-    * read input and return next tuple.
-    * @return Tuple of the form <offset: int, sequences:bag>
-    * @throws IOException if any error occurs
-    */
-   @Override
-   public Tuple getNext() throws IOException
-   {
-      if (mProtoTuple == null)
-      {
-         mProtoTuple = new ArrayList<Object>();
-      }
+	/**
+	 * read input and return next tuple.
+	 * 
+	 * @return Tuple of the form <offset: int, sequences:bag>
+	 * @throws IOException
+	 *             if any error occurs
+	 */
+	@Override
+	public Tuple getNext() throws IOException {
+		if (mProtoTuple == null) {
+			mProtoTuple = new ArrayList<Object>();
+		}
 
-      try {
-          LOG.info("loading next key/value");
-         boolean notDone = ((FastaBlockRecordReader) in).nextKeyValue();
-          LOG.info("notDone = " + notDone);
+		try {
+			LOG.info("loading next key/value");
+			boolean notDone = ((FastaBlockRecordReader) in).nextKeyValue();
+			LOG.info("notDone = " + notDone);
 
+			if (!notDone) {
+				return (null);
+			}
 
-         if (!notDone)
-         {
-            return(null);
-         }
+			LOG.info("retrieving key/value from fastablockstorage");
+			String key = ((Text) in.getCurrentKey()).toString();
+			LOG.info("key = " + key);
+			Map<String, String> seqMap = (Map<String, String>) in.getCurrentValue();
+			LOG.info("value map size = " + seqMap.size());
+			DataBag output = DefaultBagFactory.getInstance().newDefaultBag();
 
-          LOG.info("retrieving key/value from fastablockstorage");
-         String key                 = ((Text) in.getCurrentKey()).toString();
-          LOG.info("key = " + key);
-         Map<String, String> seqMap = (Map<String, String>) in.getCurrentValue();
-         DataBag             output = DefaultBagFactory.getInstance().newDefaultBag();
+			for (String seqid : seqMap.keySet()) {
+				Tuple t = DefaultTupleFactory.getInstance().newTuple(3);
 
-         for (String seqid : seqMap.keySet())
-         {
-            Tuple t = DefaultTupleFactory.getInstance().newTuple(3);
+				/*
+				 * check the id of the sequence to see if its a paired read
+				 */
+				String seqkey;
+				int direction;
+				if (seqid.indexOf("/") >= 0) {
+					String[] a = seqid.split("/");
+					seqkey = a[0];
+					direction = Integer.parseInt(a[1]);
+				} else {
+					seqkey = seqid;
+					direction = 0;
+				}
+				t.set(0, seqkey);
+				t.set(1, direction);
+				t.set(2, seqMap.get(seqid));
 
-            /*
-             check the id of the sequence to see if its a paired read
-             */
-            String seqkey;
-            int direction;
-            if (seqid.indexOf("/") >= 0) {
-               String[] a = seqid.split("/");
-               seqkey = a[0];
-               direction = Integer.parseInt(a[1]);
-            } else {
-               seqkey = seqid;
-               direction = 0;
-            }
-            t.set(0, seqkey);
-            t.set(1, direction);
-            t.set(2, seqMap.get(seqid));
+				output.add(t);
+			}
+			mProtoTuple.add(new DataByteArray(key.getBytes(), 0, key.length()));
+			mProtoTuple.add(output);
 
-            output.add(t);
-         }
-         mProtoTuple.add(new DataByteArray(key.getBytes(), 0, key.length()));              
-         mProtoTuple.add(output);
-         
+			Tuple t = mTupleFactory.newTupleNoCopy(mProtoTuple);
+			mProtoTuple = null;
 
-         Tuple t = mTupleFactory.newTupleNoCopy(mProtoTuple);
-         mProtoTuple = null;
-         return(t);
-      } catch (InterruptedException e) {
-         int    errCode = 6018;
-         String errMsg  = "Error while reading input";
-         throw new ExecException(errMsg, errCode,
-                                 PigException.REMOTE_ENVIRONMENT, e);
-      }
-   }
+			LOG.info("loaded " + output.size() + " tuples, t = " + t.getMemorySize());
+			return (t);
+		} catch (InterruptedException e) {
+			int errCode = 6018;
+			String errMsg = "Error while reading input";
+			throw new ExecException(errMsg, errCode, PigException.REMOTE_ENVIRONMENT, e);
+		}
+	}
 
-   @Override
-   public InputFormat getInputFormat()
-   {
-       FastaBlockInputFormat in = new FastaBlockInputFormat();
+	@Override
+	public InputFormat getInputFormat() {
+		FastaBlockInputFormat in = new FastaBlockInputFormat();
 
-       
+		return (in);
+	}
 
-      return (in);
-   }
+	@Override
+	public void prepareToRead(RecordReader reader, PigSplit split) {
+		in = reader;
+	}
 
-   @Override
-   public void prepareToRead(RecordReader reader, PigSplit split)
-   {
-      in = reader;
-   }
-
-   @Override
-   public void setLocation(String location, Job job)
-   throws IOException
-   {
-      FileInputFormat.setInputPaths(job, location);
-   }
+	@Override
+	public void setLocation(String location, Job job) throws IOException {
+		FileInputFormat.setInputPaths(job, location);
+	}
 }

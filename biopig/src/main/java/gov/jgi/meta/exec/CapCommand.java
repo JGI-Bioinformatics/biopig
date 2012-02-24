@@ -118,7 +118,7 @@ public class CapCommand implements CommandLineProgram {
       commandLine = DEFAULTCOMMANDLINE;
       commandPath = DEFAULTCOMMANDPATH;
       tmpDir      = DEFAULTTMPDIR;
-      tmpDirFile  = MetaUtils.createTempDir(tmpDir);
+      tmpDirFile  = MetaUtils.createTempDir("cap3_", tmpDir);
    }
 
    /**
@@ -173,7 +173,7 @@ public class CapCommand implements CommandLineProgram {
        * if all is good, create a working space inside tmpDir
        */
 
-      tmpDirFile = MetaUtils.createTempDir(tmpDir);
+      tmpDirFile = MetaUtils.createTempDir("cap3_", tmpDir);
    }
 
    /**
@@ -183,7 +183,7 @@ public class CapCommand implements CommandLineProgram {
     */
    protected void finalize() throws Throwable
    {
-      cleanup();
+  //    cleanup();
       super.finalize();
    }
 
@@ -230,7 +230,7 @@ public class CapCommand implements CommandLineProgram {
       /*
        * dump the database from the map to a file
        */
-      String seqFilepath = MetaUtils.sequenceToLocalFile(seqDatabase, tmpDirFile + "/reads.fa");
+      String seqFilepath = MetaUtils.sequenceToLocalFile(seqDatabase, tmpDirFile + "/*");
 
       if (seqFilepath == null)
       {
@@ -248,7 +248,7 @@ public class CapCommand implements CommandLineProgram {
       List<String> commands = new ArrayList<String>();
       commands.add("/bin/sh");
       commands.add("-c");
-      commands.add(commandPath + " " + seqFilepath + " " + commandLine);
+      commands.add("umask 000; " + commandPath + " " + seqFilepath + " " + commandLine);
 
       log.info("command = " + commands);
 
@@ -259,9 +259,12 @@ public class CapCommand implements CommandLineProgram {
       stdout = commandExecutor.getStandardOutputFromCommand().toString();
       stderr = commandExecutor.getStandardErrorFromCommand().toString();
 
-      log.debug("exit = " + exitValue);
-      log.debug("stdout = " + stdout);
-      log.debug("stderr = " + stderr);
+      log.info("exit = " + exitValue);
+      log.info("stdout = " + stdout);
+      log.info("stderr = " + stderr);
+      
+      if( exitValue != 0 )
+    	  throw new RuntimeException("Failed to execute cap3 using '" + commands + "'. Reason: " + stderr);
 
       Long executionTime = new Date().getTime() - executionStartTime;
 
