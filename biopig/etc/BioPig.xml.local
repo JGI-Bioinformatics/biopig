@@ -81,7 +81,7 @@
     -->
     <property>
         <name>blast.commandline</name>
-        <value>-m 8 -p tblastn -b 9999999999 -F F</value>
+        <value>-m 8 -p tblastn -b 1000000 -a 8 -e 0.1</value>
     </property>
 
     <!-- the full pathname of the blast executable
@@ -90,6 +90,11 @@
     <property>
         <name>blast.commandpath</name>
         <value>blastall</value>
+    </property>
+
+    <property>
+        <name>blast.usescaledevalue</name>
+        <value>true</value>
     </property>
 
     <property>
@@ -156,6 +161,21 @@
     </property>
 
     <property>
+        <name>assembler.cleanup</name>
+        <value>true</value>
+    </property>
+
+   <property>
+        <name>newbler.commandpath</name>
+        <value>/global/homes/n/nordberg/local/tools/newbler-2.5.3-01-25-2011-threads/bin/runAssembly</value>
+    </property>
+
+   <property>
+        <name>newbler.commandline</name>
+        <value> -m -consed -l 500 -mi 98 -ml 40 </value>
+    </property>
+
+    <property>
         <name>velveth.commandpath</name>
         <value>velveth</value>
     </property>
@@ -165,9 +185,9 @@
         <value>velvetg</value>
     </property>
 
-    <property>
-        <name>assembly.cleanup</name>
-        <value>true</value>
+     <property>
+        <name>cap3.commandpath</name>
+        <value>ap3</value>
     </property>
 
 
