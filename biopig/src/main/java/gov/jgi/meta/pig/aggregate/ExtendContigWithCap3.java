@@ -86,7 +86,14 @@ public class ExtendContigWithCap3 extends EvalFunc<Tuple> {
          contig = SequenceString.byteArrayToSequence(((DataByteArray) values).get());
       } else {
          contig = ((String) values);
+         
+         int s = contig.indexOf('(');
+         int e = contig.indexOf(')');
+         if (s!=-1 && e!=-1 && s<e){
+             contig = contig.substring(s+1,e);
+         }
       }
+
       DataBag bagOfReads = (DataBag) input.get(1);
       String groupId = "contig";
       long numberOfSequences = bagOfReads.size();
@@ -133,23 +140,23 @@ public class ExtendContigWithCap3 extends EvalFunc<Tuple> {
             maxLength = l;
          }
       }
-
- 
      
       Tuple t = DefaultTupleFactory.getInstance().newTuple(2);
       
-//      t.set(0, error);
-//      t.set(1, contig.length());
-
-      if (maxLength > contig.length()) {
+      if (maxLength == 0){
+          t.set(0, contig);
+          t.set(1, 0);        	 
+      }
+      else if (maxLength <=contig.length()){
+          t.set(0, resultMap.get(maxKey));
+          t.set(1, 0);    	  
+      }   
+      else if (maxLength > contig.length()) {
          t.set(0, resultMap.get(maxKey));
-         t.set(1, maxLength);
-         return t;
+         t.set(1, 1);
       }
       
-      else {
-         return null;
-      }
+      return t;
 
    }
 }
