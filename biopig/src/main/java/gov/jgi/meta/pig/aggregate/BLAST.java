@@ -41,6 +41,7 @@ package gov.jgi.meta.pig.aggregate;
 
 import gov.jgi.meta.MetaUtils;
 import gov.jgi.meta.exec.BlastCommand;
+import gov.jgi.meta.exec.NewblerCommand;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -50,6 +51,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.log4j.Logger;
 import org.apache.pig.Accumulator;
 import org.apache.pig.EvalFunc;
 import org.apache.pig.data.DataBag;
@@ -78,6 +80,7 @@ public class BLAST extends EvalFunc<DataBag> implements Accumulator<DataBag> {
    Configuration conf = null;
    String databaseFilename = null;
    Map<String, String> seqMap = null;
+   //private Logger log = Logger.getLogger(BLAST.class);
 
    public DataBag exec(Tuple input) throws IOException {
       accumulate(input);
@@ -153,11 +156,16 @@ public class BLAST extends EvalFunc<DataBag> implements Accumulator<DataBag> {
             */
             String[] a = k.split("\t");
 
-            if (resultMap.containsKey(a[0])) {
-               resultMap.get(a[0]).add(a[1]);
+            if(a.length>=2) {
+	            if (resultMap.containsKey(a[0])) {
+	               resultMap.get(a[0]).add(a[1]);
+	            } else {
+	               resultMap.put(a[0], new HashSet<String>());
+	               resultMap.get(a[0]).add(a[1]);
+	            }
             } else {
-               resultMap.put(a[0], new HashSet<String>());
-               resultMap.get(a[0]).add(a[1]);
+            	//log.warning("Unrecognized BLAST output line for db '" + databaseFilename + "': " + k);
+            	System.err.println("Unrecognized BLAST output line for db '" + databaseFilename + "': " + k);
             }
          }
 
