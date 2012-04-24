@@ -161,7 +161,8 @@ public class Newbler extends EvalFunc<DataBag> {
              maxKey    = key;
              maxLength = l;
           }
-          if ((resultMap.get(key).length()) >  3*length)
+//          if ((resultMap.get(key).length()) >  3*length)
+          if ((resultMap.get(key).length()) >  length)
           {
                  count ++;
                  Tuple t = DefaultTupleFactory.getInstance().newTuple(1);
