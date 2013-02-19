@@ -123,24 +123,31 @@ public class ExtendContigWithCap3 extends EvalFunc<Tuple> {
          seqMap.put("read" + readcount++, (String) t.get(0));
       }
       
-      int error = 0;
-      try {
-         resultMap = assemblerCmd.exec(groupId, seqMap, null);
-      } catch (Exception e) {
-
-         throw new IOException(e);
-      }
- 
       int maxLength = 0;
       String maxKey = null;
-      for (String key : resultMap.keySet()) {
-         int l = resultMap.get(key).length();
-         if (l > maxLength) {
-            maxKey = key;
-            maxLength = l;
-         }
+
+      if( readcount <= 0 ) {
+    	  maxLength = 0; // Don't call cap3 when there are no reads to pass to it.
+    	  resultMap = new HashMap<String, String>();
+      } else {
+      
+	      int error = 0;
+	      try {
+	         resultMap = assemblerCmd.exec(groupId, seqMap, null);
+	      } catch (Exception e) {
+	
+	         throw new IOException(e);
+	      }
+	 
+	      for (String key : resultMap.keySet()) {
+	         int l = resultMap.get(key).length();
+	         if (l > maxLength) {
+	            maxKey = key;
+	            maxLength = l;
+	         }
+	      }
       }
-     
+      
       Tuple t = DefaultTupleFactory.getInstance().newTuple(2);
       
       if (maxLength == 0){
