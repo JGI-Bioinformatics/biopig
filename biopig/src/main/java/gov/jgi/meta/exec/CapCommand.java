@@ -49,6 +49,7 @@ import org.apache.hadoop.util.GenericOptionsParser;
 import org.apache.log4j.Logger;
 
 import java.io.*;
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 
@@ -81,6 +82,11 @@ public class CapCommand implements CommandLineProgram {
     * the location of the executable in the filesystem
     */
    String commandPath = null;
+
+   /**
+    * the location of where to copy input for failed executions
+    */
+   String recoveryPath = null;
 
    /**
     * temporary directory to use for intermediate files
@@ -160,6 +166,11 @@ public class CapCommand implements CommandLineProgram {
          tmpDir = DEFAULTTMPDIR;
       }
 
+      if ((c = config.get("recoverypath")) != null)
+      {
+         recoveryPath = c;
+      }
+
       doCleanup = config.getBoolean("assembler.cleanup", true);
 
       /*
@@ -230,7 +241,7 @@ public class CapCommand implements CommandLineProgram {
       /*
        * dump the database from the map to a file
        */
-      String seqFilepath = MetaUtils.sequenceToLocalFile(seqDatabase, tmpDirFile + "/*");
+      String seqFilepath = MetaUtils.sequenceToLocalFile(seqDatabase, tmpDirFile + "/reads.fa");
 
       if (seqFilepath == null)
       {
@@ -243,7 +254,7 @@ public class CapCommand implements CommandLineProgram {
       if (context != null) { context.setStatus("running cap3 with " + seqDatabase.size() + " reads"); }
 
       /*
-       * now set up a blat execution
+       * now set up a cap3 execution
        */
       List<String> commands = new ArrayList<String>();
       commands.add("/bin/sh");
@@ -260,8 +271,30 @@ public class CapCommand implements CommandLineProgram {
       stderr = commandExecutor.getStandardErrorFromCommand().toString();
 
       log.info("exit = " + exitValue);
-      log.info("stdout = " + stdout);
+      if( exitValue != 0 ) {
+    	  if( recoveryPath != null ) {
+    	      List<String> recoveryCopyCommands = new ArrayList<String>();
+    	      recoveryCopyCommands.add("/bin/sh");
+    	      recoveryCopyCommands.add("-c");
+    	      String tmpDateDir = new SimpleDateFormat("yyyy-MM-dd:hh:mm:ss").format(new Date());    	    
+    	      recoveryCopyCommands.add("mkdir " + recoveryPath + "/" + tmpDateDir + "/");
+    	      recoveryCopyCommands.add("cp -r " + seqFilepath + " " + recoveryPath + "/" + tmpDateDir + "/");
+
+    	      log.info("about to execute copy to recovery path, command = " + recoveryCopyCommands);
+
+    	      SystemCommandExecutor recoveryCopyCommandExecutor = new SystemCommandExecutor(recoveryCopyCommands);
+    	      exitValue = recoveryCopyCommandExecutor.executeCommand();
+    	      String recoveryCommandsStderr = recoveryCopyCommandExecutor.getStandardErrorFromCommand().toString();
+    	      
+    	      if( exitValue != 0 ) {
+    	    	  log.info("Failed to execute '" + recoveryCopyCommands + "'. Reason: " + recoveryCommandsStderr);
+    	      }    	      
+    	  }
+	      log.info("stdout = " + stdout);
+      }
       log.info("stderr = " + stderr);
+      
+      
       
       if( exitValue != 0 )
     	  throw new RuntimeException("Failed to execute cap3 using '" + commands + "'. Reason: " + stderr);
