@@ -6,7 +6,7 @@
 --    k: kmer size for indexing
 --    p: degree of parallelization
 
-register /global/homes/n/nordberg/local/biopig/lib/biopig-core-0.3.0-job.jar;
+register /global/homes/n/nordberg/local/biopig/lib/biopig-core-1.0.0-job.jar;
 
 %default reads '/users/kbhatia/cloud/HiSeq_100M.fas'
 %default output '/users/kbhatia/contigx-out'

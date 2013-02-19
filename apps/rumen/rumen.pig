@@ -7,8 +7,8 @@
 --
 -- 2/9/2011 created
 
---register /global/homes/n/nordberg/local/biopig/lib/biopig-core-0.3.0-job-pig0.8.1.jar;
-register /global/homes/n/nordberg/local/biopig/lib/biopig-core-0.3.0-job.jar;
+--register /global/homes/n/nordberg/local/biopig/lib/biopig-core-1.0.0-job-pig0.8.1.jar;
+register /global/homes/n/nordberg/local/biopig/lib/biopig-core-1.0.0-job.jar;
 
 --
 -- first step: find all the reads that have similarity to the gene library
