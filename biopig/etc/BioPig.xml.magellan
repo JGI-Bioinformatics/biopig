@@ -1,7 +1,4 @@
 <?xml version="1.0" ?>
-
-
-
 <configuration>
 
     <!--
@@ -25,6 +22,11 @@
     <value>162000000</value>
    </property>
 
+
+    <property>
+        <name>recoverypath</name>
+        <value>/homes/oakland/nordberg/recovery</value>
+    </property>
 
      <!--
      defines the maximum size in bytes of each input split.  used to control the minimum
@@ -50,7 +52,7 @@
     -->
     <property>
         <name>blast.commandpath</name>
-        <value>/global/homes/n/nordberg/local/bin/blastall</value>
+        <value>/homes/oakland/nordberg/local/bin/blastall</value>
     </property>
 
     <property>
@@ -60,12 +62,12 @@
 
     <property>
         <name>blat.commandpath</name>
-        <value>/global/homes/n/nordberg/local/bin/blat</value>
+        <value>/homes/oakland/nordberg/local/bin/blat</value>
     </property>
 
     <property>
  	<name>formatdb.commandpath</name>
-  	<value>/global/homes/n/nordberg/local/bin/formatdb</value>
+  	<value>/homes/oakland/nordberg/local/bin/formatdb</value>
     </property>
 
     <property>
@@ -78,7 +80,7 @@
     -->
     <property>
         <name>blast.tmpdir</name>
-        <value>/global/scratch/sd/nordberg/tmp</value>
+        <value>/tmp/nordberg_hadoop_tmp</value>
     </property>
 
     <!--property>
@@ -93,7 +95,7 @@
 
     <property>
         <name>blat.tmpdir</name>
-        <value>/global/scratch/sd/nordberg/tmp</value>
+        <value>/tmp/nordberg_hadoop_tmp</value>
     </property>
 
     <property>
@@ -118,7 +120,7 @@
 
     <property>
 	<name>assembler.tmpdir</name>
-	<value>/global/scratch/sd/nordberg/tmp</value>
+	<value>/tmp/nordberg_hadoop_tmp</value>
     </property>
 
     <property>
@@ -128,7 +130,7 @@
 
    <property>
         <name>newbler.commandpath</name>
-        <value>/global/homes/n/nordberg/local/tools/newbler-2.5.3-01-25-2011-threads/bin/runAssembly</value>
+        <value>/homes/oakland/nordberg/local/tools/newbler-2.5.3-01-25-2011-threads/bin/runAssembly</value>
     </property>
 
    <property>
@@ -138,17 +140,17 @@
 
     <property>
         <name>velveth.commandpath</name>
-        <value>/global/homes/n/nordberg/local/bin/velveth</value>
+        <value>/homes/oakland/nordberg/local/bin/velveth</value>
     </property>
         
    <property>
         <name>velvetg.commandpath</name>
-        <value>/global/homes/n/nordberg/local/bin/velvetg</value>
+        <value>/homes/oakland/nordberg/local/bin/velvetg</value>
     </property>
 
      <property>
         <name>cap3.commandpath</name>
-        <value>/global/homes/n/nordberg/local/bin/cap3</value>
+        <value>/homes/oakland/nordberg/local/bin/cap3</value>
     </property>
 
 </configuration>
