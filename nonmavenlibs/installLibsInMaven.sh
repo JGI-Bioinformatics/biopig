@@ -26,4 +26,5 @@ mvn install:install-file -Dfile=pig-0.9.0-core.jar -DgroupId=org.apache -Dartifa
 
 mvn install:install-file -Dfile=pig-0.9.1.jar -DgroupId=org.apache -DartifactId=pig -Dversion=0.9.1 -Dpackaging=jar -DgeneratePom=true
 
+mvn install:install-file -Dfile=pig-0.10.0.jar -DgroupId=org.apache -DartifactId=pig -Dversion=0.10.0 -Dpackaging=jar -DgeneratePom=true
 
