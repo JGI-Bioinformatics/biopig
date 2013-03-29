@@ -72,8 +72,9 @@ public class MetaUtils {
     * @param conf the job configuration to add the defaults to
     * @param args the commandline args
     * @return modifies conf with appropriate defaults
+ * @throws IOException 
     */
-   public static String[] loadConfiguration(Configuration conf, String[] args)
+   public static String[] loadConfiguration(Configuration conf, String[] args) throws IOException
    {
       return(loadConfiguration(conf, null, args));
    }
@@ -86,8 +87,9 @@ public class MetaUtils {
     * @param configurationFileName the cluster defaults file to load
     * @param args the commandline args
     * @return modifies conf
+ * @throws IOException 
     */
-   public static String[] loadConfiguration(Configuration conf, String configurationFileName, String[] args)
+   public static String[] loadConfiguration(Configuration conf, String configurationFileName, String[] args) throws IOException
    {
       /*
        * first load the configuration from the build properties (typically packaged in the jar)
