@@ -25,7 +25,7 @@
 
     <property>
         <name>recoverypath</name>
-        <value>/homes/oakland/nordberg/recovery</value>
+        <value>/<REPLACE_ME>/recovery</value>
     </property>
 
      <!--
@@ -48,11 +48,10 @@
     </property>
 
     <!-- the full pathname of the blast executable
-     default is: "/home/asczyrba/src/blast-2.2.20/bin/blastall"
     -->
     <property>
         <name>blast.commandpath</name>
-        <value>/homes/oakland/nordberg/local/bin/blastall</value>
+        <value>/homes/<REPLACE_ME>/bin/blastall</value>
     </property>
 
     <property>
@@ -62,12 +61,12 @@
 
     <property>
         <name>blat.commandpath</name>
-        <value>/homes/oakland/nordberg/local/bin/blat</value>
+        <value>/homes/<REPLACE_ME>/bin/blat</value>
     </property>
 
     <property>
  	<name>formatdb.commandpath</name>
-  	<value>/homes/oakland/nordberg/local/bin/formatdb</value>
+  	<value>/homes/<REPLACE_ME>/bin/formatdb</value>
     </property>
 
     <property>
@@ -80,7 +79,7 @@
     -->
     <property>
         <name>blast.tmpdir</name>
-        <value>/tmp/nordberg_hadoop_tmp</value>
+        <value>/tmp/_hadoop_tmp</value>
     </property>
 
     <!--property>
@@ -95,7 +94,7 @@
 
     <property>
         <name>blat.tmpdir</name>
-        <value>/tmp/nordberg_hadoop_tmp</value>
+        <value>/tmp/_hadoop_tmp</value>
     </property>
 
     <property>
@@ -120,7 +119,7 @@
 
     <property>
 	<name>assembler.tmpdir</name>
-	<value>/tmp/nordberg_hadoop_tmp</value>
+	<value>/tmp/_hadoop_tmp</value>
     </property>
 
     <property>
@@ -130,7 +129,7 @@
 
    <property>
         <name>newbler.commandpath</name>
-        <value>/homes/oakland/nordberg/local/tools/newbler-2.5.3-01-25-2011-threads/bin/runAssembly</value>
+        <value>/homes/<REPLACE_ME>/tools/newbler-2.5.3-01-25-2011-threads/bin/runAssembly</value>
     </property>
 
    <property>
@@ -140,17 +139,17 @@
 
     <property>
         <name>velveth.commandpath</name>
-        <value>/homes/oakland/nordberg/local/bin/velveth</value>
+        <value>/homes/<REPLACE_ME>/bin/velveth</value>
     </property>
         
    <property>
         <name>velvetg.commandpath</name>
-        <value>/homes/oakland/nordberg/local/bin/velvetg</value>
+        <value>/homes/<REPLACE_ME>/bin/velvetg</value>
     </property>
 
      <property>
         <name>cap3.commandpath</name>
-        <value>/homes/oakland/nordberg/local/bin/cap3</value>
+        <value>/homes/<REPLACE_ME>/bin/cap3</value>
     </property>
 
 </configuration>
