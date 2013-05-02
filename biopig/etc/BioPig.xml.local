@@ -85,7 +85,6 @@
     </property>
 
     <!-- the full pathname of the blast executable
-     default is: "/home/asczyrba/src/blast-2.2.20/bin/blastall"
     -->
     <property>
         <name>blast.commandpath</name>
@@ -167,7 +166,7 @@
 
    <property>
         <name>newbler.commandpath</name>
-        <value>/global/homes/n/nordberg/local/tools/newbler-2.5.3-01-25-2011-threads/bin/runAssembly</value>
+        <value>/global/homes/<REPLACE_ME>/tools/newbler-2.5.3-01-25-2011-threads/bin/runAssembly</value>
     </property>
 
    <property>
