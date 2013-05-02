@@ -33,7 +33,7 @@ this will generate appropriate maven metadata.
 
 if you want to build without running tests (most likely), then run
 
-% mvn install -DskipTests=true
+% mvn install -Dmaven.test.skip=true
 
 This produces a tar file in biopig/target/biopig-core-0.2.0-bin.tar.gz
 that includes the apps, the configuration directory, and the library files.
