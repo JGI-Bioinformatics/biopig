@@ -1,19 +1,34 @@
-%default p '1'
 
-register /global/homes/k/kbhatia/pipelinelibrary-0.1.1-job.jar;
+
+--
+-- generates N50 histogram.
+--
+-- input params
+--   reads - the input sequences
+--       p - degree of parallelism
+--  output - outputfile
+--
+--
+-- output:
+--   a file with each line representing: <seq length> <total number of basepairs>
+--
+
+%default p '300'
+
+register /../biopig-core-1.0.0-job.jar;
 
 -- load the reads
-A = LOAD '/users/kbhatia/data/1M.fas' USING gov.jgi.meta.pig.storage.FastaStorage AS (id: chararray, d: int, seq: bytearray, header: chararray);
+reads       = load '/.../nt.fas' using gov.jgi.meta.pig.storage.FastaStorage as (id: chararray, d: int, seq: bytearray, header: chararray);
 
 -- foreach read, generate its size (number of bases) and sort set by size
-Z = foreach A generate SIZE(seq);
-Y = ORDER Z by $0 DESC;
-B = GROUP Y all;
+readsizes   = foreach reads generate SIZE(seq) as size;
+sorted      = order readsizes by size DESC PARALLEL $p;
+grouped     = group sorted by '1' PARALLEL $p;
 
 -- calculate the total number of bases as a sum of the individual counts
-readcounts  = foreach B generate SUM(Y);
+counts      = foreach grouped generate SUM(sorted) as totalcount;
 
 -- finally, stream over sorted sizes and return the one size that goes over the mid way point
---n50         = FOREACH readsizes GENERATE N50(readsizes,(long)(readcounts.totalcount/2));
+n50         = foreach grouped generate gov.jgi.meta.pig.eval.N50(sorted,5785080285L);
 
-dump readcounts;
+dump n50; 
