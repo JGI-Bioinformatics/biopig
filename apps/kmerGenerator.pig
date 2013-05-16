@@ -11,11 +11,11 @@
 --   OUTPUTDIR=             the directory to put the results
 --   P=                     the level of parallelism for the reduce, defaults to 10
 
-register pipelineLib/target/pipelinelibrary-1.0-beta2-job.jar
+register /.../biopig-core-1.0.0-job.jar
 
-%default READS '/scratch/karan/1M.fas'
+%default READS '/.../1M.fas'
 %default P '10'
-%default OUTPUTDIR '/scratch/karan/x'
+%default OUTPUTDIR '/.../x'
 
 A = load '$READS' using gov.jgi.meta.pig.storage.FastaStorage as (readid: chararray, d: int, seq: chararray);
 B = foreach A generate FLATTEN(gov.jgi.meta.pig.eval.KmerGenerator(seq, 40)) as (kmer:chararray);
