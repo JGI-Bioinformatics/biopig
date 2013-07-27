@@ -32,7 +32,7 @@ to build
 
 To build the software, you need to have maven.  install maven and then build using
 
-   % mvn package -DskipTests=true
+   % mvn package -Dmaven.test.skip=true
 
 this will produce a JAR file in biopig/target/biopig-<version>-all.jar
 
