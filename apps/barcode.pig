@@ -2,7 +2,7 @@
 -- bins a set of sequences based on barcode (first 10 bases)
 --
 -- given a set of sequences that are barcoded, groups the sequence ids based
--- on the barcode.  supports edit-distance of 2.
+-- on the barcode.  supports hamming-distance of 2.
 --
 
 %default p '50'
@@ -12,7 +12,7 @@ register /.../biopig-core-1.0.0-job.jar;
 -- first load the barcodes
 a = load '/.../barcodes.fa' using gov.jgi.meta.pig.storage.FastaStorage as (id: chararray, d: int, seq: bytearray);
 b = foreach a generate id, gov.jgi.meta.pig.eval.UnpackSequence(seq);
-c = foreach b generate id, FLATTEN(gov.jgi.meta.pig.eval.SequenceEditDistance($1, 2));
+c = foreach b generate id, FLATTEN(gov.jgi.meta.pig.eval.HammingDistance($1, 2));
 
 -- now the sequences
 z = load '/.../1433.4.1382.fastq.fasta' using gov.jgi.meta.pig.storage.FastaStorage as (id: chararray, d: int, seq: bytearray);

@@ -51,14 +51,14 @@ import java.io.IOException;
 import java.util.Iterator;
 
 /**
- * SequenceEditDistance Tester.
+ * HammingDistance Tester.
  *
  * @author <Authors name>
  * @since <pre>02/04/2011</pre>
  * @version 1.0
  */
-public class SequenceEditDistanceTest extends TestCase {
-    public SequenceEditDistanceTest(String name) {
+public class HammingDistanceTest extends TestCase {
+    public HammingDistanceTest(String name) {
         super(name);
     }
 
@@ -79,7 +79,7 @@ public class SequenceEditDistanceTest extends TestCase {
 
                   "b = foreach a generate gov.jgi.meta.pig.eval.SubSequence(seq, 0, 10);\n" +
                   "c = foreach b generate gov.jgi.meta.pig.eval.UnpackSequence($0);\n" +
-                  "d = foreach c generate COUNT(gov.jgi.meta.pig.eval.SequenceEditDistance($0, 0));";
+                  "d = foreach c generate COUNT(gov.jgi.meta.pig.eval.HammingDistance($0, 0));";
 
           Util.registerMultiLineQuery(ps, script);
           Iterator<Tuple> it = ps.openIterator("d");
@@ -95,7 +95,7 @@ public class SequenceEditDistanceTest extends TestCase {
 
                   "b = foreach a generate gov.jgi.meta.pig.eval.SubSequence(seq, 0, 10);\n" +
                   "c = foreach b generate gov.jgi.meta.pig.eval.UnpackSequence($0);\n" +
-                  "d = foreach c generate COUNT(gov.jgi.meta.pig.eval.SequenceEditDistance($0, 1));";
+                  "d = foreach c generate COUNT(gov.jgi.meta.pig.eval.HammingDistance($0, 1));";
 
           Util.registerMultiLineQuery(ps, script);
           Iterator<Tuple> it = ps.openIterator("d");
@@ -111,7 +111,7 @@ public class SequenceEditDistanceTest extends TestCase {
 
                   "b = foreach a generate gov.jgi.meta.pig.eval.SubSequence(seq, 0, 10);\n" +
                   "c = foreach b generate gov.jgi.meta.pig.eval.UnpackSequence($0);\n" +
-                  "d = foreach c generate COUNT(gov.jgi.meta.pig.eval.SequenceEditDistance($0, 2));";
+                  "d = foreach c generate COUNT(gov.jgi.meta.pig.eval.HammingDistance($0, 2));";
 
           Util.registerMultiLineQuery(ps, script);
           Iterator<Tuple> it = ps.openIterator("d");
@@ -121,6 +121,6 @@ public class SequenceEditDistanceTest extends TestCase {
 
 
     public static Test suite() {
-        return new TestSuite(SequenceEditDistanceTest.class);
+        return new TestSuite(HammingDistanceTest.class);
     }
 }

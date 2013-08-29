@@ -512,9 +512,9 @@ public class MetaUtils {
    }
 
    /**
-    * find all sequences that are within distance edit distance
+    * find all sequences that are within distance 'distance'
     * @param start sequence to start with
-    * @param distance edit distance
+    * @param distance -- hamming distance
     * @return set of sequences that are within distance including start sequence
     */
    public static Set<String> generateAllNeighbors(String start, int distance)

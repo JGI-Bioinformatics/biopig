@@ -52,8 +52,8 @@ import java.util.Set;
 
 /**
  */
-public class SequenceEditDistance extends EvalFunc<DataBag> {
-    private static final Log LOG = LogFactory.getLog(SequenceEditDistance.class);
+public class HammingDistance extends EvalFunc<DataBag> {
+    private static final Log LOG = LogFactory.getLog(HammingDistance.class);
 
     public DataBag exec(Tuple input) throws IOException {
 
@@ -64,18 +64,18 @@ public class SequenceEditDistance extends EvalFunc<DataBag> {
         try{
            String seq = ((String) input.get(0));
            //byte[] ba  = ((DataByteArray) input.get(0)).get();
-           int editDistance = (Integer) input.get(1);
+           int distance = (Integer) input.get(1);
            //int seqLength = SequenceString.numBases(ba);
            //String seq = SequenceString.byteArrayToSequence(ba);
            
-           Set<String> neighbors = MetaUtils.generateAllNeighborsWithinDistance(seq, editDistance);
+           Set<String> neighbors = MetaUtils.generateAllNeighborsWithinDistance(seq, distance);
            for (String n : neighbors) {
                 Tuple t = DefaultTupleFactory.getInstance().newTuple(1);
                 t.set(0, n);
                 output.add(t);
               }
         }catch(Exception e){
-            System.err.println("sequenceeditdistance: failed to process input; error - " + e.getMessage());
+            System.err.println("HammingDistance: failed to process input; error - " + e.getMessage());
             return null;
         }
        return output;
