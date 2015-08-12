@@ -40,7 +40,6 @@
 package test.gov.jgi.meta.exec;
 
 import gov.jgi.meta.MetaUtils;
-import gov.jgi.meta.exec.CapCommand;
 import gov.jgi.meta.exec.MinimusCommand;
 import junit.framework.Test;
 import junit.framework.TestCase;
@@ -88,7 +87,7 @@ public class MinimusCommandTest extends TestCase {
 
          Map<String, String> tmpmap = assemblerCmd.exec("test", value, null);
          assemblerCmd.cleanup();
-         Assert.assertTrue(tmpmap.size() == 1);
+         Assert.assertEquals(tmpmap.size(),1);
 
       } catch (Exception e) {
          Assert.fail(e.toString());

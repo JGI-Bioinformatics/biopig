@@ -123,6 +123,7 @@ public class BlastCommandTest extends TestCase {
 
       BlastCommand b = new BlastCommand(conf);
       r = b.exec(l, "target/test-classes/EC3.2.1.4.faa");
+      System.out.println(b.commandString.toString());
       Assert.assertTrue(b.commandString.toString().indexOf("-e 10.48") > 0);
       b.cleanup();
 

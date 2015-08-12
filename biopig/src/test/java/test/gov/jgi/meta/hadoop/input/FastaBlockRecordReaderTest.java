@@ -1,11 +1,12 @@
-package gov.jgi.meta.hadoop.input;
+package test.gov.jgi.meta.hadoop.input;
 
+import gov.jgi.meta.hadoop.input.FastaBlockInputFormat;
+import gov.jgi.meta.hadoop.input.FastaBlockLineReader;
 import junit.framework.Test;
 import junit.framework.TestSuite;
 import junit.framework.TestCase;
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.InputSplit;
 
+import org.apache.hadoop.io.Text;
 import java.io.FileInputStream;
 import java.util.HashMap;
 import java.util.Map;

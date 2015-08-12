@@ -166,7 +166,7 @@
 
    <property>
         <name>newbler.commandpath</name>
-        <value>/global/homes/<REPLACE_ME>/tools/newbler-2.5.3-01-25-2011-threads/bin/runAssembly</value>
+        <value>/global/homes/tools/newbler-2.5.3-01-25-2011-threads/bin/runAssembly</value>
     </property>
 
    <property>

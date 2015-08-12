@@ -41,7 +41,7 @@ package gov.jgi.meta.pig.aggregate;
 
 import gov.jgi.meta.MetaUtils;
 import gov.jgi.meta.exec.BlastCommand;
-import gov.jgi.meta.exec.NewblerCommand;
+
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -51,7 +51,6 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.log4j.Logger;
 import org.apache.pig.Accumulator;
 import org.apache.pig.EvalFunc;
 import org.apache.pig.data.DataBag;

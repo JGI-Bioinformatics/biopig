@@ -42,8 +42,8 @@ package gov.jgi.meta.pig.aggregate;
 import gov.jgi.meta.MetaUtils;
 import gov.jgi.meta.exec.CapCommand;
 import gov.jgi.meta.exec.CommandLineProgram;
-import gov.jgi.meta.exec.NewblerCommand;
 import gov.jgi.meta.sequence.SequenceString;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.pig.EvalFunc;
 import org.apache.pig.data.DataBag;

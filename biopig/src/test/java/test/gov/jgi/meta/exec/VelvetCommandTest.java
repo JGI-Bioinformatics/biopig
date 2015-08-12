@@ -40,7 +40,6 @@
 package test.gov.jgi.meta.exec;
 
 import gov.jgi.meta.MetaUtils;
-import gov.jgi.meta.exec.CapCommand;
 import gov.jgi.meta.exec.VelvetCommand;
 import junit.framework.Test;
 import junit.framework.TestSuite;

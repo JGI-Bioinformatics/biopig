@@ -47,8 +47,6 @@ import org.apache.hadoop.io.Text;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * A class that provides a line reader from an input stream.

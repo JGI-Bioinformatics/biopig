@@ -39,7 +39,6 @@
 
 package gov.jgi.meta.exec;
 
-import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 
 import java.io.IOException;

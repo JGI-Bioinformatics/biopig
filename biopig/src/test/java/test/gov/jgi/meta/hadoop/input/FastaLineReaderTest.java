@@ -39,9 +39,7 @@
 
 package test.gov.jgi.meta.hadoop.input;
 
-import gov.jgi.meta.hadoop.input.FastaBlockLineReader;
 import gov.jgi.meta.hadoop.input.FastaLineReader;
-import gov.jgi.meta.hadoop.input.FastqLineReader;
 import gov.jgi.meta.sequence.SequenceString;
 import junit.framework.Test;
 import junit.framework.TestSuite;
@@ -50,8 +48,6 @@ import org.apache.hadoop.io.Text;
 import org.junit.Assert;
 
 import java.io.FileInputStream;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * FastaLineReader Tester.

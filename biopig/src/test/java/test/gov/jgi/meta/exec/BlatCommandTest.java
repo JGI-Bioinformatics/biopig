@@ -40,19 +40,14 @@
 package test.gov.jgi.meta.exec;
 
 import gov.jgi.meta.MetaUtils;
-import gov.jgi.meta.exec.BlastCommand;
 import gov.jgi.meta.exec.BlatCommand;
 import junit.framework.Test;
 import junit.framework.TestSuite;
 import junit.framework.TestCase;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.io.Text;
 import org.junit.Assert;
 
 import java.io.File;
-import java.io.IOException;
-import java.net.InetAddress;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -110,7 +105,7 @@ public class BlatCommandTest extends TestCase {
        Assert.assertTrue(s.size() == 1);
 
        Assert.assertEquals("Blat output not what was expected", (s.toArray())[0],
-       "AAA02563.1, 756:1:1:1196:17481/1, 756:1:1:1196:17481/2, 756:1:1:1276:8904/1, 756:1:1:1276:8904/2, 756:1:1:1319:17745/2, 756:1:1:1319:17745/1, 756:1:1:1574:14523/2, 756:1:1:1574:14523/1, 756:1:1:1410:12617/1, 756:1:1:1410:12617/2, 756:1:1:1586:3684/2, 756:1:1:1483:18618/2, 756:1:1:1240:9612/2, 756:1:1:1386:15793/2, 756:1:1:1483:18618/1, 756:1:1:1100:4343/1, 756:1:1:1364:13482/2, 756:1:1:1100:4343/2, 756:1:1:1586:3684/1, 756:1:1:1386:15793/1, 756:1:1:1364:13482/1, 756:1:1:1240:9612/1, 756:1:1:1313:3308/2, 756:1:1:1313:3308/1");
+       "AAA02563.1, 756:1:1:1386:15793/2, 756:1:1:1386:15793/1, 756:1:1:1319:17745/2, 756:1:1:1319:17745/1, 756:1:1:1196:17481/2, 756:1:1:1276:8904/2, 756:1:1:1196:17481/1, 756:1:1:1276:8904/1, 756:1:1:1364:13482/1, 756:1:1:1364:13482/2, 756:1:1:1240:9612/1, 756:1:1:1100:4343/2, 756:1:1:1240:9612/2, 756:1:1:1100:4343/1, 756:1:1:1313:3308/2, 756:1:1:1410:12617/2, 756:1:1:1313:3308/1, 756:1:1:1410:12617/1, 756:1:1:1574:14523/2, 756:1:1:1574:14523/1, 756:1:1:1586:3684/1, 756:1:1:1483:18618/1, 756:1:1:1586:3684/2, 756:1:1:1483:18618/2");
     }
 
     public void testMakeSureTempFilesAreCleanedUp() {

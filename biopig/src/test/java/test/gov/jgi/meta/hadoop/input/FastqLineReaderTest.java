@@ -39,7 +39,6 @@
 
 package test.gov.jgi.meta.hadoop.input;
 
-import gov.jgi.meta.hadoop.input.FastaLineReader;
 import gov.jgi.meta.hadoop.input.FastqLineReader;
 import junit.framework.Test;
 import junit.framework.TestSuite;

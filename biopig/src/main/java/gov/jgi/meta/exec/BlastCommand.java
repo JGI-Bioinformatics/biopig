@@ -81,7 +81,7 @@ import com.devdaily.system.SystemCommandExecutor;
 public class BlastCommand {
    String DEFAULTCOMMANDLINE = "-m 8 -p tblastn -b 1000000 -a 10";
 //   String DEFAULTCOMMANDPATH = "/home/asczyrba/src/blast-2.2.20/bin/blastall";
-   String DEFAULTCOMMANDPATH = "/global/common/carver/jgi/blast-2.2.23/bin/blastall";
+   String DEFAULTCOMMANDPATH = "blastall";
    String DEFAULTTMPDIR      = "/tmp/blast";
 
    String DEFAULTFORMATDBCOMMANDLINE = "-o T -p F";

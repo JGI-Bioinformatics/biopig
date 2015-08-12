@@ -25,7 +25,7 @@
 
     <property>
         <name>recoverypath</name>
-        <value>/<REPLACE_ME>/recovery</value>
+        <value>//recovery</value>
     </property>
 
      <!--
@@ -51,7 +51,7 @@
     -->
     <property>
         <name>blast.commandpath</name>
-        <value>/homes/<REPLACE_ME>/bin/blastall</value>
+        <value>blastall</value>
     </property>
 
     <property>
@@ -61,12 +61,12 @@
 
     <property>
         <name>blat.commandpath</name>
-        <value>/homes/<REPLACE_ME>/bin/blat</value>
+        <value>/homes//bin/blat</value>
     </property>
 
     <property>
  	<name>formatdb.commandpath</name>
-  	<value>/homes/<REPLACE_ME>/bin/formatdb</value>
+  	<value>formatdb</value>
     </property>
 
     <property>
@@ -129,7 +129,7 @@
 
    <property>
         <name>newbler.commandpath</name>
-        <value>/homes/<REPLACE_ME>/tools/newbler-2.5.3-01-25-2011-threads/bin/runAssembly</value>
+        <value>/homes//tools/newbler-2.5.3-01-25-2011-threads/bin/runAssembly</value>
     </property>
 
    <property>
@@ -139,17 +139,17 @@
 
     <property>
         <name>velveth.commandpath</name>
-        <value>/homes/<REPLACE_ME>/bin/velveth</value>
+        <value>/homes//bin/velveth</value>
     </property>
         
    <property>
         <name>velvetg.commandpath</name>
-        <value>/homes/<REPLACE_ME>/bin/velvetg</value>
+        <value>/homes//bin/velvetg</value>
     </property>
 
      <property>
         <name>cap3.commandpath</name>
-        <value>/homes/<REPLACE_ME>/bin/cap3</value>
+        <value>/homes//bin/cap3</value>
     </property>
 
 </configuration>

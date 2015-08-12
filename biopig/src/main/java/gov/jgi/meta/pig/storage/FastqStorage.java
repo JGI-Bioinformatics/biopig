@@ -39,7 +39,6 @@
 
 package gov.jgi.meta.pig.storage;
 
-import gov.jgi.meta.hadoop.input.FastaInputFormat;
 import gov.jgi.meta.hadoop.input.FastqInputFormat;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputFormat;

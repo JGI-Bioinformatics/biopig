@@ -49,7 +49,7 @@
 
     <property>
         <name>minimus.commandpath</name>
-        <value>/house/homedirs/j/jfroula/Tools/General/minimus2.pl</value>
+        <value>minimus2</value>
     </property>
     
     <property>

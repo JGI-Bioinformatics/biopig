@@ -40,14 +40,11 @@
 package gov.jgi.meta.pig.eval;
 
 import gov.jgi.meta.sequence.SequenceString;
-import org.apache.commons.lang.StringUtils;
 import org.apache.pig.EvalFunc;
-import org.apache.pig.backend.executionengine.ExecException;
 import org.apache.pig.data.*;
 import org.apache.pig.impl.logicalLayer.schema.Schema;
 
 import java.io.IOException;
-import java.util.Iterator;
 
 
 /**

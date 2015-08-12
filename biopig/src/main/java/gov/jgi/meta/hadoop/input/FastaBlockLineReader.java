@@ -48,10 +48,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-
-import static java.lang.Thread.sleep;
 
 /**
  * A class that provides a line reader from an input stream.

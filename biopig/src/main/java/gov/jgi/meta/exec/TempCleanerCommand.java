@@ -39,11 +39,9 @@
 
 package gov.jgi.meta.exec;
 
-import com.devdaily.system.SystemCommandExecutor;
+
 import gov.jgi.meta.MetaUtils;
-import gov.jgi.meta.hadoop.input.FastaBlockLineReader;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.log4j.Logger;
 

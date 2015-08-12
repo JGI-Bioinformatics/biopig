@@ -9,7 +9,7 @@ jar file that can then be used on hadoop clusters or through the pig query langu
 ---------------------------------------------------------
 
 You will need java and maven to build the software.  To run, you need
-a hadoop cluster (version 0.20 or later) and Pig (version 0.7.0 or later).
+a hadoop cluster (version 2.70 or later) and Pig (version 0.15.0 or later).
 
 ---------------------------------------------------------
 1. add non-maven libraries to your local maven repository

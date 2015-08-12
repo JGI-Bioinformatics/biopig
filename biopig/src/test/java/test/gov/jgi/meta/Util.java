@@ -20,7 +20,6 @@ package test.gov.jgi.meta;
 import static java.util.regex.Matcher.quoteReplacement;
 
 import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -32,10 +31,8 @@ import java.io.OutputStreamWriter;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.StringReader;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 
 import junit.framework.Assert;
@@ -52,21 +49,15 @@ import org.apache.pig.backend.executionengine.ExecException;
 import org.apache.pig.backend.hadoop.datastorage.ConfigurationUtil;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.MRCompiler;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.plans.MROperPlan;
-import org.apache.pig.backend.hadoop.executionengine.physicalLayer.LogToPhyTranslationVisitor;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.plans.PhysicalPlan;
 import org.apache.pig.data.BagFactory;
 import org.apache.pig.data.DataBag;
 import org.apache.pig.data.DataByteArray;
-import org.apache.pig.data.DataType;
 import org.apache.pig.data.Tuple;
 import org.apache.pig.data.TupleFactory;
 //import org.apache.pig.experimental.logical.optimizer.PlanPrinter;
 import org.apache.pig.impl.PigContext;
 import org.apache.pig.impl.io.FileLocalizer;
-import org.apache.pig.impl.logicalLayer.LogicalPlan;
-import org.apache.pig.impl.logicalLayer.parser.ParseException;
-import org.apache.pig.impl.logicalLayer.parser.QueryParser;
-import org.apache.pig.impl.logicalLayer.schema.Schema;
 import org.apache.pig.tools.grunt.GruntParser;
 
 public class Util {
@@ -347,9 +338,8 @@ public class Util {
         PigServer ps = new PigServer(ExecType.MAPREDUCE, cluster.getProperties());
         String script = "fs -put " + localFileName + " " + fileNameOnCluster;
 
-	    GruntParser parser = new GruntParser(new StringReader(script));
+	    GruntParser parser = new GruntParser(new StringReader(script),ps);
         parser.setInteractive(false);
-        parser.setParams(ps);
         try {
             parser.parseStopOnError();
         } catch (org.apache.pig.tools.pigscript.parser.ParseException e) {
@@ -422,6 +412,8 @@ public class Util {
             throw new IllegalStateException("ExecType: " + context.getExecType());
         }
     }
+    
+    /*
 
     public static Schema getSchemaFromString(String schemaString) throws ParseException {
         return Util.getSchemaFromString(schemaString, DataType.BYTEARRAY);
@@ -448,7 +440,7 @@ public class Util {
         }
         return result;
     }
-
+*/
     public static File createFile(String[] data) throws Exception{
         File f = File.createTempFile("tmp", "");
         PrintWriter pw = new PrintWriter(f);
@@ -459,12 +451,14 @@ public class Util {
         return f;
     }
     
+    /*
     public static PhysicalPlan buildPhysicalPlan(LogicalPlan lp, PigContext pc) throws Exception {
     	LogToPhyTranslationVisitor visitor = new LogToPhyTranslationVisitor(lp);
     	visitor.setPigContext(pc);
     	visitor.visit();
     	return visitor.getPhysicalPlan();
     }
+    */
     
     public static MROperPlan buildMRPlan(PhysicalPlan pp, PigContext pc) throws Exception{
         MRCompiler comp = new MRCompiler(pp, pc);
@@ -528,12 +522,14 @@ public class Util {
 //        System.err.println(out.toString());
 //    }
 
+    /*
     public static void printPlan(LogicalPlan logicalPlan) throws Exception {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         PrintStream ps = new PrintStream(out);
         logicalPlan.explain(ps, "text", true);
         System.err.println(out.toString());
     }
+    */
 
     public static void printPlan(PhysicalPlan physicalPlan) throws Exception {
         ByteArrayOutputStream out = new ByteArrayOutputStream();

@@ -40,7 +40,6 @@
 package test.gov.jgi.meta.exec;
 
 import gov.jgi.meta.MetaUtils;
-import gov.jgi.meta.exec.BlatCommand;
 import gov.jgi.meta.exec.CapCommand;
 import junit.framework.Test;
 import junit.framework.TestSuite;
@@ -50,8 +49,6 @@ import org.junit.Assert;
 
 import java.io.File;
 import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
 
 /**
  * CapCommand Tester.

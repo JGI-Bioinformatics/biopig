@@ -47,7 +47,6 @@ import org.apache.pig.PigServer;
 import org.apache.pig.data.Tuple;
 import test.gov.jgi.meta.Util;
 
-import java.io.IOException;
 import java.util.Iterator;
 
 /**
