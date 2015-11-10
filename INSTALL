@@ -73,8 +73,12 @@ cp biopig-core-1.0.0-job.jar biopig/lib/biopig-core-1.0.0-job.jar
 
 ** Running BioPig Scripts
 
-There is a helper script for running BioPig jobs: biopig/bin/biopig.file.sh
-It takes care of naming your jobs according to the BioPig script and the data file so you can find it in Hadoop job viewer
-You run the scripts like this (assuming biopig/bin is in your $PATH): 
+There are sample scripts for running BioPig jobs
+First set the parameters in the .pig file,
+then you run the scripts like this (assuming biopig/ is in your $PATH): 
 
-biopig/bin/biopig.file.sh 100 100 kmerStats.pig /users/nordberg/cloud/HiSeq_10000M.fas
+Run pig app in mapreduce mode
+pig biopig/apps/kmerCount.pig
+
+Run pig app in local mode
+pig -x local biopig/apps/kmerCount.pig
