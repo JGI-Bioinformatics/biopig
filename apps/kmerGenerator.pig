@@ -17,7 +17,7 @@ register /.../biopig-core-1.0.0-job.jar
 %default P '10'
 %default OUTPUTDIR '/.../x'
 
-A = load '$READS' using gov.jgi.meta.pig.storage.FastaStorage as (readid: chararray, d: int, seq: chararray);
+A = load '$READS' using gov.jgi.meta.pig.storage.FastaStorage as (readid: chararray, d: int, seq: bytearray);
 B = foreach A generate FLATTEN(gov.jgi.meta.pig.eval.KmerGenerator(seq, 40)) as (kmer:chararray);
 C = DISTINCT B PARALLEL $P;
 
