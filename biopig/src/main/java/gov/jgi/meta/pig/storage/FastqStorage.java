@@ -106,7 +106,8 @@ public class FastqStorage extends LoadFunc {
             seqkey = seqid;
             direction = "0";
          }
-         String value     =  (String) in.getCurrentValue();
+         String value     =  (String) (in.getCurrentValue().toString());
+	 //Text value     =  (Text)in.getCurrentValue();
          mProtoTuple.add(new DataByteArray(seqkey.getBytes(), 0, seqkey.length()));                           // add key
          mProtoTuple.add(new DataByteArray(direction.getBytes(), 0, direction.length()));               // add direction
          mProtoTuple.add(new DataByteArray(value.getBytes(), 0, value.length()));                       // add sequence

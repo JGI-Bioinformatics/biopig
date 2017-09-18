@@ -57,6 +57,7 @@ public class FastqLineReader {
     private int bufferSize = DEFAULT_BUFFER_SIZE;
     private InputStream in;
     private byte[] buffer;
+
     // the number of bytes of real data in the buffer
     private int bufferLength = 0;
     // the current position in the buffer
@@ -161,7 +162,7 @@ public class FastqLineReader {
             return totalBytesRead;
 
         /*
-        now bufferPosn should be at the start of a fasta record
+        now bufferPosn should be at the start of a fastq record
          */
         totalBytesRead += (bufferPosn - 1) - startPosn;
         startPosn = bufferPosn - 1;  // startPosn guaranteed to be at a "@"
@@ -170,6 +171,7 @@ public class FastqLineReader {
         find the next record start
          */
         eof = false;
+	int numOfNewlines = 0;//Added by lanhin
         do {
             if (bufferPosn >= bufferLength) {
 
@@ -187,8 +189,17 @@ public class FastqLineReader {
                     break; // EOF
                 }
             }
-
-        } while (buffer[bufferPosn++] != '@');  // only read one record at a time
+	    //Modefied by lanhin
+	    if(buffer[bufferPosn] == CR || buffer[bufferPosn] == LF){
+		numOfNewlines ++;
+	    }
+	    if((numOfNewlines >= 4) && buffer[bufferPosn] == '@'){
+		bufferPosn ++;
+		break;
+	    }
+	    bufferPosn ++;
+        } while (true);//buffer[bufferPosn++] != '@');  // only read one record at a time
+	//Modefied by lanhin end
 
         if (!eof) {
             bufferPosn--;  // make sure we leave bufferPosn pointing to the next record
@@ -259,7 +270,11 @@ public class FastqLineReader {
             /*
            now skip characters (newline or carige return most likely) till record start
             */
-            while (j < recordBlock.getLength() && recordBlock.charAt(j) != '@') {
+            while (j < recordBlock.getLength()){
+		// && recordBlock.charAt(j) != '@') {  // Modified by lanhin
+		/* Should go straight to the end of recordBlock,
+		   ignore all the left info.  --lanhin*/
+
                 j++;
             }
 
